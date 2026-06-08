@@ -84,7 +84,7 @@ services:
     
   mongodb:
     container_name: quantum-mongodb
-    image: mongo:latest
+    image: mongo:7.0
     ports:
       - "${MONGO_DB_PORT}:27021"
 

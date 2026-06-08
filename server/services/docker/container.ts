@@ -116,7 +116,7 @@ class DockerContainer{
     async installDefaultPackages(){
         try{
             await this.executeCommand('apk update');
-            await this.executeCommand(`apk add ${process.env.DOCKER_APK_STARTER_PACKAGES}`);
+            await this.executeCommand('apk add --no-cache git');
         }catch(error){
             logger.error('@services/docker/container.ts (installDefaultPackages): ' + error);
         }
@@ -513,7 +513,6 @@ class DockerContainer{
             await container.start();
             if(this.container.isRepositoryContainer){
                 await this.installDefaultPackages();
-                this.deployRepository();
             }
             await this.container.updateOne({ status: 'running' });
             return container;

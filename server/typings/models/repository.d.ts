@@ -7,12 +7,17 @@ export interface IRepository extends Document{
     alias: string;
     _id: string | mongoose.Types.ObjectId;
     name: string;
+    owner: string;
     branch: string;
     webhookId?: number;
     buildCommand?: string;
     installCommand?: string;
     startCommand?: string;
     rootDirectory?: string;
+    framework?: string;
+    runtime?: string;
+    runtimeVersion?: string;
+    outputDirectory?: string;
     container: mongoose.Schema.Types.ObjectId | IDockerContainer;
     user: mongoose.Schema.Types.ObjectId | IUser;
     url: string;

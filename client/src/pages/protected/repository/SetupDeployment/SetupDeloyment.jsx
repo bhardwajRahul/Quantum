@@ -21,14 +21,32 @@ import { useDocumentTitle } from '@hooks/common';
 import RelatedRepositorySections from '@components/molecules/RelatedRepositorySections';
 import './SetupDeployment.css';
 
+const RUNTIME_OPTIONS = [
+    ['node:18', 'Node 18'],
+    ['node:20', 'Node 20'],
+    ['node:22', 'Node 22'],
+    ['python:3.11', 'Python 3.11'],
+    ['python:3.12', 'Python 3.12'],
+    ['go:1.22', 'Go 1.22'],
+    ['static', 'Static']
+];
+
 const SetupDeployment = () => {
     const { isOperationLoading, error, selectedRepository } = useSelector((state) => state.repository);
     const navigate = useNavigate();
     const dispatch = useDispatch();
     useDocumentTitle('Build & Development Setting');
 
+    const initialRuntimePreset = selectedRepository?.runtime
+        ? (selectedRepository.runtimeVersion
+            ? `${selectedRepository.runtime}:${selectedRepository.runtimeVersion}`
+            : selectedRepository.runtime)
+        : 'node:20';
+
     const handleFormSubmit = (formValues) => {
-        dispatch(updateRepository(selectedRepository._id, formValues, navigate));
+        const { runtimePreset, ...rest } = formValues;
+        const [runtime, runtimeVersion = ''] = (runtimePreset || '').split(':');
+        dispatch(updateRepository(selectedRepository._id, { ...rest, runtime, runtimeVersion }, navigate));
     };
 
     useEffect(() => {
@@ -58,6 +76,14 @@ const SetupDeployment = () => {
                 value: selectedRepository?.alias,
                 helperText: 'Enter an alias to identify your repository within the platform. This must be unique in your account, that is, you must not have two or more repositories with the same alias.',
                 placeholder: 'For example: "My Blog Application [Frontend]"'
+            },
+            {
+                type: 'select',
+                name: 'runtimePreset',
+                value: initialRuntimePreset,
+                options: RUNTIME_OPTIONS,
+                helperText: 'The runtime and version used to build and run your application.',
+                placeholder: 'Select a runtime'
             },
             {
                 type: 'text',

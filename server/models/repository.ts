@@ -19,6 +19,8 @@ import { v4 } from 'uuid';
 import { IDockerContainer } from '@typings/models/docker/container';
 import Github from '@services/github';
 import RepositoryHandler from '@services/repositoryHandler';
+import { getRuntimeImage } from '@services/runtime/registry';
+import logger from '@utilities/logger';
 
 const RepositorySchema: Schema<IRepository> = new Schema({
     alias: {
@@ -29,6 +31,9 @@ const RepositorySchema: Schema<IRepository> = new Schema({
     name: {
         type: String,
         required: [true, 'Repository::Name::Required']
+    },
+    owner: {
+        type: String
     },
     container: {
         type: mongoose.Schema.Types.ObjectId,
@@ -43,6 +48,10 @@ const RepositorySchema: Schema<IRepository> = new Schema({
     installCommand: { type: String, default: '' },
     startCommand: { type: String, default: '' },
     rootDirectory: { type: String, default: '/' },
+    framework: String,
+    runtime: String,
+    runtimeVersion: String,
+    outputDirectory: String,
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
@@ -114,10 +123,9 @@ const getRepositoryData = async (_id: mongoose.Types.ObjectId) => {
 const createWebhook = async (github: Github, webhookEndpoint: string): Promise<number> => {
     try{
         const webhookId = await github.createWebhook(webhookEndpoint, process.env.SECRET_KEY || '');
-        return Number(webhookId);
+        return Number(webhookId) || 0;
     }catch(err: any){
-        if(err?.response?.data?.message !== 'Repository was archived so is read-only.')
-            throw err;
+        logger.warn('@models/repository.ts (createWebhook): Webhook not created, continuing without auto-deploy: ' + (err?.message || err));
         return 0;
     }
 };
@@ -141,8 +149,10 @@ const handleUpdateCommands = async (context: any) => {
 
 // TODO: refactor with @models/user.ts - createUserContainer
 const createRepositoryContainer = async (repository: IRepository): Promise<IDockerContainer> => {
-    // TODO: Image SHOULD exists, because the main user container uses it.
-    const image = await mongoose.model('DockerImage').findOne({ name: 'alpine', tag: 'latest' });
+    const { name, tag } = getRuntimeImage(repository.runtime, repository.runtimeVersion);
+    const DockerImage = mongoose.model('DockerImage');
+    const image = await DockerImage.findOne({ name, tag })
+        || await DockerImage.create({ name, tag, user: repository.user });
     const network = await mongoose.model('DockerNetwork').create({
         user: repository.user,
         driver: 'bridge',
@@ -197,6 +207,10 @@ RepositorySchema.pre('save', async function(next){
             const webhookEndpoint = `${process.env.DOMAIN}/api/v1/webhook/${this._id}/`;
             this.webhookId = await createWebhook(github, webhookEndpoint);
             await this.updateUserAndRepository(deployment);
+            // Fire-and-forget the build so creation responds immediately; the
+            // deployment status (building -> success/failure) tracks progress.
+            new RepositoryHandler(this).start(github).catch((error: any) =>
+                logger.error('@models/repository.ts (pre save): Build trigger failed: ' + error));
         }
         next();
     }catch(error: any){

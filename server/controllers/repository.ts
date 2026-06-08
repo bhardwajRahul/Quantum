@@ -7,11 +7,13 @@ import { Response } from 'express';
 import { IRepository } from '@typings/models/repository';
 import { IRequest } from '@typings/controllers/common';
 import { Octokit } from '@octokit/rest';
+import { detectPreset } from '@services/runtime/detect';
 
 const RepositoryFactory = new HandlerFactory({
     model: Repository,
     fields: [
         'name', 
+        'owner',
         'url', 
         'user', 
         'alias', 
@@ -22,7 +24,11 @@ const RepositoryFactory = new HandlerFactory({
         'installCommand', 
         'branch',
         'startCommand', 
-        'rootDirectory'
+        'rootDirectory',
+        'framework',
+        'runtime',
+        'runtimeVersion',
+        'outputDirectory'
     ]
 });
 
@@ -61,6 +67,24 @@ export const getMyGithubRepositories = catchAsync(async (req: IRequest, res: Res
     const githubRepositories = await getGithubRepositories(user.github.getDecryptedAccessToken());
     const sanitizedRepositories = filterRepositories(githubRepositories, user.repositories);
     res.status(200).json({ status: 'success', data: sanitizedRepositories });
+});
+
+export const detectFramework = catchAsync(async (req: IRequest, res: Response) => {
+    const user: any = req.user;
+    const { owner, repo } = req.params;
+    const octokit = new Octokit({ auth: user.github.getDecryptedAccessToken() });
+    const { data } = await octokit.rest.repos.getContent({ owner, repo, path: '' });
+    const files = Array.isArray(data) ? data.map((file) => file.name) : [];
+    let packageJson;
+    try{
+        const { data: pkg } = await octokit.rest.repos.getContent({ owner, repo, path: 'package.json' });
+        if(!Array.isArray(pkg) && pkg.type === 'file'){
+            packageJson = JSON.parse(Buffer.from(pkg.content, 'base64').toString('utf8'));
+        }
+    }catch(error){
+        // Ignore if package.json does not exist (404).
+    }
+    res.status(200).json({ status: 'success', data: detectPreset(files, packageJson) });
 });
 
 export const getMyRepositories = RepositoryFactory.getAll({

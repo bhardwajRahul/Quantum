@@ -4,7 +4,7 @@ import { IRepository } from '@typings/models/repository';
 import GithubService from '@services/github';
 import DockerContainerService from '@services/docker/container';
 import DockerContainer from '@models/docker/container';
-import { appendLog, createLogStream, shells } from '@services/logManager';
+import { appendLog, createLogStream } from '@services/logManager';
 import { IDockerContainer } from '@typings/models/docker/container';
 
 class RepositoryHandler{
@@ -38,72 +38,38 @@ class RepositoryHandler{
 
     async start(githubService: GithubService): Promise<void>{
         try{
-            const commands = this.getValidCommands();
-            if(commands.length === 0) return;
+            if(this.getValidCommands().length === 0) return;
+            const { installCommand, buildCommand, startCommand } = this.repository;
+            const buildCommands = [installCommand, buildCommand].filter(Boolean) as string[];
             const deployment = await this.getCurrentDeployment();
-            const environment = deployment.getFormattedEnvironment();
-            await this.deploy(commands, environment);
             const { githubDeploymentId } = deployment;
-            await githubService.updateDeploymentStatus(githubDeploymentId, 'success');
+            deployment.status = 'building';
+            await deployment.save();
+            const repositoryContainer = await this.getContainer();
+            if(!repositoryContainer) return;
+            const svc = new DockerContainerService(repositoryContainer);
+            const userId = repositoryContainer.user.toString();
+            const containerId = repositoryContainer._id.toString();
+            const workingDir = '/app' + (this.repository.rootDirectory || '');
+            await createLogStream(userId, containerId);
+            for(const cmd of buildCommands){
+                const res = await svc.executeCommand(cmd, { WorkingDir: workingDir });
+                await appendLog(userId, containerId, res.output);
+                if(res.exitCode !== 0){
+                    deployment.status = 'failure';
+                    await deployment.save();
+                    await githubService.updateDeploymentStatus(githubDeploymentId, 'failure');
+                    return;
+                }
+            }
+            if(startCommand){
+                svc.executeCommand('sh -c "' + startCommand.replace(/"/g, '\\"') + ' &"', { WorkingDir: workingDir }).catch(() => {});
+            }
             deployment.status = 'success';
             await deployment.save();
+            await githubService.updateDeploymentStatus(githubDeploymentId, 'success');
         }catch(error){
             logger.error('@services/repositoryHandler.ts (start): ' + error);
-        }
-    }
-   
-    private async waitForCommandCompletion(stream: NodeJS.ReadWriteStream): Promise<void>{
-        return new Promise((resolve) => {
-            let timer: NodeJS.Timeout;
-            const onData = (chunk: Buffer) => {
-                const output = chunk.toString('utf8');
-                if(output.includes('$ ') || output.includes('# ')){
-                    stream.removeListener('data', onData);
-                    clearTimeout(timer);
-                    resolve();
-                }
-            };
-
-            timer = setTimeout(() => {
-                stream.removeListener('data', onData);
-                resolve();
-            }, 5000);
-
-            stream.on('data', onData);
-        });
-    }
-
-    private async deploy(buildCommands: string[], environ: string): Promise<void>{
-        const repositoryContainer = await this.getContainer();
-        if(!repositoryContainer) return;
-        const containerService = new DockerContainerService(repositoryContainer);
-        const container = await containerService.getExistingContainer();
-        const userId = repositoryContainer.user.toString();
-        const containerId = repositoryContainer._id.toString();
-        const id = repositoryContainer.user.toString();
-        await createLogStream(userId, containerId);
-        let stream = shells.get(id);
-        if(!stream){
-            const exec = await container.exec({
-                Cmd: [repositoryContainer.command],
-                AttachStdout: true,
-                AttachStderr: true,
-                AttachStdin: true,
-                WorkingDir: `/app${this.repository.rootDirectory}`,
-                Tty: true
-            });
-            stream = await exec.start({ hijack: true, stdin: true, Tty: true });
-            await createLogStream(userId, containerId);
-            shells.set(containerId, stream);
-        }
-        stream.on('data', (chunk: Buffer) => {
-            const output = chunk.toString('utf8');
-            appendLog(userId, containerId, output);
-        });
-        for(const command of buildCommands){
-            const formattedCommand = `${environ} ${command}\n`;
-            stream.write(formattedCommand);
-            await this.waitForCommandCompletion(stream);
         }
     }
 }

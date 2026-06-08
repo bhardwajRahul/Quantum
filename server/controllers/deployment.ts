@@ -21,7 +21,6 @@ import DockerContainerService from '@services/docker/container';
 import DockerContainer from '@models/docker/container';
 import { catchAsync } from '@utilities/helpers';
 import { Request, Response } from 'express';
-import { IRepository } from '@typings/models/repository';
 import { ActiveDeploymentEnvironment, ActiveDeploymentRepositoryDocument } from '@typings/controllers/deployment';
 import sendEmail from '@services/sendEmail';
 
@@ -162,7 +161,10 @@ export const repositoryOperations = catchAsync(async (req: Request, res: Respons
 export const getRepositoryDeployments = catchAsync(async (req: Request, res: Response) => {
     const { user } = req as any;
     const { repositoryName } = req.params;
-    const github = new Github(user, { name: repositoryName } as IRepository);
+    const repository = await Repository.findOne({ name: repositoryName, user: user._id });
+    if(!repository)
+        throw new RuntimeError('Repository::Not::Found', 404);
+    const github = new Github(user, repository);
     const deployments = await github.getRepositoryDeployments();
     if(!deployments)
         throw new RuntimeError('Deployment::Not::Found', 404);
@@ -179,7 +181,10 @@ export const getRepositoryDeployments = catchAsync(async (req: Request, res: Res
 export const deleteGithubDeployment = catchAsync(async (req: Request, res: Response) => {
     const { user } = req as any;
     const { repositoryName, deploymentId } = req.params;
-    const github = new Github(user, { name: repositoryName } as IRepository);
+    const repository = await Repository.findOne({ name: repositoryName, user: user._id });
+    if(!repository)
+        throw new RuntimeError('Repository::Not::Found', 404);
+    const github = new Github(user, repository);
     await github.deleteRepositoryDeployment(deploymentId);
     const deployments = await github.getRepositoryDeployments();
     if(!deployments)

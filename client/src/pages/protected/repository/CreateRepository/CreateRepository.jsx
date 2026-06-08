@@ -13,7 +13,7 @@
 ****/
 
 import React, { useEffect, useState } from 'react';
-import { getMyGithubRepositories, createRepository } from '@services/repository/operations';
+import { getMyGithubRepositories, createRepository, detectFramework } from '@services/repository/operations';
 import { useSelector, useDispatch } from 'react-redux';
 import { gsap } from 'gsap';
 import { IoIosGitBranch } from "react-icons/io";
@@ -25,10 +25,14 @@ import { useDocumentTitle } from '@hooks/common';
 import RelatedRepositorySections from '@components/molecules/RelatedRepositorySections';
 import './CreateRepository.css';
 
+// Default version per runtime family (matches the server runtime registry).
+const DEFAULT_VERSION = { node: '20', python: '3.12', go: '1.22', static: '' };
+
 const CreateRepository = () => {
-    const { githubRepositories, isLoading, isOperationLoading, error } = useSelector(state => state.repository);
+    const { githubRepositories, isLoading, isOperationLoading, error, detectedPreset } = useSelector(state => state.repository);
     const { user } = useSelector(state => state.auth);
     const [selectedRepo, setSelectedRepo] = useState(null);
+    const [selectedOwner, setSelectedOwner] = useState(null);
     useDocumentTitle('Create Repository');
 
     const dispatch = useDispatch();
@@ -38,12 +42,24 @@ const CreateRepository = () => {
         dispatch(getMyGithubRepositories());
     }, []);
 
+    // The framework/runtime is auto-detected silently here and applied to the
+    // first deploy; it remains editable later in "Build & Development Setting".
     const handleDeploy = async (repository, branch) => {
+        const preset = detectedPreset || {};
+        const runtime = preset.runtime || 'node';
         const body = {
             name: repository.name,
+            owner: repository.owner.login,
             url: repository.html_url,
             user: user._id,
-            branch
+            branch,
+            framework: preset.framework,
+            runtime,
+            runtimeVersion: DEFAULT_VERSION[runtime] ?? '',
+            installCommand: preset.installCommand,
+            buildCommand: preset.buildCommand,
+            startCommand: preset.startCommand,
+            outputDirectory: preset.outputDirectory
         };
         await dispatch(createRepository(body, navigate));
     };
@@ -73,20 +89,21 @@ const CreateRepository = () => {
     }, [githubRepositories]);
     
     const handleRepoSelection = (repository) => {
-        const hasBranches = repository.branches.length > 1;
-        if(hasBranches){
-            setSelectedRepo(repository);
-            return;
-        }
-        handleDeploy(repository, repository.default_branch);
+        dispatch(detectFramework(repository.owner.login, repository.name));
+        setSelectedRepo(repository);
     };
+
+    const owners = [...new Map(githubRepositories.map((r) => [r.owner.login, r.owner])).values()];
+    const visibleRepositories = selectedOwner
+        ? githubRepositories.filter((r) => r.owner.login === selectedOwner)
+        : githubRepositories;
 
     return (
         <DataRenderer
             title={selectedRepo ? "We're almost ready..." : "Let's start our teamwork..."}
             id='Create-Repository-Main'
             error={error}
-            description={selectedRepo ? 'You just need to specify the branch you want to deploy.' : 'To deploy a new Project, import an existing Git Repository.'}
+            description={selectedRepo ? 'Pick the branch to deploy. Build settings are auto-detected and editable later.' : 'To deploy a new Project, import an existing Git Repository.'}
             isLoading={isLoading}
             isOperationLoading={isOperationLoading}
             operationLoadingMessage="We're cloning and adjusting parameters in your repository..."
@@ -129,7 +146,19 @@ const CreateRepository = () => {
                 </article>
             ) : (
                 <article id='Github-Account-Repository-List-Container'>
-                    {githubRepositories.map((repository, index) => (
+                    {owners.length > 1 && (
+                        <select
+                            className='Owner-Select'
+                            value={selectedOwner ?? ''}
+                            onChange={(e) => setSelectedOwner(e.target.value || null)}
+                        >
+                            <option value=''>All accounts & organizations</option>
+                            {owners.map((owner) => (
+                                <option key={owner.login} value={owner.login}>{owner.login}</option>
+                            ))}
+                        </select>
+                    )}
+                    {visibleRepositories.map((repository, index) => (
                         <RepositoryBasicItem 
                             key={index} 
                             onClick={() => handleRepoSelection(repository)}

@@ -31,6 +31,10 @@ router.get('/me/github/',
     githubMiddleware.populateGithubAccount,
     repositoryController.getMyGithubRepositories);
 
+router.get('/me/github/:owner/:repo/detect',
+    githubMiddleware.populateGithubAccount,
+    repositoryController.detectFramework);
+
 router.get('/me/',
     githubMiddleware.populateRepositories,
     githubMiddleware.populateGithubAccount,

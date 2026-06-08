@@ -24,7 +24,8 @@ const state = {
     repositoryFiles: [],
     githubRepositories: [],
     selectedRepository: null,
-    selectedRepositoryFile: null
+    selectedRepositoryFile: null,
+    detectedPreset: null
 };
 
 const repositorySlice = createSlice({

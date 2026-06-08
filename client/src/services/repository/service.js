@@ -32,6 +32,18 @@ export const getMyGithubRepositories = RepositoryAPI.register({
 });
 
 /**
+ * @function detectFramework
+ * @description Detects the framework/runtime preset for a GitHub repository.
+ * @param {string} owner - The repository owner's login.
+ * @param {string} repo - The repository name.
+ * @returns {Promise} Resolves or rejects based on the API request outcome.
+*/
+export const detectFramework = RepositoryAPI.register({
+    path: '/me/github/:owner/:repo/detect/',
+    method: 'GET'
+});
+
+/**
  * @function createRepository
  * @description Creates a new Quantum Cloud repository for the user.
  * @param {Object} body - Data required to create the new repository.

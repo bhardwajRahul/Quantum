@@ -74,6 +74,23 @@ export const getMyGithubRepositories = () => async (dispatch) => {
 };
 
 /**
+ * @function detectFramework
+ * @description Detects the framework/runtime preset for a GitHub repository.
+ * @param {string} owner - The repository owner's login.
+ * @param {string} repo - The repository name.
+ * @returns {Promise} Resolves with the detected preset.
+*/
+export const detectFramework = (owner, repo) => async (dispatch) => {
+    const operation = createOperation(repositorySlice, dispatch);
+    operation.use({
+        api: repositoryService.detectFramework,
+        loaderState: 'isOperationLoading',
+        responseState: 'detectedPreset',
+        query: { params: { owner, repo } }
+    });
+};
+
+/**
  * @function updateRepository
  * @description Updates the details of an existing repository.
  * @param {string} id - The ID of the repository to update.

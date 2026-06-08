@@ -43,12 +43,14 @@ class Github{
     private repository: IRepository;
     private userGithub: IGithub;
     private octokit: Octokit;
+    private owner: string;
 
     constructor(user: IUser, repository: IRepository){
         this.user = user;
         this.repository = repository;
         this.userGithub = user.github as IGithub;
         this.octokit = new Octokit({ auth: this.userGithub.getDecryptedAccessToken() });
+        this.owner = repository?.owner || this.userGithub.username;
     }
 
     /**
@@ -85,7 +87,7 @@ class Github{
                 throw new RuntimeError('Github::Container::NotFound', 404);
             }
             const repositoryInfo = await this.octokit.repos.get({ 
-                owner: this.userGithub.username, 
+                owner: this.owner, 
                 repo: this.repository.name 
             });
             const cloneEndpoint = repositoryInfo.data.private
@@ -131,10 +133,10 @@ class Github{
     */
     async getLatestCommit(): Promise<any>{
         const { data: commits } = await this.octokit.repos.listCommits({
-            owner: this.userGithub.username,
+            owner: this.owner,
             repo: this.repository.name,
             per_page: 1,
-            sha: 'main'
+            sha: this.repository.branch
         });
         return commits[0];
     }
@@ -190,9 +192,9 @@ class Github{
     */
     async updateDeploymentStatus(deploymentId: string | number, state: DeploymentState): Promise<void>{
         await this.octokit.repos.createDeploymentStatus({
-            owner: this.userGithub.username,
+            owner: this.owner,
             repo: this.repository.name,
-            deployment_id: deploymentId as number,
+            deployment_id: Number(deploymentId),
             state
         });   
     }
@@ -205,7 +207,7 @@ class Github{
     */
     async createGithubDeployment(): Promise<number>{
         const { data: { id: deploymentId } }: any = await this.octokit.repos.createDeployment({
-            owner: this.userGithub.username,
+            owner: this.owner,
             repo: this.repository.name,
             ref: this.repository.branch,
             auto_merge: false,
@@ -224,7 +226,7 @@ class Github{
     */
     async getRepositoryDetails(): Promise<any>{
         const { data: repositoryDetails } = await this.octokit.repos.get({
-            owner: this.userGithub.username,
+            owner: this.owner,
             repo: this.repository.name
         });
         return repositoryDetails;
@@ -279,7 +281,7 @@ class Github{
     async createWebhook(webhookUrl: string, webhookSecret: string): Promise<number | void>{
         try{
             const response = await this.octokit.repos.createWebhook({
-                owner: this.userGithub.username,
+                owner: this.owner,
                 repo: this.repository.name,
                 name: 'web',
                 config: {
@@ -320,7 +322,7 @@ class Github{
         if(!this.repository.webhookId) return;
         try{
             const response = await this.octokit.repos.deleteWebhook({
-                owner: this.userGithub.username,
+                owner: this.owner,
                 repo: this.repository.name,
                 hook_id: Number(this.repository.webhookId)
             });
@@ -346,7 +348,7 @@ class Github{
     */
     async getRepositoryDeployments(): Promise<any[]>{
         const { data: deployments } = await this.octokit.repos.listDeployments({
-            owner: this.userGithub.username,
+            owner: this.owner,
             repo: this.repository.name
         });
         return deployments;
@@ -360,9 +362,9 @@ class Github{
     */
     async deleteRepositoryDeployment(deploymentId: string | number): Promise<void>{
         await this.octokit.repos.deleteDeployment({
-            owner: this.userGithub.username,
+            owner: this.owner,
             repo: this.repository.name,
-            deployment_id: deploymentId  as number
+            deployment_id: Number(deploymentId)
         });
     }
 
@@ -377,7 +379,7 @@ class Github{
         await this.cloneRepository(this.repository.branch);
         const githubDeploymentId = await this.createGithubDeployment();
         const newDeployment = await this.createNewDeployment(githubDeploymentId);
-        newDeployment.url = `https://github.com/${this.userGithub.username}/${this.repository.name}/deployments/${githubDeploymentId}`;
+        newDeployment.url = `https://github.com/${this.owner}/${this.repository.name}/deployments/${githubDeploymentId}`;
         newDeployment.status = 'pending';
         await newDeployment.save();
         await this.updateDeploymentStatus(githubDeploymentId, 'in_progress');

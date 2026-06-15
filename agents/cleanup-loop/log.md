@@ -187,3 +187,23 @@ Re-scan after run 1, biased hard toward DELETE. 2 high-confidence findings, both
 - Gate: tsc 23/23, tests 131/131 pass, client build skip
 - Outcome: completed
 - Reason: debug leftover that swallowed a writeFile failure to stdout. NOT deleted — the catch has no other handling, so removing it would silently swallow the error; converting to logger.error records it without changing response behavior.
+
+---
+
+## Run 3 — 2026-06-15 (next-tier scan: client API layer)
+
+Followed up on concrete leads from run-1's frontend scan that were never actioned. 2 findings, both applied, gate green. Final: server tsc 23/23, vitest 131/131, client build OK.
+
+### 2026-06-15T23:29:04Z — client/src/utilities/api/operationHandler.js — APPLIED
+- Change: FIX — `if(import.meta.env)` → `if(import.meta.env.DEV)`.
+- Commit: 5d2b616
+- Gate: client vite build OK
+- Outcome: completed
+- Reason: import.meta.env is an always-truthy object, so timing console.log + error-tracking middleware ran in PRODUCTION on every API call. The .DEV guard restores the obvious dev-only intent. Real bug, also flagged in run 1.
+
+### 2026-06-15T23:29:04Z — client/src/utilities/api/apiRequestBuilder.js — APPLIED
+- Change: DELETE — removed `this.authToken = null`.
+- Commit: 8724c69
+- Gate: client vite build OK
+- Outcome: completed
+- Reason: field set in constructor, never read/reassigned anywhere (grep across client/src). Speculative dead field.

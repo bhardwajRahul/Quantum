@@ -106,6 +106,18 @@
         "commit": "452c342",
         "completedAt": "2026-06-15T18:51:47Z",
         "summary": "console.log(error) -> logger.error in silent catch"
+      },
+      {
+        "module": "client/src/utilities/api/operationHandler.js",
+        "commit": "5d2b616",
+        "completedAt": "2026-06-15T23:29:04Z",
+        "summary": "FIX — gate dev logging on import.meta.env.DEV (was always-truthy → ran in prod)"
+      },
+      {
+        "module": "client/src/utilities/api/apiRequestBuilder.js",
+        "commit": "8724c69",
+        "completedAt": "2026-06-15T23:29:04Z",
+        "summary": "DELETE — removed dead authToken field"
       }
     ],
     "manual_review": [
@@ -207,13 +219,13 @@
     }
   ],
   "stats": {
-    "iterations": 22,
-    "changesApplied": 17,
+    "iterations": 24,
+    "changesApplied": 19,
     "changesRejected": 1,
-    "modulesCompleted": 15,
+    "modulesCompleted": 17,
     "modulesManualReview": 9
   },
-  "run": 2,
+  "run": 3,
   "previousRun": {
     "completed": 13,
     "manual_review": 9

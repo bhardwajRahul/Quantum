@@ -1,0 +1,295 @@
+{
+  "_comment": "Persistent state for the cleanup-loop. The orchestrator reads this at the start of every iteration and writes it at the end, so the loop survives context compaction and session restarts. Populated by the initial scan (11 parallel scanners, 2026-06-15). pending[] is ordered by priority: score desc, then deletable LOC desc, with lower-risk server modules (have a vitest net) ahead of client modules (build-gate only).",
+  "guidingPrinciple": "The best code is the one that was never written. Prefer DELETE > SIMPLIFY > REWRITE.",
+  "baseline": {
+    "capturedAt": "2026-06-15",
+    "serverTscErrorCeiling": 23,
+    "serverTestsPassing": 131,
+    "clientBuild": "ok",
+    "note": "verify-gate.sh enforces: no NEW tsc errors (ceiling ratchets down; 24->23 after populateRepository dedup), all server tests pass, client vite build succeeds."
+  },
+  "scanComplete": true,
+  "scannedAt": "2026-06-15",
+  "currentModule": null,
+  "currentModuleAttempts": 0,
+  "maxAttemptsPerApproach": 2,
+  "queue": {
+    "pending": [
+      {
+        "module": "server/controllers/database.ts",
+        "paths": [
+          "server/controllers/database.ts"
+        ],
+        "score": 5,
+        "deletable_estimate_loc": 20,
+        "smells": [
+          "backupDatabase/restoreDatabase/getConnectionString each repeat the tenant-scoped project lookup inline instead of using resolveProjectOr403"
+        ],
+        "notes": "SIMPLIFY: route the 3 inline tenant lookups through the existing resolveProjectOr403 helper (already used elsewhere). Behavior-preserving.",
+        "risk": "low — reuses an existing, tested helper"
+      },
+      {
+        "module": "server/services/codespace/index.ts",
+        "paths": [
+          "server/services/codespace"
+        ],
+        "score": 5,
+        "deletable_estimate_loc": 20,
+        "smells": [
+          "provisionCodespace is a ~120-line god function (8 sequential steps)",
+          "3 env reads scattered (SERVER_IP, CODESPACE_READINESS_*)"
+        ],
+        "notes": "REWRITE: extract _ensureImage/_setupNetwork/_attachEdgeNetwork helpers to shrink the god function. No dedicated test — lean on build+tsc gate, guardian should add a thin one if feasible.",
+        "risk": "medium — no direct test; behavior-preserving extraction only"
+      },
+      {
+        "module": "client/src/components/organisms/ProtectedRoute",
+        "paths": [
+          "client/src/components/organisms/ProtectedRoute/index.js"
+        ],
+        "score": 8,
+        "deletable_estimate_loc": 14,
+        "smells": [
+          "trivial pass-through re-export wrapped in a 13-line copyright header (peer index.js files are 1-2 LOC)"
+        ],
+        "notes": "SIMPLIFY: trim the boilerplate header to match sibling index.js files. Pure formatting — client build gate suffices.",
+        "risk": "low — client, build-gate only, no behavior change"
+      },
+      {
+        "module": "client/src/hooks/api/user",
+        "paths": [
+          "client/src/hooks/api/user"
+        ],
+        "score": 6,
+        "deletable_estimate_loc": 50,
+        "smells": [
+          "4 near-identical hooks (useUserDockerContainers/Images/Networks/PortBinding) repeat the same fetch-on-page-change + cleanup-on-unmount boilerplate"
+        ],
+        "notes": "SIMPLIFY: extract a useUserResource(slice, operation, opts) factory; re-export the 4 named hooks so callers are unaffected. NO client unit tests — verify via build + manual import-shape check.",
+        "risk": "medium — no FE tests; keep public hook names identical"
+      },
+      {
+        "module": "client/src/components/atoms/kit/index.jsx",
+        "paths": [
+          "client/src/components/atoms/kit/index.jsx"
+        ],
+        "score": 6,
+        "deletable_estimate_loc": 12,
+        "smells": [
+          "back-compat aliases StatusChip/StatTile/IconButton exported but never imported anywhere",
+          "DataTable has speculative optional params (getRowKey/render/actions) unused by call sites"
+        ],
+        "notes": "DELETE: remove the 3 unused aliases (grep-confirm zero imports first). DataTable signature trim is a separate step.",
+        "risk": "low-medium — client; confirm zero imports before deleting"
+      },
+      {
+        "module": "client/src/pages/errText-duplication",
+        "paths": [
+          "client/src/pages/protected/platform/Alerting/Alerting.jsx",
+          "client/src/pages/protected/settings/Team/Team.jsx",
+          "client/src/pages/protected/settings/OrganizationSettings/OrganizationSettings.jsx",
+          "client/src/pages/protected/onboarding/SetupOrganization"
+        ],
+        "score": 6,
+        "deletable_estimate_loc": 25,
+        "smells": [
+          "errText helper redefined locally in 4 pages instead of a shared utility"
+        ],
+        "notes": "SIMPLIFY: extract errText to client/src/utilities and import in the 4 pages. Behavior-preserving, low blast radius. No FE tests — build gate only.",
+        "risk": "low-medium — client; mechanical extraction"
+      },
+      {
+        "module": "client/src/pages/protected/platform/Projects/Projects.jsx",
+        "paths": [
+          "client/src/pages/protected/platform/Projects/Projects.jsx"
+        ],
+        "score": 9,
+        "deletable_estimate_loc": 150,
+        "smells": [
+          "god component 528 LOC",
+          "28 useState across 4 modal flows",
+          "nested EnvironmentsModal blocks extraction",
+          "duplicated modal-reset pattern"
+        ],
+        "notes": "REWRITE: extract EnvironmentsModal to its own file, consolidate modal state. HIGH RISK — no FE tests; do strictly behavior-preserving extractions, one at a time, build-gate each.",
+        "risk": "high — largest client god component, no test net"
+      },
+      {
+        "module": "client/src/pages/protected/platform/Alerting/Alerting.jsx",
+        "paths": [
+          "client/src/pages/protected/platform/Alerting/Alerting.jsx"
+        ],
+        "score": 9,
+        "deletable_estimate_loc": 100,
+        "smells": [
+          "god component 499 LOC",
+          "22 useState across 2 modal flows",
+          "duplicated modal reset logic"
+        ],
+        "notes": "REWRITE: extract ChannelModal + RuleModal. HIGH RISK — no FE tests. Pair with the errText extraction step.",
+        "risk": "high — no test net"
+      },
+      {
+        "module": "client/src/pages/protected/platform/Databases/Databases.jsx",
+        "paths": [
+          "client/src/pages/protected/platform/Databases/Databases.jsx"
+        ],
+        "score": 8,
+        "deletable_estimate_loc": 80,
+        "smells": [
+          "god component 468 LOC",
+          "20 useState",
+          "FormData create pattern repeated 3x"
+        ],
+        "notes": "REWRITE: extract CreateDatabaseModal + BackupModal. HIGH RISK — no FE tests.",
+        "risk": "high — no test net"
+      },
+      {
+        "module": "client/src/pages/protected/platform/Domains/Domains.jsx",
+        "paths": [
+          "client/src/pages/protected/platform/Domains/Domains.jsx"
+        ],
+        "score": 8,
+        "deletable_estimate_loc": 70,
+        "smells": [
+          "god component 372 LOC",
+          "16 useState",
+          "local asArray() util",
+          "fragmented loading states"
+        ],
+        "notes": "REWRITE: extract AddDomainModal, unify loading state. HIGH RISK — no FE tests.",
+        "risk": "high — no test net"
+      },
+      {
+        "module": "client/src/pages/protected/platform/Templates/Templates.jsx",
+        "paths": [
+          "client/src/pages/protected/platform/Templates/Templates.jsx"
+        ],
+        "score": 7,
+        "deletable_estimate_loc": 100,
+        "smells": [
+          "god component 429 LOC with 2 inline modal components (DeployModal ~110, CatalogBrowser ~100)"
+        ],
+        "notes": "REWRITE: extract DeployModal + CatalogBrowser to files. HIGH RISK — no FE tests.",
+        "risk": "high — no test net"
+      },
+      {
+        "module": "client/src/utilities/common/byte-formatting",
+        "paths": [
+          "client/src/utilities/common"
+        ],
+        "score": 5,
+        "deletable_estimate_loc": 10,
+        "smells": [
+          "humanFileSize and formatBytes are two near-identical byte formatters; humanFileSize has worse precision and one caller"
+        ],
+        "notes": "SIMPLIFY: migrate the single humanFileSize caller (CreateDockerContainer) to formatBytes, delete humanFileSize. Confirm the caller first.",
+        "risk": "low-medium — client; one caller to migrate"
+      }
+    ],
+    "in_progress": [],
+    "completed": [
+      {
+        "module": "server/config/ws.ts",
+        "commit": "206b91b",
+        "completedAt": "2026-06-15T17:21:24Z",
+        "summary": "DELETE — inlined single-importer ws wiring into server.ts; removed pass-through module"
+      },
+      {
+        "module": "server/utilities/bootstrap.ts",
+        "commit": "1b5824c",
+        "completedAt": "2026-06-15T17:48:17Z",
+        "summary": "DELETE — removed dead deployContainers() + 8 orphaned imports (42 LOC)"
+      },
+      {
+        "module": "server/services/orchestrator/events.ts",
+        "commit": "40d3315",
+        "completedAt": "2026-06-15T17:50:26Z",
+        "summary": "SIMPLIFY — 5 emit bodies → one private emit() helper (122→105 LOC)"
+      },
+      {
+        "module": "server/services/tenancy/provisioning.ts",
+        "commit": "3edacab,edad593",
+        "completedAt": "2026-06-15T17:54:15Z",
+        "summary": "REWRITE — split 2 god functions into named single-responsibility helpers"
+      },
+      {
+        "module": "server/services/orchestrator/handlers/buildHandler.ts+deployHandler.ts",
+        "commit": "04204fa",
+        "completedAt": "2026-06-15T18:02:45Z",
+        "summary": "DELETE/dedupe — populateRepository moved to provision.ts; both handlers import it; buildHandler Repository import dropped (tsc 24->23)"
+      },
+      {
+        "module": "server/services/templates/compose.ts",
+        "commit": "18753d4",
+        "completedAt": "2026-06-15T18:05:19Z",
+        "summary": "SIMPLIFY — extracted applyCommonServiceFields shared by both parsers"
+      }
+    ],
+    "manual_review": [
+      {
+        "module": "server/services/docker/container.ts",
+        "commits": [
+          "7ce18d4",
+          "a065fdd"
+        ],
+        "reviewedAt": "2026-06-15T17:58:20Z",
+        "banked": "dead cache fields + dead return removed",
+        "deferred": "reloadContainer 67-line god fn decomposition + 8x docker.getContainer dedup",
+        "rootCause": "no behavioral test net (reload.test.ts mocks reloadContainer); hot-path daemon orchestration needs a mock test written first"
+      },
+      {
+        "module": "server/services/orchestrator/handlers/templateHandler.ts",
+        "reviewedAt": "2026-06-15T17:59:30Z",
+        "deferred": "maybeRouteManagedDatabases (intentional opt-in feature flag, not dead) + runTemplateJob god fn",
+        "rootCause": "removing the guarded feature is a product decision not a cleanup; runTemplateJob has no behavioral test net"
+      }
+    ]
+  },
+  "knownBugs_notForSimplifier": {
+    "_comment": "Behavior-CHANGING fixes surfaced by the scan. The Simplifier's contract is behavior-PRESERVING, so it must NOT silently 'clean' these. Parked here so they aren't lost; fix them deliberately (with a test) outside the cleanup loop, or move into manual_review.",
+    "items": [
+      {
+        "path": "server/controllers/common/globalErrorHandler.ts:45",
+        "bug": "reads err.code/.status path such that Mongo 11000 duplicate-key never maps to 400 (returns 500)"
+      },
+      {
+        "path": "server/models/docker/image.ts:41",
+        "bug": "cascadeDeleteHandler updateOne query { user: document.user } should be { _id: document.user }; User.images never cleaned"
+      },
+      {
+        "path": "server/models/docker/image.ts / network.ts (pre deleteMany)",
+        "bug": "next() called inside Promise.all map AND after the loop — double-callback / race on error"
+      },
+      {
+        "path": "server/controllers/authentication.ts:150",
+        "bug": "hardcoded email recipient name 'rodyherrera' instead of user.username (copy-paste)"
+      },
+      {
+        "path": "server/models/job.ts:78",
+        "bug": "duplicate 'deployment' field (also at :53) — Mongoose dup-path; safe 1-line removal but technically a schema change, verify no intentional override"
+      }
+    ]
+  },
+  "falsePositives_excluded": [
+    {
+      "item": "server/middlewares/validators.ts RepositoryOperationSchema",
+      "why": "NOT dead — referenced by tests/validation.test.ts; tests count as usage"
+    },
+    {
+      "item": "client EventManager removal",
+      "why": "15-line pub/sub used across ~33 call sites; rewriting to callbacks is MORE code with silent-break risk and no FE tests (prior analysis confirmed not worth it)"
+    },
+    {
+      "item": "splitImageRef merge (templates/compose vs prebuilt)",
+      "why": "intentionally different normalization; merging changes pullImage behavior"
+    }
+  ],
+  "stats": {
+    "iterations": 8,
+    "changesApplied": 8,
+    "changesRejected": 0,
+    "modulesCompleted": 6,
+    "modulesManualReview": 2
+  }
+}

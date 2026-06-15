@@ -14,21 +14,7 @@
   "currentModuleAttempts": 0,
   "maxAttemptsPerApproach": 2,
   "queue": {
-    "pending": [
-      {
-        "module": "client/src/utilities/common/byte-formatting",
-        "paths": [
-          "client/src/utilities/common"
-        ],
-        "score": 5,
-        "deletable_estimate_loc": 10,
-        "smells": [
-          "humanFileSize and formatBytes are two near-identical byte formatters; humanFileSize has worse precision and one caller"
-        ],
-        "notes": "SIMPLIFY: migrate the single humanFileSize caller (CreateDockerContainer) to formatBytes, delete humanFileSize. Confirm the caller first.",
-        "risk": "low-medium — client; one caller to migrate"
-      }
-    ],
+    "pending": [],
     "in_progress": [],
     "completed": [
       {
@@ -160,6 +146,12 @@
         "module": "client/.../Domains.jsx",
         "deferred": "AddDomainModal extraction + loading-state unify",
         "rootCause": "inline modal; no FE test net"
+      },
+      {
+        "module": "client/src/utilities byte-formatting",
+        "reviewedAt": "2026-06-15T18:33:00Z",
+        "deferred": "humanFileSize->formatBytes migration + Databases local formatBytes dedup",
+        "rootCause": "behavior-changing: humanFileSize (kB/2dp) vs formatBytes (KB/1dp) differ in output; Databases variant has em-dash null fallback vs 0 B. Memory warns do not blind-merge. Needs design decision."
       }
     ]
   },
@@ -203,10 +195,10 @@
     }
   ],
   "stats": {
-    "iterations": 19,
+    "iterations": 20,
     "changesApplied": 15,
     "changesRejected": 1,
     "modulesCompleted": 13,
-    "modulesManualReview": 8
+    "modulesManualReview": 9
   }
 }

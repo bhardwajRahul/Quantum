@@ -17,6 +17,18 @@ Entry format:
 
 ---
 
+## Run summary — 2026-06-15 (/goal, queue drained)
+
+20 modules processed across 20 iterations. Queue fully drained (pending=0, in_progress=0).
+- **13 completed**, **9 manual_review** (one module — docker/container.ts — counts in both: banked 2 wins, deferred the rest), **0 rejected** (gate never went red), **1 finding rejected** (DataTable signature trim — params verified in use).
+- **15 atomic changes applied**, each its own commit, gate green before every commit, scoped staging (none of the user's ~550 pre-existing working-tree files swept in).
+- **tsc baseline ratcheted 24→23** (populateRepository dedup cleared a pre-existing error); ceiling updated in verify-gate.sh + queue so it can't silently regress.
+- Final gate: server tsc 23/23, vitest 131/131, client vite build OK.
+
+**Why so many manual_review:** the loop's core rule is "never refactor without a test net." The server has vitest (so server dedups/decompositions proceeded), but the client has NO unit-test runner — `vite build` only catches syntax/import errors, not behavioral regressions. So client god-component decompositions (Alerting/Databases/Domains/Projects/Templates) were limited to mechanically-safe sibling-component extractions (Projects, Templates) and deferred the risky state-untangling. Other deferrals were correctly-identified non-cleanups: intentional feature flags (templateHandler), behavior-changing merges (byte-formatting, codespace env reads), and untested hot-path daemon orchestration (container.reloadContainer). Each manual_review entry records the root cause + what was banked.
+
+---
+
 ## Entries
 
 <!-- the loop appends below this line -->
@@ -148,3 +160,10 @@ Entry format:
 - Gate: not run (no edit)
 - Outcome: manual_review (batch)
 - Reason: unlike Projects/Templates, these three define their modals INLINE within the main component (no module-scope sibling subcomponent — verified via grep for top-level `const [A-Z]...= (`). Extracting an inline modal means untangling it from the parent's 16-22 useState, i.e. a behavior-changing REWRITE, with NO FE test net (vite build won't catch behavioral regressions). No safe atomic win available; the whole god-component decomposition is deferred to a human/dedicated pass (ideally after adding Playwright/RTL coverage for these flows).
+
+### 2026-06-15T18:33:00Z — client/src/utilities byte-formatting — MANUAL_REVIEW (no change)
+- Change: none.
+- Commit: none
+- Gate: not run (no edit)
+- Outcome: manual_review
+- Reason: both candidate edits are behavior-CHANGING, not cleanups. (1) Migrating humanFileSize's single caller (CreateDockerContainer:89) to the shared formatBytes changes rendered output: humanFileSize uses lowercase 'kB' + 2-decimal-stripped (1500→"1.46 kB"), formatBytes uses 'KB' + 1-decimal-fixed (1500→"1.5 KB"). (2) Databases.jsx:43 has a THIRD local formatBytes whose null/NaN fallback is '—' vs the shared util's '0 B' — merging changes the empty-state display. The audit memory explicitly warns "formatBytes variants — intentionally different fallbacks, don't blind-merge". Both need a design decision on canonical formatting; deferred rather than silently changing UI output.

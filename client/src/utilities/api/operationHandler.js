@@ -71,7 +71,7 @@ class OperationHandler extends EventManager{
 }
 
 const createOperation = (slice, dispatch, middlewares = []) => {
-    if(import.meta.env){
+    if(import.meta.env.DEV){
         middlewares.push(errorTrackingMiddleware, timingMiddleware);
     }
     return new OperationHandler(slice, dispatch, middlewares);

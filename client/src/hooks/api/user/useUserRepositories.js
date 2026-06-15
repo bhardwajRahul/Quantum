@@ -12,7 +12,7 @@ const useUserRepositories = () => {
         
         const intervalId = setInterval(() => {
             dispatch(getRepositories(false));
-        }, 15000);
+        }, 60000);
 
         return () => {
             clearInterval(intervalId);
@@ -20,7 +20,7 @@ const useUserRepositories = () => {
         }
     }, []);
 
-    return { repositories, isLoading, isOperationLoading, error, stats, isOperationLoading };
+    return { repositories, isLoading, isOperationLoading, error, stats };
 };
 
 export default useUserRepositories;

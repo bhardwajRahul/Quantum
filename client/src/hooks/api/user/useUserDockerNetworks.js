@@ -1,24 +1,13 @@
-import { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import useUserResource from './useUserResource';
 import { getMyDockerNetworks } from '@services/docker/network/operations';
 import { setState as dockerNetSetState } from '@services/docker/network/slice';
 
-const useUserDockerNetworks = () => {
-    const dispatch = useDispatch();
-    const [page, setPage] = useState(1);
-    const { dockerNetworks, isLoading, error, stats, isOperationLoading } = useSelector((state) => state.dockerNetwork);
-
-    useEffect(() => {
-        dispatch(getMyDockerNetworks({ page }));
-    }, [dispatch, page]);
-
-    useEffect(() => {
-        return () => {
-            dispatch(dockerNetSetState({ path: 'networks', value: [] }));
-        }
-    }, [dispatch]);
-
-    return { dockerNetworks, isLoading, error, stats, isOperationLoading, page, setPage };
-};
+const useUserDockerNetworks = () => useUserResource({
+    slice: 'dockerNetwork',
+    dataKey: 'dockerNetworks',
+    operation: getMyDockerNetworks,
+    setState: dockerNetSetState,
+    cleanupPath: 'networks'
+});
 
 export default useUserDockerNetworks;

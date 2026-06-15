@@ -120,3 +120,31 @@ Entry format:
 - Gate: client vite build OK (server skip)
 - Outcome: completed
 - Reason: aliases had zero imports across client/src (grep-confirmed). REJECTED the scanner's second finding (DataTable "speculative optional params getRowKey/render/actions"): verified across ~20 call sites that getRowKey (Events) and actions (ApiTokens/Team/container Explorer/OrgEnvVars) are actively used — trimming the signature would BREAK callers. Not speculative; left intact.
+
+### 2026-06-15T18:20:00Z — client/src/pages errText duplication — APPLIED
+- Change: SIMPLIFY — extracted errText to @utilities/common/errText.js; removed the 4 identical local defs (Alerting, SetupOrganization, OrganizationSettings, Team) and imported the shared one.
+- Commit: 0d8e57c
+- Gate: client vite build OK (server skip)
+- Outcome: completed
+- Reason: all 4 defs were `typeof err === 'string' ? err : (err?.message || fallback)`. Note: during the Team.jsx edit I introduced a stray `const ROLE_TONE = {` line, caught it immediately, and restored the correct structure (roleTone fn intact) before the build — final vite build green confirms full recovery. No behavior change.
+
+### 2026-06-15T18:24:54Z — client/src/pages/protected/platform/Projects/Projects.jsx — APPLIED + MANUAL_REVIEW
+- Change: REWRITE(extract) — moved EnvironmentsModal to its own file (Projects.jsx 528→381 LOC); dropped now-unused StatusBadge + Trash2 imports.
+- Commit: fcc9f37
+- Gate: client vite build OK (server skip)
+- Outcome: manual_review (1 safe win banked: fcc9f37)
+- Reason: EnvironmentsModal was a module-scope SIBLING (props-only {project,onClose}, zero shared state with Projects) → pure mechanical file move, build-verified. Remaining smells (28 useState across 4 modal flows, duplicated modal-reset pattern, useReducer consolidation) are behavior-changing REWRITEs of interdependent component state with NO FE test net (vite build catches syntax/imports, NOT behavioral regressions). Forcing them risks silent modal breakage; parked for a human/dedicated pass.
+
+### 2026-06-15T18:31:03Z — client/src/pages/protected/platform/Templates/Templates.jsx — APPLIED + MANUAL_REVIEW
+- Change: REWRITE(extract) — moved InstallModal to its own file + relocated shared truncate helper to @utilities/common/truncate (Templates.jsx 429→279 LOC); dropped unused Input import.
+- Commit: e3a009c
+- Gate: client vite build OK (server skip)
+- Outcome: manual_review (1 safe win banked: e3a009c)
+- Reason: InstallModal was a module-scope sibling (props-only) → mechanical move; truncate was shared by parent+modal so promoted to a util (avoids dup + bad import direction). Remaining: CatalogBrowser extraction + 14 useState consolidation — behavior-changing REWRITE, no FE test net. Deferred.
+
+### 2026-06-15T18:31:03Z — Alerting.jsx / Databases.jsx / Domains.jsx — MANUAL_REVIEW (no change)
+- Change: none.
+- Commit: none
+- Gate: not run (no edit)
+- Outcome: manual_review (batch)
+- Reason: unlike Projects/Templates, these three define their modals INLINE within the main component (no module-scope sibling subcomponent — verified via grep for top-level `const [A-Z]...= (`). Extracting an inline modal means untangling it from the parent's 16-22 useState, i.e. a behavior-changing REWRITE, with NO FE test net (vite build won't catch behavioral regressions). No safe atomic win available; the whole god-component decomposition is deferred to a human/dedicated pass (ideally after adding Playwright/RTL coverage for these flows).

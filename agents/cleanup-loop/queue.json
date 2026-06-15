@@ -16,97 +16,6 @@
   "queue": {
     "pending": [
       {
-        "module": "client/src/pages/errText-duplication",
-        "paths": [
-          "client/src/pages/protected/platform/Alerting/Alerting.jsx",
-          "client/src/pages/protected/settings/Team/Team.jsx",
-          "client/src/pages/protected/settings/OrganizationSettings/OrganizationSettings.jsx",
-          "client/src/pages/protected/onboarding/SetupOrganization"
-        ],
-        "score": 6,
-        "deletable_estimate_loc": 25,
-        "smells": [
-          "errText helper redefined locally in 4 pages instead of a shared utility"
-        ],
-        "notes": "SIMPLIFY: extract errText to client/src/utilities and import in the 4 pages. Behavior-preserving, low blast radius. No FE tests — build gate only.",
-        "risk": "low-medium — client; mechanical extraction"
-      },
-      {
-        "module": "client/src/pages/protected/platform/Projects/Projects.jsx",
-        "paths": [
-          "client/src/pages/protected/platform/Projects/Projects.jsx"
-        ],
-        "score": 9,
-        "deletable_estimate_loc": 150,
-        "smells": [
-          "god component 528 LOC",
-          "28 useState across 4 modal flows",
-          "nested EnvironmentsModal blocks extraction",
-          "duplicated modal-reset pattern"
-        ],
-        "notes": "REWRITE: extract EnvironmentsModal to its own file, consolidate modal state. HIGH RISK — no FE tests; do strictly behavior-preserving extractions, one at a time, build-gate each.",
-        "risk": "high — largest client god component, no test net"
-      },
-      {
-        "module": "client/src/pages/protected/platform/Alerting/Alerting.jsx",
-        "paths": [
-          "client/src/pages/protected/platform/Alerting/Alerting.jsx"
-        ],
-        "score": 9,
-        "deletable_estimate_loc": 100,
-        "smells": [
-          "god component 499 LOC",
-          "22 useState across 2 modal flows",
-          "duplicated modal reset logic"
-        ],
-        "notes": "REWRITE: extract ChannelModal + RuleModal. HIGH RISK — no FE tests. Pair with the errText extraction step.",
-        "risk": "high — no test net"
-      },
-      {
-        "module": "client/src/pages/protected/platform/Databases/Databases.jsx",
-        "paths": [
-          "client/src/pages/protected/platform/Databases/Databases.jsx"
-        ],
-        "score": 8,
-        "deletable_estimate_loc": 80,
-        "smells": [
-          "god component 468 LOC",
-          "20 useState",
-          "FormData create pattern repeated 3x"
-        ],
-        "notes": "REWRITE: extract CreateDatabaseModal + BackupModal. HIGH RISK — no FE tests.",
-        "risk": "high — no test net"
-      },
-      {
-        "module": "client/src/pages/protected/platform/Domains/Domains.jsx",
-        "paths": [
-          "client/src/pages/protected/platform/Domains/Domains.jsx"
-        ],
-        "score": 8,
-        "deletable_estimate_loc": 70,
-        "smells": [
-          "god component 372 LOC",
-          "16 useState",
-          "local asArray() util",
-          "fragmented loading states"
-        ],
-        "notes": "REWRITE: extract AddDomainModal, unify loading state. HIGH RISK — no FE tests.",
-        "risk": "high — no test net"
-      },
-      {
-        "module": "client/src/pages/protected/platform/Templates/Templates.jsx",
-        "paths": [
-          "client/src/pages/protected/platform/Templates/Templates.jsx"
-        ],
-        "score": 7,
-        "deletable_estimate_loc": 100,
-        "smells": [
-          "god component 429 LOC with 2 inline modal components (DeployModal ~110, CatalogBrowser ~100)"
-        ],
-        "notes": "REWRITE: extract DeployModal + CatalogBrowser to files. HIGH RISK — no FE tests.",
-        "risk": "high — no test net"
-      },
-      {
         "module": "client/src/utilities/common/byte-formatting",
         "paths": [
           "client/src/utilities/common"
@@ -181,6 +90,24 @@
         "commit": "3d61171",
         "completedAt": "2026-06-15T18:14:50Z",
         "summary": "DELETE — removed 3 unused aliases; DataTable signature-trim finding rejected (params are used)"
+      },
+      {
+        "module": "client/src/pages/errText-duplication",
+        "commit": "0d8e57c",
+        "completedAt": "2026-06-15T18:20:00Z",
+        "summary": "SIMPLIFY — extracted errText to @utilities/common; deduped 4 local copies"
+      },
+      {
+        "module": "client/.../Projects.jsx (EnvironmentsModal extraction)",
+        "commit": "fcc9f37",
+        "completedAt": "2026-06-15T18:24:54Z",
+        "summary": "extracted EnvironmentsModal to own file (528->381 LOC)"
+      },
+      {
+        "module": "client/.../Templates.jsx (InstallModal + truncate util)",
+        "commit": "e3a009c",
+        "completedAt": "2026-06-15T18:31:03Z",
+        "summary": "extracted InstallModal + shared truncate util (429->279 LOC)"
       }
     ],
     "manual_review": [
@@ -206,6 +133,33 @@
         "reviewedAt": "2026-06-15T18:08:30Z",
         "deferred": "provisionCodespace ~120-line god fn decomposition + centralizing 3 env reads",
         "rootCause": "no test net (heavy daemon mocking needed); the env-read centralization has a behavior-change trap (SERVER_IP fallback inconsistent L62 vs L195). L195 missing-fallback is a latent bug for the human pass."
+      },
+      {
+        "module": "client/.../Projects.jsx",
+        "banked": "fcc9f37",
+        "deferred": "28 useState consolidation + modal-reset dedup",
+        "rootCause": "behavior-changing REWRITE of interdependent state, no FE test net"
+      },
+      {
+        "module": "client/.../Templates.jsx",
+        "banked": "e3a009c",
+        "deferred": "CatalogBrowser extraction + 14 useState consolidation",
+        "rootCause": "no FE test net"
+      },
+      {
+        "module": "client/.../Alerting.jsx",
+        "deferred": "ChannelModal/RuleModal extraction + 22 useState",
+        "rootCause": "inline modals tangled with parent state; no FE test net; no safe atomic win"
+      },
+      {
+        "module": "client/.../Databases.jsx",
+        "deferred": "CreateDatabaseModal/BackupModal extraction + 20 useState",
+        "rootCause": "inline modals; no FE test net"
+      },
+      {
+        "module": "client/.../Domains.jsx",
+        "deferred": "AddDomainModal extraction + loading-state unify",
+        "rootCause": "inline modal; no FE test net"
       }
     ]
   },
@@ -249,10 +203,10 @@
     }
   ],
   "stats": {
-    "iterations": 13,
-    "changesApplied": 12,
+    "iterations": 19,
+    "changesApplied": 15,
     "changesRejected": 1,
-    "modulesCompleted": 10,
-    "modulesManualReview": 3
+    "modulesCompleted": 13,
+    "modulesManualReview": 8
   }
 }

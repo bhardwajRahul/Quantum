@@ -167,3 +167,23 @@ Entry format:
 - Gate: not run (no edit)
 - Outcome: manual_review
 - Reason: both candidate edits are behavior-CHANGING, not cleanups. (1) Migrating humanFileSize's single caller (CreateDockerContainer:89) to the shared formatBytes changes rendered output: humanFileSize uses lowercase 'kB' + 2-decimal-stripped (1500→"1.46 kB"), formatBytes uses 'KB' + 1-decimal-fixed (1500→"1.5 KB"). (2) Databases.jsx:43 has a THIRD local formatBytes whose null/NaN fallback is '—' vs the shared util's '0 B' — merging changes the empty-state display. The audit memory explicitly warns "formatBytes variants — intentionally different fallbacks, don't blind-merge". Both need a design decision on canonical formatting; deferred rather than silently changing UI output.
+
+---
+
+## Run 2 — 2026-06-15 (fresh deletion-focused scan over run-1 output)
+
+Re-scan after run 1, biased hard toward DELETE. 2 high-confidence findings, both applied, gate green throughout. Final: server tsc 23/23, vitest 131/131, client build OK.
+
+### 2026-06-15T18:50:45Z — server/services/orchestrator/index.ts — APPLIED
+- Change: DELETE — removed enqueueBuild, stopOrchestrator, and the `export default {...}` barrel (260→229 LOC).
+- Commit: 851f130
+- Gate: tsc 23/23, tests 131/131 pass, client build skip
+- Outcome: completed
+- Reason: all three grep-confirmed unreferenced. enqueueBuild was the only producer of standalone type:'build' jobs (none are enqueued; deployHandler calls runBuild directly). stopOrchestrator has zero callers — the SIGINT handler uses process.exit(0). The default barrel is never default-imported (all 11+ sites use named imports; templateHandler's dynamic import reads the named .enqueueDatabaseJob). dispatch 'build' case + buildHandler left intact (runBuild still used by deployHandler).
+
+### 2026-06-15T18:51:47Z — server/controllers/common/dockerFS.ts — APPLIED
+- Change: SIMPLIFY/fix — replaced `console.log(error)` with `logger.error(...)` (codebase file-prefix convention) in updateContainerFile's catch; added the logger import.
+- Commit: 452c342
+- Gate: tsc 23/23, tests 131/131 pass, client build skip
+- Outcome: completed
+- Reason: debug leftover that swallowed a writeFile failure to stdout. NOT deleted — the catch has no other handling, so removing it would silently swallow the error; converting to logger.error records it without changing response behavior.

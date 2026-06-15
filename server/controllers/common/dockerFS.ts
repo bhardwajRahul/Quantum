@@ -4,6 +4,7 @@ import { NextFunction, Response } from 'express';
 import DockerContainer from '@models/docker/container';
 import DockerContainerService from '@services/docker/container';
 import RuntimeError from '@utilities/runtimeError';
+import logger from '@utilities/logger';
 import path from 'path';
 
 class DockerFS{
@@ -31,7 +32,7 @@ class DockerFS{
             }
             await containerService.writeFile(req.params.route, req.body.content);
         }catch(error){
-            console.log(error);
+            logger.error('@controllers/common/dockerFS.ts (updateContainerFile): ' + error);
         }
         res.status(200).json({ status: 'success' });
     });

@@ -12,14 +12,17 @@
  * =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 ****/
 
-import { httpServer } from '@config/express';
+import { httpServer, io } from '@config/express';
 import { cleanHostEnvironment } from '@utilities/helpers';
 import logger from '@utilities/logger';
 import sendMail from '@services/sendEmail';
 import mongoConnector from '@utilities/mongoConnector';
 import * as bootstrap from '@utilities/bootstrap';
+import { startOrchestrator } from '@services/orchestrator';
+import { runTenancyBackfill } from '@services/tenancy/provisioning';
+import wsController from '@controllers/wsController';
 
-import '@config/ws';
+wsController(io);
 
 // Server configuration
 const SERVER_PORT: number = Number(process.env.SERVER_PORT) || 8000;
@@ -68,9 +71,15 @@ httpServer.listen(SERVER_PORT, SERVER_HOST, async () => {
         bootstrap.validateEnvironmentVariables();
         // Establishes a connection to the MongoDB database
         await mongoConnector();
-        logger.info('@server.ts: Docker containers and user applications will be started. This may take a few minutes...');
-        // Loads Docker containers
-        await bootstrap.deployContainers();
+        // Backfill tenancy (default org/project/environment + owner membership for
+        // every pre-existing user/repository). Idempotent; must run before serving
+        // requests so the central tenant scoping has context to resolve against.
+        await runTenancyBackfill();
+        logger.info('@server.ts: Starting the deploy orchestrator. Containers will be reconciled (recreated/started) and user applications brought up as needed...');
+        // Start the orchestrator: worker pool + boot reconciliation (desired-vs-actual
+        // self-heal) + periodic reconcile. This replaces the old blanket
+        // bootstrap.deployContainers() Promise.all that force-started every container.
+        await startOrchestrator();
         // Email to WEBMASTER_MAIL to notify about the correct opening of the server.
         await sendMail({
             subject: 'The Quantum API is now accessible!',

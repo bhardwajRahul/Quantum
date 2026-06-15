@@ -1,5 +1,64 @@
 import axios from 'axios';
-import ServerRequestBuilder from '@utilities/api/serverRequestBuilder';
+
+/**
+ * Attach the active organization to EVERY API request. The backend's resolveTenant
+ * reads `x-organization-id` to scope the request to that org. On discovery routes
+ * (org list/create) the header is ignored server-side, so a stale id never blocks
+ * bootstrap. The id is persisted by the org switcher under the `qt-org`
+ * localStorage key (services/tenancy/slice.js). Registered once as a global axios
+ * request interceptor so every call — regardless of which builder issued it —
+ * carries the header.
+ */
+if(!axios.__qtOrgInterceptor){
+    axios.interceptors.request.use((config) => {
+        try{
+            const orgId = localStorage.getItem('qt-org');
+            if(orgId){
+                config.headers = config.headers || {};
+                config.headers['x-organization-id'] = orgId;
+            }
+        }catch{ /* localStorage unavailable — backend resolves org from session */ }
+        return config;
+    });
+    axios.__qtOrgInterceptor = true;
+}
+
+/**
+ * Recover from a stale/foreign org selection. When the backend can't resolve the
+ * requested org for the caller (e.g. a `qt-org` left over from a previous deploy
+ * whose DB was wiped, or an org the user was removed from), scoped routes reply
+ * with the message `Tenancy::Organization::Reconfigure`. The error envelope only
+ * carries the message string to callers (register() flattens it), so we
+ * detect it HERE, at the response-interceptor layer, clear the stale selection,
+ * and reload — bootstrap then re-discovers the user's real orgs (or routes them to
+ * the setup gate if they have none). The reload guard prevents a loop if clearing
+ * the keys somehow doesn't change the outcome.
+ */
+if(!axios.__qtReconfigureInterceptor){
+    axios.interceptors.response.use(
+        (response) => {
+            // A successful call means the current org selection works — clear the
+            // recovery guard so a future stale-org event can trigger another reload.
+            try{ sessionStorage.removeItem('qt-reconfiguring'); }catch{ /* noop */ }
+            return response;
+        },
+        (error) => {
+            try{
+                const message = error?.response?.data?.message;
+                if(message === 'Tenancy::Organization::Reconfigure'){
+                    localStorage.removeItem('qt-org');
+                    localStorage.removeItem('qt-project');
+                    if(!sessionStorage.getItem('qt-reconfiguring')){
+                        sessionStorage.setItem('qt-reconfiguring', '1');
+                        window.location.assign('/');
+                    }
+                }
+            }catch{ /* storage/window unavailable — fall through to normal rejection */ }
+            return Promise.reject(error);
+        }
+    );
+    axios.__qtReconfigureInterceptor = true;
+}
 
 class APIRequestBuilder{
     /**
@@ -9,7 +68,6 @@ class APIRequestBuilder{
     */
     constructor(baseEndpoint){
         this.baseEndpoint = baseEndpoint;
-        this.authToken = null;
     }
 
     /**
@@ -54,15 +112,18 @@ class APIRequestBuilder{
     register({ path, method = 'GET' }){
         return async ({ query = {}, body = {} }) => {
             const url = this.buildUrl(path, query.params, query.queryParams);
-            return new ServerRequestBuilder().register({
-                callback: axios,
-                args: [{
+            try{
+                const response = await axios({
                     method: method.toLowerCase(),
                     url,
                     data: body,
                     withCredentials: true
-                }]
-            })
+                });
+                // Assuming Quantum Backend API consistency
+                return response.data || response;
+            }catch(error){
+                throw error.response?.data?.message || error.message;
+            }
         };
     }
 }

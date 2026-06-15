@@ -16,33 +16,6 @@
   "queue": {
     "pending": [
       {
-        "module": "server/controllers/database.ts",
-        "paths": [
-          "server/controllers/database.ts"
-        ],
-        "score": 5,
-        "deletable_estimate_loc": 20,
-        "smells": [
-          "backupDatabase/restoreDatabase/getConnectionString each repeat the tenant-scoped project lookup inline instead of using resolveProjectOr403"
-        ],
-        "notes": "SIMPLIFY: route the 3 inline tenant lookups through the existing resolveProjectOr403 helper (already used elsewhere). Behavior-preserving.",
-        "risk": "low — reuses an existing, tested helper"
-      },
-      {
-        "module": "server/services/codespace/index.ts",
-        "paths": [
-          "server/services/codespace"
-        ],
-        "score": 5,
-        "deletable_estimate_loc": 20,
-        "smells": [
-          "provisionCodespace is a ~120-line god function (8 sequential steps)",
-          "3 env reads scattered (SERVER_IP, CODESPACE_READINESS_*)"
-        ],
-        "notes": "REWRITE: extract _ensureImage/_setupNetwork/_attachEdgeNetwork helpers to shrink the god function. No dedicated test — lean on build+tsc gate, guardian should add a thin one if feasible.",
-        "risk": "medium — no direct test; behavior-preserving extraction only"
-      },
-      {
         "module": "client/src/components/organisms/ProtectedRoute",
         "paths": [
           "client/src/components/organisms/ProtectedRoute/index.js"
@@ -224,6 +197,12 @@
         "commit": "18753d4",
         "completedAt": "2026-06-15T18:05:19Z",
         "summary": "SIMPLIFY — extracted applyCommonServiceFields shared by both parsers"
+      },
+      {
+        "module": "server/controllers/database.ts",
+        "commit": "0bcd209",
+        "completedAt": "2026-06-15T18:07:27Z",
+        "summary": "SIMPLIFY — extracted reachableScope tenant filter (3 inline copies -> 1)"
       }
     ],
     "manual_review": [
@@ -243,6 +222,12 @@
         "reviewedAt": "2026-06-15T17:59:30Z",
         "deferred": "maybeRouteManagedDatabases (intentional opt-in feature flag, not dead) + runTemplateJob god fn",
         "rootCause": "removing the guarded feature is a product decision not a cleanup; runTemplateJob has no behavioral test net"
+      },
+      {
+        "module": "server/services/codespace/provisioner.ts",
+        "reviewedAt": "2026-06-15T18:08:30Z",
+        "deferred": "provisionCodespace ~120-line god fn decomposition + centralizing 3 env reads",
+        "rootCause": "no test net (heavy daemon mocking needed); the env-read centralization has a behavior-change trap (SERVER_IP fallback inconsistent L62 vs L195). L195 missing-fallback is a latent bug for the human pass."
       }
     ]
   },
@@ -286,10 +271,10 @@
     }
   ],
   "stats": {
-    "iterations": 8,
-    "changesApplied": 8,
+    "iterations": 10,
+    "changesApplied": 9,
     "changesRejected": 0,
-    "modulesCompleted": 6,
-    "modulesManualReview": 2
+    "modulesCompleted": 7,
+    "modulesManualReview": 3
   }
 }

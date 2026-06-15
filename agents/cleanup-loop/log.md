@@ -85,3 +85,17 @@ Entry format:
 - Gate: tsc 23/23, tests 131/131 pass, client build skip
 - Outcome: completed
 - Reason: 4 identical field normalizations were duplicated across the two parsers. splitImageRef deliberately NOT merged (intentionally different compose vs prebuilt). The `?? raw.env` env fallback is a no-op for legacy entries (only carry `environment`) → behavior-preserving. templates.test.ts is the net.
+
+### 2026-06-15T18:07:27Z — server/controllers/database.ts — APPLIED
+- Change: SIMPLIFY — extracted reachableScope(req) for the tenant-scope filter duplicated in backupDatabase/restoreDatabase/getConnectionString.
+- Commit: 0bcd209
+- Gate: tsc 23/23, tests 131/131 pass, client build skip
+- Outcome: completed
+- Reason: the admin→{}/else project-$in clause was copy-pasted 3×. Scanner's suggestion to use resolveProjectOr403 was a MISREAD — that helper resolves a :projectId param, but these endpoints key off a database :id, so a local filter helper is the correct dedup. Behavior identical (factory-backed create/list/delete untouched).
+
+### 2026-06-15T18:08:30Z — server/services/codespace/provisioner.ts — MANUAL_REVIEW (no change)
+- Change: none.
+- Commit: none
+- Gate: not run (no edit)
+- Outcome: manual_review
+- Reason: provisionCodespace (~120 lines, 8 sequential act.step daemon calls: pull/network/container/limits/edge/port-bind/readiness/save) is a behavior-preserving REWRITE of hot-path Docker orchestration with NO test net (no test references codespace), and a meaningful test needs heavy daemon mocking — larger than one atomic step. The only mechanical sub-edit (centralizing the 3 process.env reads) has a behavior-change trap: SERVER_IP is read WITH a '127.0.0.1' fallback at L62 but WITHOUT one at L195 — unifying under one constant would change L195's behavior when SERVER_IP is unset (undefined→127.0.0.1). That's a behavior change, not a cleanup. Deferred rather than forcing a risky edit. (L195 missing-fallback looks like a latent bug — noted for the human pass.)

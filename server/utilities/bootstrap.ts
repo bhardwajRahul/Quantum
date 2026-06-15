@@ -12,18 +12,10 @@
  * =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 ****/
 
-import Repository from '@models/repository';
-import Github from '@services/github';
 import fs from 'fs';
 import path from 'path';
-import RepositoryHandler from '@services/repositoryHandler';
-import sendMail from '@services/sendEmail';
 import logger from '@utilities/logger';
 import { ConfigureAppParams } from '@typings/utilities/bootstrap';
-import { IUser } from '@typings/models/user';
-import { IRepository } from '@typings/models/repository';
-import DockerContainer from '@models/docker/container';
-import DockerContainerService from '@services/docker/container';
 
 /**
  * Ensures the existence of the "../public" folder, creating it if necessary.
@@ -72,41 +64,8 @@ export const configureApp = async ({ app, routes, suffix, middlewares }: Configu
     }
 };
 
-export const deployContainers = async (): Promise<void> => {
-    try{
-        logger.info('@utilities/bootstrap.ts (deployContainers): Loading containers...');
-        const containers = await DockerContainer.find({ });
-        logger.info(`@utilities/bootstrap.ts (deployContainers): Found ${containers.length} containers.`);
-        const promises = containers.map(async (container) => {
-            const containerService = new DockerContainerService(container);
-            await containerService.start();
-            if(container.isRepositoryContainer){
-                const repository = await Repository
-                    .findById(container.repository)
-                    .populate({
-                        path: 'user',
-                        select: 'username',
-                        populate: { path: 'github', select: 'accessToken username' }
-                    }) as IRepository;
-                if(!repository) return;
-                const user = repository.user as IUser;
-                const repositoryService = new RepositoryHandler(repository);
-                const githubService = new Github(user, repository);
-                await repositoryService.start(githubService);
-            }
-        });
-        await Promise.all(promises);
-        await sendMail({
-            subject: 'Containers loaded correctly!',
-            html: 'The containers registered on the platform were successfully mounted on the host.'
-        });
-    }catch(error){
-        logger.error('@utilities/bootstrap.ts (deployContainers): ' + error);
-    }
-};
-
 /**
- * Validates required environment variables and ensures compliance with format restrictions. 
+ * Validates required environment variables and ensures compliance with format restrictions.
  * Exits the process if any validation fails.
 */
 export const validateEnvironmentVariables = (): void => {

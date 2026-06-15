@@ -425,7 +425,6 @@ class DockerContainer{
             logger.info(`@services/docker/container.ts (reloadContainer): Removed temporary image ${tempImageName}`);
             await this.container.updateOne({ status: 'running' });
             logger.info(`@services/docker/container.ts (reloadContainer): Successfully reloaded container ${containerName}`);
-            return newContainer;
         }catch(error){
             logger.error(`@services/docker/container.ts (reloadContainer): ${error}`);
             await this.container.updateOne({ status: 'error' });

@@ -355,96 +355,90 @@ const backfillOrgFromParent = async (
 };
 
 /**
+ * Backfill the org/project/environment refs onto legacy repositories that predate
+ * the tenancy model. Only repos whose owner ALREADY has a `defaultOrganization`
+ * are stamped — org-less owners are skipped (we never mint an org here). Returns
+ * the number of repositories stamped.
+ */
+const backfillRepositories = async (): Promise<number> => {
+    const User = mongoose.model<IUser>('User');
+    const Repository = mongoose.model('Repository');
+    let reposBackfilled = 0;
+    const repositories = await Repository.find({
+        $or: [
+            { project: { $exists: false } },
+            { project: null }
+        ]
+    });
+    for(const repository of repositories){
+        const ownerId = (repository as any).user;
+        if(!ownerId){
+            logger.error(`@services/tenancy/provisioning.ts (backfillRepositories): Repository ${repository._id} has no owner; skipping.`);
+            continue;
+        }
+        const owner = await User.findById(ownerId);
+        if(!owner){
+            logger.error(`@services/tenancy/provisioning.ts (backfillRepositories): Owner ${ownerId} for repository ${repository._id} not found; skipping.`);
+            continue;
+        }
+        // Skip repos whose owner has no organization — do NOT provision one.
+        const orgId = (owner as any).defaultOrganization;
+        if(!orgId) continue;
+        // Resolve the org's default project/environment (idempotent, no new org).
+        const { project, environment } = await ensureOrgDefaults(orgId);
+        const update: Record<string, unknown> = {
+            organization: orgId,
+            project: project._id,
+            environment: environment._id
+        };
+        if(!(repository as any).sourceType){
+            update.sourceType = 'github';
+        }
+        // strict:false so we can write fields that may not yet be in the schema.
+        await Repository.updateOne({ _id: repository._id }, update, { strict: false });
+        reposBackfilled++;
+    }
+    return reposBackfilled;
+};
+
+// Org-stamping passes, declared as data: [childModel, parentField, parentModel, parentOrgField].
+// Order matters: Docker resources stamp BEFORE Metric (which resolves via container.organization).
+const ORG_STAMP_PASSES: ReadonlyArray<readonly [string, string, string, string]> = [
+    ['Deployment', 'repository', 'Repository', 'organization'],
+    ['Domain', 'repository', 'Repository', 'organization'],
+    ['HealthCheck', 'repository', 'Repository', 'organization'],
+    ['Database', 'project', 'Project', 'organization'],
+    ['AlertChannel', 'project', 'Project', 'organization'],
+    ['AlertRule', 'project', 'Project', 'organization'],
+    ['Environment', 'project', 'Project', 'organization'],
+    ['DockerContainer', 'user', 'User', 'defaultOrganization'],
+    ['DockerImage', 'user', 'User', 'defaultOrganization'],
+    ['DockerNetwork', 'user', 'User', 'defaultOrganization'],
+    ['PortBinding', 'user', 'User', 'defaultOrganization'],
+    ['Metric', 'container', 'DockerContainer', 'organization']
+];
+
+/**
  * One-time, idempotent migration that brings legacy data up to the tenancy model.
  * It NEVER creates organizations (the explicit-org-setup model forbids auto-orgs);
  * it only stamps the direct `organization` ref onto child collections that resolve
- * it from a parent which ALREADY has one:
- *  - every Repository without a `project`, whose owner already has a
- *    `defaultOrganization`, is attached to that org's default project/environment
- *    (and given a `sourceType` of 'github' if missing). Org-less owners are skipped.
- *  - Deployment/Domain/Database/Docker resources/Metric/etc. get `organization`
- *    stamped from their parent (repository/project/owner/container).
- *
- * Safe to run multiple times — already-attached repositories and already-stamped
- * documents are skipped.
+ * it from a parent which ALREADY has one. Safe to run multiple times.
  */
 export const runTenancyBackfill = async (): Promise<BackfillResult> => {
-    const User = mongoose.model<IUser>('User');
-    const Repository = mongoose.model('Repository');
-
-    let usersProvisioned = 0;
+    // NO auto-provision: under the explicit-org-setup model an org-less user is
+    // valid and must create their first org via the UI. usersProvisioned stays 0
+    // (kept for the report shape).
+    const usersProvisioned = 0;
     let reposBackfilled = 0;
     const orgBackfilled: Record<string, number> = {};
 
     try{
-        // --- Users -----------------------------------------------------------
-        // NO auto-provision: under the explicit-org-setup model an org-less user
-        // is valid and must create their first org via the UI. We never mint orgs
-        // here. usersProvisioned stays 0 (kept for the report shape).
-
-        // --- Repositories ----------------------------------------------------
-        // Stamp org/project/environment ONLY for repos whose owner ALREADY has a
-        // provisioned tenancy. Repos owned by an org-less user are left untouched
-        // (no org is created on their behalf); they get stamped once the owner
-        // creates an organization.
-        const repositories = await Repository.find({
-            $or: [
-                { project: { $exists: false } },
-                { project: null }
-            ]
-        });
-        for(const repository of repositories){
-            const ownerId = (repository as any).user;
-            if(!ownerId){
-                logger.error(`@services/tenancy/provisioning.ts (runTenancyBackfill): Repository ${repository._id} has no owner; skipping.`);
-                continue;
-            }
-            const owner = await User.findById(ownerId);
-            if(!owner){
-                logger.error(`@services/tenancy/provisioning.ts (runTenancyBackfill): Owner ${ownerId} for repository ${repository._id} not found; skipping.`);
-                continue;
-            }
-            // Skip repos whose owner has no organization — do NOT provision one.
-            const orgId = (owner as any).defaultOrganization;
-            if(!orgId){
-                continue;
-            }
-            // Resolve the org's default project/environment (idempotent, no new org).
-            const { project, environment } = await ensureOrgDefaults(orgId);
-            const update: Record<string, unknown> = {
-                organization: orgId,
-                project: project._id,
-                environment: environment._id
-            };
-            if(!(repository as any).sourceType){
-                update.sourceType = 'github';
-            }
-            // strict:false so we can write fields that may not yet be in the schema.
-            await Repository.updateOne({ _id: repository._id }, update, { strict: false });
-            reposBackfilled++;
-        }
-
-        // --- Organization stamping on newly-org-linked collections -----------
+        reposBackfilled = await backfillRepositories();
         // Each pass is idempotent (only touches docs missing `organization`) and
-        // self-contained (backfillOrgFromParent never throws). Repository already
-        // got its org in the loop above; TemplateInstall/ApiToken already carry it.
-        // Resolve via repository → repository.organization.
-        orgBackfilled.Deployment = await backfillOrgFromParent('Deployment', 'repository', 'Repository', 'organization');
-        orgBackfilled.Domain = await backfillOrgFromParent('Domain', 'repository', 'Repository', 'organization');
-        orgBackfilled.HealthCheck = await backfillOrgFromParent('HealthCheck', 'repository', 'Repository', 'organization');
-        // Resolve via project → project.organization.
-        orgBackfilled.Database = await backfillOrgFromParent('Database', 'project', 'Project', 'organization');
-        orgBackfilled.AlertChannel = await backfillOrgFromParent('AlertChannel', 'project', 'Project', 'organization');
-        orgBackfilled.AlertRule = await backfillOrgFromParent('AlertRule', 'project', 'Project', 'organization');
-        orgBackfilled.Environment = await backfillOrgFromParent('Environment', 'project', 'Project', 'organization');
-        // Docker resources + port bindings: resolve via owner → user.defaultOrganization.
-        // Run BEFORE Metric, which resolves its org from container.organization.
-        orgBackfilled.DockerContainer = await backfillOrgFromParent('DockerContainer', 'user', 'User', 'defaultOrganization');
-        orgBackfilled.DockerImage = await backfillOrgFromParent('DockerImage', 'user', 'User', 'defaultOrganization');
-        orgBackfilled.DockerNetwork = await backfillOrgFromParent('DockerNetwork', 'user', 'User', 'defaultOrganization');
-        orgBackfilled.PortBinding = await backfillOrgFromParent('PortBinding', 'user', 'User', 'defaultOrganization');
-        // Metric: resolve via its container → container.organization (now stamped above).
-        orgBackfilled.Metric = await backfillOrgFromParent('Metric', 'container', 'DockerContainer', 'organization');
+        // self-contained (backfillOrgFromParent never throws).
+        for(const [child, parentField, parentModel, parentOrgField] of ORG_STAMP_PASSES){
+            orgBackfilled[child] = await backfillOrgFromParent(child, parentField, parentModel, parentOrgField);
+        }
 
         const orgSummary = Object.entries(orgBackfilled)
             .map(([name, n]) => `${name}=${n}`)

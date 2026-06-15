@@ -1,4 +1,5 @@
 import Dockerode from 'dockerode';
+import mongoose from 'mongoose';
 import path from 'path';
 import slugify from 'slugify';
 import PortBinding from '@models/portBinding';
@@ -13,6 +14,7 @@ import { getSystemNetworkName } from '@services/docker/network';
 import { IUser } from '@typings/models/user';
 import { IRepository } from '@typings/models/repository';
 import { IContainerStoragePath } from '@typings/services/dockerContainer';
+import { getDockerHost } from '@services/docker/host';
 import DockerImage from '@models/docker/image';
 import logger from '@utilities/logger';
 import DockerNetwork from '@models/docker/network';
@@ -20,7 +22,7 @@ import Repository from '@models/repository';
 import RepositoryService from '@services/repositoryHandler';
 import Github from '@services/github';
 
-const docker = new Dockerode();
+const docker = getDockerHost().client();
 
 export const getContainerStoragePath = (userId: string, containerId: string, name: string): IContainerStoragePath => {
     const userContainerPath = path.join('/var/lib/quantum', process.env.NODE_ENV as string, 'containers', userId);
@@ -37,13 +39,9 @@ export const getSystemDockerName = (containerId: string): string => {
 class DockerContainer{
     private container: IDockerContainer;
     private repository: IRepository | null;
-    private dockerImage: IDockerImage | null;
-    private dockerNetwork: IDockerNetwork | null;
 
     constructor(container: IDockerContainer){
         this.container = container;
-        this.dockerImage = null;
-        this.dockerNetwork = null;
         this.repository = null;
     }
 
@@ -91,7 +89,9 @@ class DockerContainer{
             
             stream.on('data', (chunk: Buffer) => {
                 const data = chunk.slice(8);
-                chunks.push(data);
+                // Docker multiplexes streams; header byte 2 = stderr, otherwise stdout.
+                if(chunk[0] === 2) errorChunks.push(data);
+                else chunks.push(data);
             });
 
             stream.on('error', reject);
@@ -129,8 +129,11 @@ class DockerContainer{
             return null;
         }
         const data = await container.inspect();
-        const ipAddress = data.NetworkSettings.Networks[network.dockerNetworkName].IPAddress;
-        return ipAddress;
+        // The container may be running but unattached from its declared network
+        // (e.g. the network failed to materialize). Don't throw — return null and
+        // let the caller continue without an IP rather than crashing the deploy.
+        const networkEntry = data.NetworkSettings?.Networks?.[network.dockerNetworkName];
+        return networkEntry?.IPAddress || null;
     }
 
     async initializeContainer(){
@@ -183,7 +186,6 @@ class DockerContainer{
     }
 
     async getDockerImage(): Promise<IDockerImage> {
-        if(this.dockerImage) return this.dockerImage;
         const dockerImage = await DockerImage.findById(this.container.image).select('name tag');
         if(dockerImage === null){
             throw Error("Can't create a container that does not have any images configured.");
@@ -206,9 +208,7 @@ class DockerContainer{
     };
 
     async getDockerNetwork(): Promise<IDockerNetwork> {
-        if(this.dockerNetwork) return this.dockerNetwork;
-
-        let dockerNetwork = await DockerNetwork.findById(this.container.network).select('name');
+        const dockerNetwork = await DockerNetwork.findById(this.container.network).select('name');
         if(dockerNetwork === null){
             throw Error('Trying to create a container that does not have any network configured yet.');
         }
@@ -216,28 +216,14 @@ class DockerContainer{
     }
 
     async writeFile(filePath: string, content: string): Promise<void> {
-        try{
-            await this.executeCommand(['sh', '-c', 'mkdir -p /tmp/quantum-file-operations']);
-            
-            const tempPath = '/tmp/quantum-file-operations/temp_file';
-            const targetDir = path.dirname(filePath);
-
-            await this.executeCommand([
-                'sh',
-                '-c',
-                `printf '%s' "${content.replace(/"/g, '\\"')}" > ${tempPath}`
-            ]);
-            
-            await this.executeCommand(['sh', '-c', `mkdir -p ${targetDir}`]);
-            
-            await this.executeCommand(['mv', tempPath, filePath]);
-        }finally{
-            try{
-                await this.executeCommand(['rm', '-rf', '/tmp/quantum-file-operations']);
-            }catch(error){
-                logger.error(error);
-            }
-        }
+        // Inject-safe write: the dynamic values (filePath, content) are passed as
+        // POSITIONAL ARGS to `sh -c` (so they are never part of the script text),
+        // and content is base64-encoded (base64 alphabet is shell-safe).
+        // `sh -c SCRIPT name arg1 arg2` sets $0=name, $1=arg1, $2=arg2.
+        const b64 = Buffer.from(content, 'utf8').toString('base64');
+        await this.executeCommand(
+            ['sh', '-c', 'mkdir -p "$(dirname "$1")" && printf %s "$2" | base64 -d > "$1"', 'quantum-write', filePath, b64]
+        );
     }
 
     async readFile(filePath: string): Promise<string> {
@@ -310,7 +296,7 @@ class DockerContainer{
         return volumes;
     }
 
-    async getDockerOptions(){
+    async getDockerOptions(overrides: { imageOverride?: string; extraLabels?: Record<string, string>; resources?: { nanoCpus?: number; memoryBytes?: number; storageSize?: string } } = {}){
         const dockerImage = await this.getDockerImage();
         const dockerNetwork = await this.getDockerNetwork();
         const networkName = getSystemNetworkName(this.container.user.toString(), dockerNetwork._id.toString());
@@ -321,8 +307,10 @@ class DockerContainer{
             ([key, value]) => `${key}=${value}`
         );
 
-        const options = {
-            Image: `${dockerImage.name}:${dockerImage.tag}`,
+        const options: any = {
+            // imageOverride lets a deploy run an EXACT immutable build artifact tag
+            // (Phase 3 build-strategies) instead of the configured DockerImage doc.
+            Image: overrides.imageOverride || `${dockerImage.name}:${dockerImage.tag}`,
             name: this.container.dockerContainerName,
             Tty: true,
             OpenStdin: true,
@@ -346,11 +334,31 @@ class DockerContainer{
             },
         };
 
+        // Hard resource limits (Codespaces: configurable CPU/RAM/disk). NanoCpus =
+        // cores * 1e9; Memory in bytes. storageSize maps to the per-container disk
+        // quota via the storage driver's StorageOpt.size (requires a quota-capable
+        // driver, e.g. overlay2 on xfs with pquota — advisory/no-op otherwise).
+        if(overrides.resources){
+            const { nanoCpus, memoryBytes, storageSize } = overrides.resources;
+            if(nanoCpus) options.HostConfig.NanoCpus = nanoCpus;
+            if(memoryBytes){
+                options.HostConfig.Memory = memoryBytes;
+                options.HostConfig.MemorySwap = memoryBytes; // disable swap beyond the limit
+            }
+            if(storageSize) options.HostConfig.StorageOpt = { size: storageSize };
+        }
+
+        // extraLabels carry Traefik ingress routing rules (Phase 3 ingress), applied
+        // on (re)create so routing follows the container through redeploys.
+        if(overrides.extraLabels && Object.keys(overrides.extraLabels).length > 0){
+            options.Labels = { ...(options.Labels || {}), ...overrides.extraLabels };
+        }
+
         return options;
     }
-    
-    async createContainer(): Promise<Dockerode.Container> {
-        const options = await this.getDockerOptions();
+
+    async createContainer(overrides: { imageOverride?: string; extraLabels?: Record<string, string>; resources?: { nanoCpus?: number; memoryBytes?: number; storageSize?: string } } = {}): Promise<Dockerode.Container> {
+        const options = await this.getDockerOptions(overrides);
         const container = await docker.createContainer(options);
         return container;
     }
@@ -402,6 +410,11 @@ class DockerContainer{
                 await newContainer.start();
                 await this.container.updateOne({ status: 'running' });
                 logger.info(`@services/docker/container.ts (reloadContainer): Started recreated container ${containerName} with updated environment`);
+                // A repository container runs its app via a backgrounded start command
+                // (exec strategy) — recreating the container loses that process, so
+                // re-launch it. Without this, any reload (env/port change) leaves the
+                // container up but the app dead.
+                await this.relaunchRepositoryApp();
             }else{
                 await this.container.updateOne({ status: 'stopped' });
                 logger.info(`@services/docker/container.ts (reloadContainer): Created container ${containerName} with updated environment (not started)`);
@@ -420,6 +433,58 @@ class DockerContainer{
         }
     }
     
+    /**
+     * Re-launch a repository app's start command inside this container. The exec
+     * build strategy runs the app as a backgrounded `sh -c "<startCommand> &"`
+     * process (RepositoryHandler.start) — it is NOT the container's CMD, so a
+     * recreate (reload, reconcile self-heal) leaves the container up but the app
+     * dead. This restarts it from the deployment's env + the repo's startCommand,
+     * using the SAME injection-safe argv form as the deploy path. Best-effort: a
+     * repo without a start command (e.g. static) or without a deployment is a no-op.
+     */
+    async relaunchRepositoryApp(): Promise<void>{
+        if(!this.container.isRepositoryContainer) return;
+        try{
+            const repository = await Repository.findById(this.container.repository)
+                .select('startCommand rootDirectory deployments');
+            const startCommand = repository?.startCommand;
+            if(!repository || !startCommand) return;
+            const workingDir = '/app' + (repository.rootDirectory || '');
+            // Reuse the latest deployment's env snapshot, mirroring RepositoryHandler.start.
+            const Deployment = mongoose.model('Deployment');
+            const currentDeploymentId = repository.deployments?.slice(-1)[0];
+            const deployment = currentDeploymentId
+                ? await Deployment.findById(currentDeploymentId).select('environment')
+                : null;
+            const envArray: string[] = deployment && typeof (deployment as any).getEnvironmentArray === 'function'
+                ? (deployment as any).getEnvironmentArray()
+                : [];
+            // Backgrounded (`&`) like the deploy path; don't await the process.
+            this.executeCommand(['sh', '-c', `${startCommand} &`], { WorkingDir: workingDir, Env: envArray } as any)
+                .catch(() => {});
+            logger.info(`@services/docker/container.ts (relaunchRepositoryApp): re-launched start command for ${this.container.dockerContainerName}`);
+        }catch(error){
+            logger.warn(`@services/docker/container.ts (relaunchRepositoryApp): ${error}`);
+        }
+    }
+
+    /**
+     * Apply HARD resource limits to the LIVE container without recreating it
+     * (Codespaces: configurable CPU/RAM). NanoCpus = cores * 1e9; Memory in bytes.
+     * MemorySwap is pinned to Memory to disable swap beyond the cap. Some daemons
+     * reject live cpu/memory updates (e.g. no swap-limit cgroup support) — callers
+     * wrap this in try/catch and continue.
+     */
+    async updateResourceLimits(nanoCpus: number, memoryBytes: number): Promise<void>{
+        const container = docker.getContainer(this.container.dockerContainerName);
+        await container.update({
+            NanoCpus: nanoCpus,
+            Memory: memoryBytes,
+            MemorySwap: memoryBytes
+        } as any);
+        logger.info(`@services/docker/container.ts (updateResourceLimits): applied NanoCpus=${nanoCpus} Memory=${memoryBytes} to ${this.container.dockerContainerName}`);
+    }
+
     async removeContainer(){
         try{
             const container = docker.getContainer(this.container.dockerContainerName);
@@ -504,12 +569,17 @@ class DockerContainer{
         }
     }
 
-    async createAndStartContainer(): Promise<Dockerode.Container | null> {
+    async createAndStartContainer(overrides: { imageOverride?: string; extraLabels?: Record<string, string>; resources?: { nanoCpus?: number; memoryBytes?: number; storageSize?: string } } = {}): Promise<Dockerode.Container | null> {
         try{
             const dockerImage = await this.getDockerImage();
-            await pullImage(dockerImage.name, dockerImage.tag);
+            // When running an immutable build artifact, the tag already exists
+            // locally (built/pulled by the build job) — only pull the base image
+            // for the non-artifact path.
+            if(!overrides.imageOverride){
+                await pullImage(dockerImage.name, dockerImage.tag);
+            }
             await ensureDirectoryExists(this.getDockerStoragePath());
-            const container = await this.createContainer();
+            const container = await this.createContainer(overrides);
             await container.start();
             if(this.container.isRepositoryContainer){
                 await this.installDefaultPackages();
@@ -524,3 +594,48 @@ class DockerContainer{
 }
 
 export default DockerContainer;
+
+/**
+ * Create + start the REAL Docker container for an already-persisted
+ * DockerContainer doc, then persist the runtime fields (ipAddress) and the
+ * back-references the rest of the code relies on. This is the relocation of the
+ * side effects that used to live in DockerContainer.pre('save') — moved out of
+ * the model so persistence is pure and the service layer owns Docker I/O
+ * (ADR-0001). Callers that need the container running synchronously (deploy,
+ * provisioners) await this right after `.create()`.
+ *
+ * IMPORTANT: the doc is re-loaded via findById (NOT lean) so the post('findOne')
+ * decrypt hook yields PLAINTEXT env vars. `.create()` returns a doc whose env is
+ * already encrypted (the pre('save') encrypt block runs, and there is no
+ * post('save') decrypt hook), so building Docker options from the passed-in doc
+ * would inject ciphertext into the container.
+ */
+export const materializeContainer = async (doc: IDockerContainer): Promise<void> => {
+    const fresh = await mongoose.model('DockerContainer').findById(doc._id) as IDockerContainer | null;
+    if(!fresh){
+        logger.error('@services/docker/container.ts (materializeContainer): container doc vanished before materialize: ' + doc._id);
+        return;
+    }
+    const service = new DockerContainer(fresh);
+    await service.createAndStartContainer();
+    const ipAddress = await service.getIpAddress();
+    if(ipAddress){
+        await mongoose.model('DockerContainer').updateOne({ _id: fresh._id }, { ipAddress });
+    }
+    // Back-references previously maintained inside the model hook.
+    const push = { $push: { containers: fresh._id } };
+    await mongoose.model('User').updateOne({ _id: fresh.user }, push);
+    await DockerImage.updateOne({ _id: fresh.image }, push);
+    await DockerNetwork.updateOne({ _id: fresh.network }, push);
+};
+
+/**
+ * Remove the REAL Docker container (and its volumes) for a deleted DockerContainer
+ * doc. Relocation of the daemon teardown that used to live in the model's
+ * delete hooks (ADR-0001) — callers (HTTP deleteOne interceptor, org/user cascade)
+ * run this explicitly. The DB ref-cascade ($pull) stays in the model hook.
+ */
+export const teardownContainer = async (doc: IDockerContainer): Promise<void> => {
+    if(!doc) return;
+    await new DockerContainer(doc).removeContainer();
+};

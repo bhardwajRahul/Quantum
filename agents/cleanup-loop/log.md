@@ -99,3 +99,24 @@ Entry format:
 - Gate: not run (no edit)
 - Outcome: manual_review
 - Reason: provisionCodespace (~120 lines, 8 sequential act.step daemon calls: pull/network/container/limits/edge/port-bind/readiness/save) is a behavior-preserving REWRITE of hot-path Docker orchestration with NO test net (no test references codespace), and a meaningful test needs heavy daemon mocking — larger than one atomic step. The only mechanical sub-edit (centralizing the 3 process.env reads) has a behavior-change trap: SERVER_IP is read WITH a '127.0.0.1' fallback at L62 but WITHOUT one at L195 — unifying under one constant would change L195's behavior when SERVER_IP is unset (undefined→127.0.0.1). That's a behavior change, not a cleanup. Deferred rather than forcing a risky edit. (L195 missing-fallback looks like a latent bug — noted for the human pass.)
+
+### 2026-06-15T18:10:15Z — client/src/components/organisms/ProtectedRoute/index.js — APPLIED
+- Change: DELETE/SIMPLIFY — collapsed 17-line file (copyright header + import/export indirection) to a one-line barrel re-export, matching sibling organism barrels.
+- Commit: 5c94d26
+- Gate: client vite build OK (server skip — client-only change)
+- Outcome: completed
+- Reason: AppShell/StatusBar barrels are already `export { default } from './X'`; this one was the outlier. Pure structural; build is the net (no FE unit tests).
+
+### 2026-06-15T18:13:48Z — client/src/hooks/api/user — APPLIED
+- Change: SIMPLIFY — extracted useUserResource factory; 4 hooks (DockerContainers/Images/Networks/PortBinding) reduced to thin config wrappers.
+- Commit: 268bd19
+- Gate: client vite build OK (server skip)
+- Outcome: completed
+- Reason: 4 hooks shared the paged-fetch + cleanup-on-unmount shape. Behavior preserved VERBATIM incl. (1) intentional dataKey vs cleanupPath mismatch (dockerContainers→'containers' etc.) — factory passes cleanupPath through, does NOT "fix" it; (2) portBinding's undefined initial page — removed the factory's default-param coercion so undefined passes through; (3) portBindingStats via extraKeys. dispatch dep unified to [page] (dispatch is stable). Public names + return shapes unchanged (barrel intact). useUserRepositories left alone (60s polling, different shape).
+
+### 2026-06-15T18:14:50Z — client/src/components/atoms/kit/index.jsx — APPLIED (+ 1 finding rejected)
+- Change: DELETE — removed 3 unused back-compat aliases (StatusChip/StatTile/IconButton).
+- Commit: 3d61171
+- Gate: client vite build OK (server skip)
+- Outcome: completed
+- Reason: aliases had zero imports across client/src (grep-confirmed). REJECTED the scanner's second finding (DataTable "speculative optional params getRowKey/render/actions"): verified across ~20 call sites that getRowKey (Events) and actions (ApiTokens/Team/container Explorer/OrgEnvVars) are actively used — trimming the signature would BREAK callers. Not speculative; left intact.

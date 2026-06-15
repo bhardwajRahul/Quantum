@@ -16,46 +16,6 @@
   "queue": {
     "pending": [
       {
-        "module": "client/src/components/organisms/ProtectedRoute",
-        "paths": [
-          "client/src/components/organisms/ProtectedRoute/index.js"
-        ],
-        "score": 8,
-        "deletable_estimate_loc": 14,
-        "smells": [
-          "trivial pass-through re-export wrapped in a 13-line copyright header (peer index.js files are 1-2 LOC)"
-        ],
-        "notes": "SIMPLIFY: trim the boilerplate header to match sibling index.js files. Pure formatting — client build gate suffices.",
-        "risk": "low — client, build-gate only, no behavior change"
-      },
-      {
-        "module": "client/src/hooks/api/user",
-        "paths": [
-          "client/src/hooks/api/user"
-        ],
-        "score": 6,
-        "deletable_estimate_loc": 50,
-        "smells": [
-          "4 near-identical hooks (useUserDockerContainers/Images/Networks/PortBinding) repeat the same fetch-on-page-change + cleanup-on-unmount boilerplate"
-        ],
-        "notes": "SIMPLIFY: extract a useUserResource(slice, operation, opts) factory; re-export the 4 named hooks so callers are unaffected. NO client unit tests — verify via build + manual import-shape check.",
-        "risk": "medium — no FE tests; keep public hook names identical"
-      },
-      {
-        "module": "client/src/components/atoms/kit/index.jsx",
-        "paths": [
-          "client/src/components/atoms/kit/index.jsx"
-        ],
-        "score": 6,
-        "deletable_estimate_loc": 12,
-        "smells": [
-          "back-compat aliases StatusChip/StatTile/IconButton exported but never imported anywhere",
-          "DataTable has speculative optional params (getRowKey/render/actions) unused by call sites"
-        ],
-        "notes": "DELETE: remove the 3 unused aliases (grep-confirm zero imports first). DataTable signature trim is a separate step.",
-        "risk": "low-medium — client; confirm zero imports before deleting"
-      },
-      {
         "module": "client/src/pages/errText-duplication",
         "paths": [
           "client/src/pages/protected/platform/Alerting/Alerting.jsx",
@@ -203,6 +163,24 @@
         "commit": "0bcd209",
         "completedAt": "2026-06-15T18:07:27Z",
         "summary": "SIMPLIFY — extracted reachableScope tenant filter (3 inline copies -> 1)"
+      },
+      {
+        "module": "client/src/components/organisms/ProtectedRoute",
+        "commit": "5c94d26",
+        "completedAt": "2026-06-15T18:10:15Z",
+        "summary": "SIMPLIFY — collapsed to one-line barrel re-export matching siblings"
+      },
+      {
+        "module": "client/src/hooks/api/user",
+        "commit": "268bd19",
+        "completedAt": "2026-06-15T18:13:48Z",
+        "summary": "SIMPLIFY — extracted useUserResource factory; 4 hooks -> thin wrappers"
+      },
+      {
+        "module": "client/src/components/atoms/kit/index.jsx",
+        "commit": "3d61171",
+        "completedAt": "2026-06-15T18:14:50Z",
+        "summary": "DELETE — removed 3 unused aliases; DataTable signature-trim finding rejected (params are used)"
       }
     ],
     "manual_review": [
@@ -271,10 +249,10 @@
     }
   ],
   "stats": {
-    "iterations": 10,
-    "changesApplied": 9,
-    "changesRejected": 0,
-    "modulesCompleted": 7,
+    "iterations": 13,
+    "changesApplied": 12,
+    "changesRejected": 1,
+    "modulesCompleted": 10,
     "modulesManualReview": 3
   }
 }

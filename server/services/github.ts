@@ -14,7 +14,7 @@
 
 import { Octokit } from '@octokit/rest';
 import { promisify } from 'util';
-import { exec as execCallback } from 'child_process';
+import { execFile as execFileCallback } from 'child_process';
 import { IRepository } from '@typings/models/repository';
 import { IUser } from '@typings/models/user';
 import { IGithub } from '@typings/models/github';
@@ -25,11 +25,14 @@ import simpleGit from 'simple-git';
 import logger from '@utilities/logger';
 import Deployment from '@models/deployment';
 import RuntimeError from '@utilities/runtimeError';
-import mongoose from 'mongoose';
 import fs from 'fs';
 import DockerContainer from '@models/docker/container';
 
-const exec = promisify(execCallback);
+const execFile = promisify(execFileCallback);
+
+// Short-lived cache for repository info to avoid GitHub N+1 on dashboard polling.
+const repoInfoCache = new Map<string, { at: number, data: any }>();
+const REPO_INFO_TTL = 60000;
 
 /**
  *  This class is designed to interact with the GitHub API on behalf of a user,  
@@ -41,16 +44,21 @@ const exec = promisify(execCallback);
 class Github{
     private user: IUser;
     private repository: IRepository;
-    private userGithub: IGithub;
+    private userGithub?: IGithub;
     private octokit: Octokit;
     private owner: string;
 
     constructor(user: IUser, repository: IRepository){
         this.user = user;
         this.repository = repository;
-        this.userGithub = user.github as IGithub;
-        this.octokit = new Octokit({ auth: this.userGithub.getDecryptedAccessToken() });
-        this.owner = repository?.owner || this.userGithub.username;
+        // user.github may be undefined: a repo can exist for a user who never linked
+        // GitHub (manual URL), and read paths like getMyRepositories build a Github
+        // per repo. Don't crash the constructor — create an unauthenticated octokit;
+        // any API call then fails into getRepositoryInfo's graceful-degrade catch.
+        this.userGithub = user?.github as IGithub | undefined;
+        const accessToken = this.userGithub?.getDecryptedAccessToken?.();
+        this.octokit = new Octokit(accessToken ? { auth: accessToken } : {});
+        this.owner = repository?.owner || this.userGithub?.username || '';
     }
 
     /**
@@ -91,9 +99,9 @@ class Github{
                 repo: this.repository.name 
             });
             const cloneEndpoint = repositoryInfo.data.private
-                ? repositoryInfo.data.clone_url.replace('https://', `https://${this.userGithub.getDecryptedAccessToken()}@`)
+                ? repositoryInfo.data.clone_url.replace('https://', `https://${this.userGithub?.getDecryptedAccessToken?.() || ''}@`)
                 : repositoryInfo.data.clone_url;
-            await exec(`git clone --branch ${branch} ${cloneEndpoint} ${container.storagePath}`);
+            await execFile('git', ['clone', '--branch', branch, cloneEndpoint, container.storagePath]);
         }catch(error){
             logger.error('@services/github.ts (cloneRepository): ' + (error as Error).message);
         }
@@ -162,9 +170,26 @@ class Github{
                 }
             }
         }
+        // Merge org-level env vars as a FALLBACK only (app/repo values win): freeze
+        // them into the deployment's environment.variables at create so the existing
+        // getEnvironmentArray + container Env injection consume them with no further
+        // change. Wrapped in try/catch so a lookup failure never breaks a deploy.
+        try{
+            const OrgEnvVar = (await import('@models/orgEnvVar')).default;
+            const orgVars = await OrgEnvVar.find({ organization: this.repository.organization }).select('+valueEnc');
+            for(const v of orgVars){
+                if(!(v.key in environmentVariables)){
+                    const decrypted = v.getDecryptedValue();
+                    if(decrypted !== null) environmentVariables[v.key] = decrypted;
+                }
+            }
+        }catch(error){
+            logger.error('@services/github.ts (createNewDeployment): org env var merge failed: ' + error);
+        }
         const latestCommit = await this.getLatestCommit();
         const newDeployment = new Deployment({
             user: this.user._id,
+            organization: this.repository.organization,
             githubDeploymentId,
             repository: this.repository._id,
             environment: {
@@ -244,6 +269,11 @@ class Github{
      * @returns {null} - If the repository is deleted on GitHub.
     */
     async getRepositoryInfo(): Promise<any | null>{
+        const cacheKey = `${this.owner}/${this.repository.name}`;
+        const cached = repoInfoCache.get(cacheKey);
+        if(cached && Date.now() - cached.at < REPO_INFO_TTL){
+            return cached.data;
+        }
         try{
             const latestCommit = await this.getLatestCommit();
             const details = await this.getRepositoryDetails();
@@ -253,21 +283,28 @@ class Github{
                 latestCommitMessage: latestCommit.commit.message,
                 latestCommit: latestCommit.commit.author.date
             };
+            repoInfoCache.set(cacheKey, { at: Date.now(), data: information });
             return information;
         }catch(error){
-            // TODO: Do it better.
-            // There is no hook that allows an event to be fired when a repository 
-            // is deleted (or so I think). For that reason, if a repository is 
-            // deleted, an error will be thrown when trying to request information 
-            // regarding it. By capturing and handling the error, we will 
-            // remove the repository from the platform.
-            if((error as any)?.response?.data?.message === 'Not Found'){
-                // I am using "mongoose.model" because, when importing 
-                // "Repository" you get a circular import error.
-                await mongoose.model('Repository').findByIdAndDelete(this.repository._id);
-                return null;
-            }
-            throw error;
+            // IMPORTANT: this runs on a read path (dashboard polling). It must NEVER
+            // mutate or delete data. A GitHub 'Not Found' can be transient — a rename,
+            // a revoked/expired token, rate-limiting, or a private repo the token can no
+            // longer see — and previously this deleted the user's Repository document
+            // (and cascaded its deployments/container/webhook), causing irreversible,
+            // silent data loss triggered by a routine read.
+            //
+            // Instead we degrade gracefully: surface that the remote is currently
+            // unreachable and let the caller fall back to stored data. Reconciling a
+            // genuinely-deleted GitHub repo belongs on an explicit, user-driven action,
+            // not on a polling read.
+            const remoteMessage = (error as any)?.response?.data?.message;
+            const isNotFound = remoteMessage === 'Not Found';
+            logger.warn(
+                `@services/github.ts (getRepositoryInfo): Unable to fetch remote info for ` +
+                `${cacheKey} (${remoteMessage || (error as Error).message}). ` +
+                `Returning degraded info without modifying stored data.`
+            );
+            return { remoteUnavailable: true, remoteNotFound: isNotFound };
         }
     }
 
@@ -388,3 +425,26 @@ class Github{
 };
 
 export default Github;
+
+/**
+ * Tear down a deleted repository's GitHub-side state: remove the webhook and mark
+ * its deployments inactive/deleted. Relocation of the GitHub I/O that used to be
+ * inlined in models/repository.ts's delete hook (ADR-0001) — the model now
+ * delegates here. Best-effort: never throws into the delete path.
+ */
+export const teardownRepositoryGithub = async (
+    repository: any,
+    repositoryUser: any,
+    deployments: { githubDeploymentId: string | number }[]
+): Promise<void> => {
+    try{
+        const github = new Github(repositoryUser, repository);
+        await github.deleteWebhook();
+        if(!deployments.length) return;
+        await github.updateDeploymentStatus(deployments[0].githubDeploymentId, 'inactive');
+        await Promise.all(deployments.map((deployment) =>
+            github.deleteRepositoryDeployment(deployment.githubDeploymentId)));
+    }catch(error: any){
+        logger.warn('@services/github.ts (teardownRepositoryGithub): ' + (error?.message || error));
+    }
+};

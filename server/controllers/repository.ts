@@ -151,6 +151,9 @@ const filterRepositories = (githubRepositories: any[], userRepositories: any[]):
 
 export const getMyGithubRepositories = catchAsync(async (req: IRequest, res: Response) => {
     const user: any = req.user;
+    if(!user.github){
+        throw new RuntimeError('Github::Account::NotLinked', 400);
+    }
     const githubRepositories = await getGithubRepositories(user.github.getDecryptedAccessToken());
     const sanitizedRepositories = filterRepositories(githubRepositories, user.repositories);
     res.status(200).json({ status: 'success', data: sanitizedRepositories });
@@ -158,6 +161,9 @@ export const getMyGithubRepositories = catchAsync(async (req: IRequest, res: Res
 
 export const detectFramework = catchAsync(async (req: IRequest, res: Response) => {
     const user: any = req.user;
+    if(!user.github){
+        throw new RuntimeError('Github::Account::NotLinked', 400);
+    }
     const { owner, repo } = req.params;
     const octokit = new Octokit({ auth: user.github.getDecryptedAccessToken() });
     const { data } = await octokit.rest.repos.getContent({ owner, repo, path: '' });

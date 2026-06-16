@@ -20,6 +20,7 @@ import mongoConnector from '@utilities/mongoConnector';
 import * as bootstrap from '@utilities/bootstrap';
 import { startOrchestrator } from '@services/orchestrator';
 import { runTenancyBackfill } from '@services/tenancy/provisioning';
+import runTemplateSeed from './scripts/seedTemplates';
 import wsController from '@controllers/wsController';
 
 wsController(io);
@@ -75,6 +76,14 @@ httpServer.listen(SERVER_PORT, SERVER_HOST, async () => {
         // every pre-existing user/repository). Idempotent; must run before serving
         // requests so the central tenant scoping has context to resolve against.
         await runTenancyBackfill();
+        // Seed the builtin template marketplace (idempotent: upserts by {slug,version},
+        // never duplicates). Best-effort — a seed failure must not block serving.
+        try{
+            const seed = await runTemplateSeed();
+            logger.info(`@server.ts: template marketplace seed — created ${seed.created}, updated ${seed.updated}, skipped ${seed.skipped}.`);
+        }catch(error){
+            logger.warn('@server.ts: template seed skipped: ' + error);
+        }
         logger.info('@server.ts: Starting the deploy orchestrator. Containers will be reconciled (recreated/started) and user applications brought up as needed...');
         // Start the orchestrator: worker pool + boot reconciliation (desired-vs-actual
         // self-heal) + periodic reconcile. This replaces the old blanket

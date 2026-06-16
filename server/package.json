@@ -4,7 +4,11 @@
     "description": "🚀 Self-hosted open source alternative to Vercel, Heroku and Netlify. All your applications, just in one place. Develop and deploy with your favorite tools and continuous deployment with Github.",
     "scripts": {
         "start": "bash start.sh",
-        "cli": "IS_CLI=true npx tsx cli/manager.ts"
+        "cli": "IS_CLI=true npx tsx cli/manager.ts",
+        "seed:templates": "npx tsx scripts/runSeed.ts",
+        "typecheck": "tsc --noEmit",
+        "test": "vitest run",
+        "test:watch": "vitest"
     },
     "dependencies": {
         "@octokit/rest": "^20.0.2",
@@ -13,12 +17,13 @@
         "body-parser": "^1.20.2",
         "cookie-parser": "^1.4.7",
         "cors": "^2.8.5",
-        "dgram": "^1.0.1",
         "dockerode": "^4.0.2",
         "dotenv": "^16.3.1",
         "express": "^4.18.2",
         "express-rate-limit": "^7.4.1",
         "express-session": "^1.17.3",
+        "geoip-lite": "^2.0.2",
+        "helmet": "^7.2.0",
         "jsonwebtoken": "^9.0.2",
         "lodash": "^4.17.21",
         "module-alias": "^2.2.3",
@@ -33,9 +38,11 @@
         "slugify": "^1.6.6",
         "socket.io": "^4.7.3",
         "tsx": "^4.19.0",
+        "ua-parser-js": "^2.0.10",
         "uuid": "^9.0.1",
         "validator": "^13.11.0",
-        "ws": "^8.18.0"
+        "ws": "^8.18.0",
+        "zod": "^3.25.76"
     },
     "devDependencies": {
         "@types/bcryptjs": "^2.4.6",
@@ -57,6 +64,9 @@
         "@types/uuid": "^10.0.0",
         "@types/validator": "^13.12.1",
         "@types/ws": "^8.5.12",
-        "typescript": "^5.4.5"
+        "mongodb-memory-server": "^10.4.3",
+        "supertest": "^7.2.2",
+        "typescript": "^5.4.5",
+        "vitest": "^2.1.9"
     }
 }

@@ -1,6 +1,6 @@
 import mongoose, { Schema, Model } from 'mongoose';
 import { IDockerNetwork } from '@typings/models/docker/network';
-import { createNetwork, removeNetwork, randomIPv4Subnet, getSystemNetworkName } from '@services/docker/network';
+import { getSystemNetworkName, teardownNetwork } from '@services/docker/network';
 import { IUser } from '@typings/models/user';
 import RuntimeError from '@utilities/runtimeError';
 
@@ -15,12 +15,22 @@ const DockerNetworkSchema: Schema<IDockerNetwork> = new Schema({
     },
     subnet: {
         type: String,
-        unique: true
+        unique: true,
+        // sparse: the subnet is assigned by materializeNetwork (service layer) AFTER
+        // the pure save, so a freshly-created doc has no subnet yet. sparse lets
+        // multiple docs sit at null without tripping the unique index.
+        sparse: true
     },
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: [true, 'DockerNetwork::User::Required']
+    },
+    organization: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Organization',
+        required: [true, 'DockerNetwork::Organization::Required'],
+        index: true
     },
     driver: {
         type: String,
@@ -39,24 +49,28 @@ const DockerNetworkSchema: Schema<IDockerNetwork> = new Schema({
     timestamps: true
 });
 
-DockerNetworkSchema.index({ user: 1, name: 1 }, { unique: true });
+DockerNetworkSchema.index({ organization: 1, name: 1 }, { unique: true });
 
 const cascadeDeleteHandler = async (document: IDockerNetwork): Promise<void> => {
     if(!document) return;
     // TODO: Allow a container to function without having an assigned network.
     await mongoose.model('DockerContainer').deleteMany({ network: document._id });
     await mongoose.model('User').updateOne({ _id: document.user }, { $pull: { networks: document._id } });
-    await removeNetwork(document.dockerNetworkName);
+    // ADR-0001: the Docker daemon teardown CODE lives in the service layer
+    // (teardownNetwork); the hook only delegates. DB ref-cascade stays here.
+    await teardownNetwork(document);
 };
 
 DockerNetworkSchema.pre('save', async function(next){
     try{
         if(this.isNew){
-            this.subnet = randomIPv4Subnet();
             const userId = (this.user as IUser)._id.toString();
             this.dockerNetworkName = getSystemNetworkName(userId, this._id.toString());
-            await createNetwork(this.dockerNetworkName, this.driver, this.subnet);
-            await mongoose.model('User').updateOne({ _id: this.user }, { $push: { networks: this._id } });
+            // NOTE (ADR-0001): the real Docker network + User back-ref are NOT
+            // created here. Persistence is pure. The subnet is allocated by
+            // materializeNetwork (@services/docker/network) right after `.create()`,
+            // because picking a non-overlapping range requires reading the live
+            // Docker network list (I/O that must not live in a model hook).
         }
         next();
     }catch(error: any){

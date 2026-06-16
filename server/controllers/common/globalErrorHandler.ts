@@ -30,7 +30,10 @@ const parseError = (err: Error) => {
             const fields = Object.keys(errors);
             return {
                 message: errors?.[fields?.[0]]?.message || 'Database::Validation::Error',
-                statusCode: 401
+                // A Mongoose validation failure (missing/invalid field) is a bad
+                // request, NOT 401. Returning 401 made the frontend treat a routine
+                // validation error as an auth failure (logout/redirect-to-login).
+                statusCode: 400
             }
         },
         JsonWebTokenError: { message: 'JWT::Error', statusCode: 401 },
@@ -42,7 +45,7 @@ const parseError = (err: Error) => {
     };
     const handler = errorMap[(err as any).name] || errorMap.MongoServerError; 
     // Allow customizing messages for MongoServerError based on the error code
-    return typeof handler === 'function' ? handler((err as any).status) : handler; 
+    return typeof handler === 'function' ? handler((err as any).code) : handler;
 };
 
 /**

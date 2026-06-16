@@ -46,22 +46,9 @@ const inferCategory = (name: string, image: string): string => {
     return 'other';
 };
 
-const resolveCatalogPath = (): string => {
-    // Prefer the catalog vendored INTO the server package (server/assets) so the
-    // seed works inside the container, which does not ship client/. Fall back to
-    // the client asset for local dev runs from a full checkout.
-    const candidates = [
-        path.resolve(__dirname, '../assets/one-click-services.json'),
-        path.resolve(process.cwd(), 'assets/one-click-services.json'),
-        path.resolve(__dirname, '../../../client/src/assets/one-click-services.json'),
-        path.resolve(process.cwd(), '../client/src/assets/one-click-services.json'),
-        path.resolve(process.cwd(), 'client/src/assets/one-click-services.json')
-    ];
-    for(const candidate of candidates){
-        if(fs.existsSync(candidate)) return candidate;
-    }
-    throw new Error('Template::Seed::CatalogNotFound');
-};
+// The catalog is vendored into the server package (server/assets) so it ships
+// inside the container, which does not include client/. __dirname is server/scripts.
+const CATALOG_PATH = path.resolve(__dirname, '../assets/one-click-services.json');
 
 export interface SeedResult{
     created: number;
@@ -70,8 +57,7 @@ export interface SeedResult{
 }
 
 export const runTemplateSeed = async (): Promise<SeedResult> => {
-    const catalogPath = resolveCatalogPath();
-    const raw = JSON.parse(fs.readFileSync(catalogPath, 'utf8')) as any[];
+    const raw = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8')) as any[];
 
     const result: SeedResult = { created: 0, updated: 0, skipped: 0 };
 

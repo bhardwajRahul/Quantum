@@ -26,13 +26,6 @@ const ChangePassword = lazy(() => import('@pages/protected/authentication/Change
 const Authenticate = lazy(() => import('@pages/protected/github/Authenticate/Authenticate'));
 const NeedAuthenticate = lazy(() => import('@pages/protected/github/NeedAuthenticate/NeedAuthenticate'));
 
-// Docker
-const CreateDockerContainer = lazy(() => import('@pages/protected/docker/container/CreateDockerContainer/CreateDockerContainer'));
-const DockerContainerExplorer = lazy(() => import('@pages/protected/docker/container/Explorer/Explorer'));
-const DockerContainerShell = lazy(() => import('@pages/protected/docker/container/Shell/Shell'));
-const DockerContainerEnvironmentVariables = lazy(() => import('@pages/protected/docker/container/EnvironmentVariables/EnvironmentVariables'));
-const DockerContainerStorage = lazy(() => import('@pages/protected/docker/container/Storage/Storage'));
-
 // Repository
 const CreateRepository = lazy(() => import('@pages/protected/repository/CreateRepository/CreateRepository'));
 const RepositoryShell = lazy(() => import('@pages/protected/repository/Shell/Shell'));
@@ -153,17 +146,6 @@ const Application = () => {
                     <Route path='/github'>
                         <Route path='authenticate' element={<Authenticate />} />
                         <Route path='need-authenticate' element={<NeedAuthenticate />} />
-                    </Route>
-
-                    <Route path='/docker-container'>
-                        <Route path='create' element={<CreateDockerContainer />} />
-                        <Route path='explore' element={<DockerContainerExplorer />} />
-                        <Route path=':dockerId'>
-                            <Route path='update' element={<CreateDockerContainer />} />
-                            <Route path='shell' element={<DockerContainerShell />} />
-                            <Route path='environment-variables' element={<DockerContainerEnvironmentVariables />} />
-                            <Route path='storage' element={<DockerContainerStorage />} />
-                        </Route>
                     </Route>
 
                     <Route path='/repository'>

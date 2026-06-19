@@ -32,8 +32,6 @@ const DockerContainerExplorer = lazy(() => import('@pages/protected/docker/conta
 const DockerContainerShell = lazy(() => import('@pages/protected/docker/container/Shell/Shell'));
 const DockerContainerEnvironmentVariables = lazy(() => import('@pages/protected/docker/container/EnvironmentVariables/EnvironmentVariables'));
 const DockerContainerStorage = lazy(() => import('@pages/protected/docker/container/Storage/Storage'));
-const CreateDockerImage = lazy(() => import('@pages/protected/docker/image/CreateDockerImage/CreateDockerImage'));
-const DockerImageExplorer = lazy(() => import('@pages/protected/docker/image/Explorer/Explorer'));
 
 // Repository
 const CreateRepository = lazy(() => import('@pages/protected/repository/CreateRepository/CreateRepository'));
@@ -166,12 +164,6 @@ const Application = () => {
                             <Route path='environment-variables' element={<DockerContainerEnvironmentVariables />} />
                             <Route path='storage' element={<DockerContainerStorage />} />
                         </Route>
-                    </Route>
-
-                    <Route path='/docker-image'>
-                        <Route path='create' element={<CreateDockerImage />} />
-                        <Route path='explore' element={<DockerImageExplorer />} />
-                        <Route path=':networkId/update' element={<CreateDockerImage />} />
                     </Route>
 
                     <Route path='/repository'>

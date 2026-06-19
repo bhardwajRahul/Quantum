@@ -28,6 +28,14 @@ const handleAuthResponse = (data, dispatch) => {
     dispatch(authSlice.setState({ path: 'authStatus.isAuthenticated', value: true }));
 };
 
+// signUp / signIn share the same shape: hit `api` with `body`, then
+// handleAuthResponse on the result.
+const runAuth = (api, body) => async (dispatch) => {
+    const operation = createOperation(authSlice, dispatch);
+    operation.on('response', (data) => handleAuthResponse(data, dispatch));
+    operation.use({ api, loaderState: 'loadingStatus.isLoading', body });
+};
+
 /**
  * @function getMyProfile
  * @description Fetches the currently authenticated user's profile from the server.
@@ -48,31 +56,15 @@ export const getMyProfile = () => async (dispatch) => {
  * @param {Object} body - User registration data.
  * @returns {Promise} Resolves when registration is successful.
 */
-export const signUp = (body) => async (dispatch) => {
-    const operation = createOperation(authSlice, dispatch);
-    operation.on('response', (data) => handleAuthResponse(data, dispatch));
-    operation.use({
-        api: authService.signUp,
-        loaderState: 'loadingStatus.isLoading',
-        body
-    });
-};
+export const signUp = (body) => runAuth(authService.signUp, body);
 
 /**
- * @function signIn 
+ * @function signIn
  * @description Handles existing user login.
  * @param {Object} body - User credentials (email/username and password).
  * @returns {Promise} Resolves when login is successful.
 */
-export const signIn = (body) => async (dispatch) => {
-    const operation = createOperation(authSlice, dispatch);
-    operation.on('response', (data) => handleAuthResponse(data, dispatch));
-    operation.use({
-        api: authService.signIn,
-        loaderState: 'loadingStatus.isLoading',
-        body
-    });
-};
+export const signIn = (body) => runAuth(authService.signIn, body);
 
 /**
  * @function updateMyProfile

@@ -1,5 +1,5 @@
 {
-  "_comment": "Persistent state for cleanup-loop. Run 4 (2026-06-19) targeted DUPLICATION. Total ship: 5 atomic commits removing ~50 LOC of duplicated logic across server (database/cli) and client (loading-screen/docker/auth). Pending drained — remaining candidates ladder-filtered as not net-cleaner. Resume on next scan after user lands their migration.",
+  "_comment": "Persistent state for cleanup-loop. Run 4 closed (2026-06-19): 9 commits total this session — 5 dedup + 4 vertical removals — net -819 LOC across 50 files. Dashboard now PaaS-shaped (Projects/Repositories/Databases/Domains/Templates), no Docker primitives exposed.",
   "guidingPrinciple": "The best code is the one that was never written. Prefer DELETE > SIMPLIFY > REWRITE.",
   "baseline": {
     "capturedAt": "2026-06-15",
@@ -148,6 +148,30 @@
         "commit": "613a0ca",
         "completedAt": "2026-06-19T18:23:00Z",
         "summary": "DEDUP — promptAndRemoveByEnvironment helper consolidates container/network removal CLI flows (-70 of duplicated LOC, +43 helper, net -27 inside callers)"
+      },
+      {
+        "module": "client/portBinding UI",
+        "commit": "d68e575",
+        "completedAt": "2026-06-19T18:34:00Z",
+        "summary": "DELETE — PortBinding pages/hooks/routes (-160 LOC). Auto-binding remains server-side."
+      },
+      {
+        "module": "client/docker/network UI",
+        "commit": "e1c6363",
+        "completedAt": "2026-06-19T18:36:00Z",
+        "summary": "DELETE — Network pages/hook/routes (-139 LOC)."
+      },
+      {
+        "module": "client/docker/image UI",
+        "commit": "a2d272e",
+        "completedAt": "2026-06-19T18:38:00Z",
+        "summary": "DELETE — Image pages/hook/routes (-135 LOC)."
+      },
+      {
+        "module": "client/docker/container UI tree",
+        "commit": "13bb6bc",
+        "completedAt": "2026-06-19T18:42:00Z",
+        "summary": "DELETE — Container Create/Update/Explorer + Shell/Storage/EnvVars sub-pages, hooks, routes, AppShell Infrastructure group (-416 LOC)."
       }
     ],
     "manual_review": [
@@ -218,6 +242,11 @@
         "reviewedAt": "2026-06-19T18:24:00Z",
         "deferred": "sliceFactory(3 slices), createWithNavigate factory, getMyResourceList factory, populateRelation factory, useUser* hook collapse, getMy* common, deleteWithDashboardRefresh factory, list* CLI 5-line one-liners, updateRepository/updateDeployment 9-line clone",
         "rootCause": "ALL hit ladder rung 1 (doesn't need to exist) or rung 5+ (extraction adds a util file for 2-3 callers, not net-cleaner). Each adds an indirection layer the codebase doesn't need; readers benefit more from the explicit 8-line thunk than from a generic factory hiding 6 fields. Lazy says: leave it."
+      },
+      {
+        "module": "Server-side docker primitives data layer (slices, services, controllers, routes, models for portBinding/dockerContainer/dockerImage/dockerNetwork)",
+        "reviewedAt": "2026-06-19T18:43:00Z",
+        "deferred": "Stripping server-side requires touching user's mid-migration files (orchestrator/handlers, templates/installer, codespace/provisioner all depend on these models for auto-provisioning). The UI is gone; the data layer stays until user lands their migration. Server still uses these models internally — they're not dead, just orphaned at the dashboard layer."
       }
     ]
   },
@@ -261,10 +290,10 @@
     }
   ],
   "stats": {
-    "iterations": 31,
-    "changesApplied": 24,
+    "iterations": 35,
+    "changesApplied": 28,
     "changesRejected": 1,
-    "modulesCompleted": 22,
+    "modulesCompleted": 26,
     "modulesManualReview": 10
   },
   "run": 4,

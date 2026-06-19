@@ -232,3 +232,15 @@ Followed up on concrete leads from run-1's frontend scan that were never actione
 Strategy: filtered scan to TRACKED+CLEAN files only (155 of 468) so the loop's atomic-commit contract holds despite user's heavy in-flight migration. Verified 11 candidates from a 6-partition parallel scan; ladder-filtered to 4 lazy wins, rejected 7 over-abstractions (factories, hook collapses, single-file cosmetic dedup).
 
 Net session: ~50 LOC of duplicated logic removed across server (database/cli) and client (loading-screen/docker/auth). Gate green at HEAD.
+
+### Iterations 8-11 (2026-06-19): Dashboard verticals stripped
+User-driven decision: Docker primitives (port-bindings, networks, images, containers) are not user-facing concepts in a PaaS dashboard — Templates/Repositories/Databases are. Removed all 4 UI trees + their hooks + the AppShell "Infrastructure" sidebar group.
+
+- **d68e575** PortBinding UI removed (-160 LOC) — auto-binding stays server-side
+- **e1c6363** Docker Network UI removed (-139 LOC) — networks managed per template/install
+- **a2d272e** Docker Image UI removed (-135 LOC) — pull-from-registry stays internal to builder
+- **13bb6bc** Docker Container UI tree removed (-416 LOC) — covers Create/Update/Explorer + the Shell/Storage/EnvVars sub-pages (only entry was Explorer; useless without it)
+
+Data layer (slices, services, server controllers/routes/models) intentionally LEFT IN PLACE — orphaned UI-wise but the server still uses these models internally for templates' auto-provisioning and orchestrator. Stripping the server side has bigger blast radius and would require touching the user's mid-migration tree. Park for a future "server-side prune" pass.
+
+Net session total: -819 LOC across 50 files (4 removal commits + 5 dedup commits + 1 chore).

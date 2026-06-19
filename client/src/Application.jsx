@@ -37,10 +37,6 @@ const DockerImageExplorer = lazy(() => import('@pages/protected/docker/image/Exp
 const CreateDockerNetwork = lazy(() => import('@pages/protected/docker/network/CreateDockerNetwork/CreateDockerNetwork'));
 const DockerNetworkExplorer = lazy(() => import('@pages/protected/docker/network/Explorer/Explorer'));
 
-// Port bindings
-const CreatePortBinding = lazy(() => import('@pages/protected/portBinding/CreatePortBinding/CreatePortBinding'));
-const PortBindingExplorer = lazy(() => import('@pages/protected/portBinding/Explorer/Explorer'));
-
 // Repository
 const CreateRepository = lazy(() => import('@pages/protected/repository/CreateRepository/CreateRepository'));
 const RepositoryShell = lazy(() => import('@pages/protected/repository/Shell/Shell'));
@@ -172,11 +168,6 @@ const Application = () => {
                             <Route path='environment-variables' element={<DockerContainerEnvironmentVariables />} />
                             <Route path='storage' element={<DockerContainerStorage />} />
                         </Route>
-                    </Route>
-
-                    <Route path='/port-binding'>
-                        <Route path='create' element={<CreatePortBinding />} />
-                        <Route path='explore' element={<PortBindingExplorer />} />
                     </Route>
 
                     <Route path='/docker-image'>

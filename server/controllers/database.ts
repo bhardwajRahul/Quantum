@@ -50,6 +50,12 @@ export const getDatabase = DatabaseFactory.getOne();
 const reachableScope = (req: IRequest): Record<string, unknown> =>
     req.tenant?.isPlatformAdmin ? {} : { project: { $in: req.tenant?.projectIds || [] } };
 
+/** Lookup a database by id within the caller's reachable scope, or 404. */
+const findReachableDatabase = async (req: IRequest, select?: string) => {
+    const query = Database.findOne({ _id: req.params.id, ...reachableScope(req) });
+    return select ? query.select(select) : query;
+};
+
 /**
  * Create a managed database under :projectId and enqueue its provisioning. Returns
  * 202 (provisioning happens asynchronously in the orchestrator). The project/user
@@ -81,10 +87,7 @@ export const createDatabase = catchAsync(async (req: IRequest, res: Response, ne
 
 /** Enqueue a backup for a database the caller can reach (deploy permission). */
 export const backupDatabase = catchAsync(async (req: IRequest, res: Response, next: NextFunction): Promise<void> => {
-    const database = await Database.findOne({
-        _id: req.params.id,
-        ...reachableScope(req)
-    });
+    const database = await findReachableDatabase(req);
     if(!database){
         return next(new RuntimeError('Database::NotFound', 404));
     }
@@ -101,10 +104,7 @@ export const restoreDatabase = catchAsync(async (req: IRequest, res: Response, n
     if(!backupId){
         return next(new RuntimeError('Database::Restore::BackupIdRequired', 400));
     }
-    const database = await Database.findOne({
-        _id: req.params.id,
-        ...reachableScope(req)
-    });
+    const database = await findReachableDatabase(req);
     if(!database){
         return next(new RuntimeError('Database::NotFound', 404));
     }
@@ -122,10 +122,7 @@ export const restoreDatabase = catchAsync(async (req: IRequest, res: Response, n
  * select:false everywhere else, so list/get never leak it.
  */
 export const getConnectionString = catchAsync(async (req: IRequest, res: Response, next: NextFunction): Promise<void> => {
-    const database = await Database.findOne({
-        _id: req.params.id,
-        ...reachableScope(req)
-    }).select('+connectionStringEnc');
+    const database = await findReachableDatabase(req, '+connectionStringEnc');
     if(!database){
         return next(new RuntimeError('Database::NotFound', 404));
     }

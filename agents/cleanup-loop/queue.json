@@ -1,5 +1,5 @@
 {
-  "_comment": "Persistent state for cleanup-loop. Run 4 (2026-06-19) targeted duplication. Iteration 1 (LoadingScreen atom) shipped via 3 commits — gate green. Iteration 2 (sanitizeName extraction) reverted: user's heavy in-flight uncommitted migration makes safe atomic commits structurally impossible right now. Resume after user lands pending refactor.",
+  "_comment": "Persistent state for cleanup-loop. Run 4 (2026-06-19) targeted DUPLICATION. Total ship: 5 atomic commits removing ~50 LOC of duplicated logic across server (database/cli) and client (loading-screen/docker/auth). Pending drained — remaining candidates ladder-filtered as not net-cleaner. Resume on next scan after user lands their migration.",
   "guidingPrinciple": "The best code is the one that was never written. Prefer DELETE > SIMPLIFY > REWRITE.",
   "baseline": {
     "capturedAt": "2026-06-15",
@@ -124,6 +124,30 @@
         "commit": "1a3037c+3891d46+e5d4194",
         "completedAt": "2026-06-19T17:50:00Z",
         "summary": "DEDUP — added LoadingScreen atom; collapsed 3 inline Loader2 fallback blocks (Application/OrgGate/ProtectedRoute). NOTE: commit accidentally swept user's pre-existing uncommitted Application.jsx + ProtectedRoute.jsx + OrgGate.jsx mid-migration work; revert/reapply dance preserved gate-green state."
+      },
+      {
+        "module": "client/services/docker — refreshDashboardData",
+        "commit": "b77691c",
+        "completedAt": "2026-06-19T18:14:00Z",
+        "summary": "DEDUP — refreshDashboardData thunk replaces 4 copies of the 6-call refresh cascade across container/image/network operations.js (-17 LOC)"
+      },
+      {
+        "module": "client/services/auth — runAuth",
+        "commit": "9b8c8a9",
+        "completedAt": "2026-06-19T18:15:00Z",
+        "summary": "DEDUP — runAuth helper folds signUp/signIn duplicate bodies (-8 LOC)"
+      },
+      {
+        "module": "server/controllers/database — findReachableDatabase",
+        "commit": "ea8cbb8",
+        "completedAt": "2026-06-19T18:21:00Z",
+        "summary": "DEDUP — findReachableDatabase helper folds 3 inline lookup+404 blocks (backupDatabase/restoreDatabase/getConnectionString) (-12 LOC effective)"
+      },
+      {
+        "module": "server/cli — promptAndRemoveByEnvironment",
+        "commit": "613a0ca",
+        "completedAt": "2026-06-19T18:23:00Z",
+        "summary": "DEDUP — promptAndRemoveByEnvironment helper consolidates container/network removal CLI flows (-70 of duplicated LOC, +43 helper, net -27 inside callers)"
       }
     ],
     "manual_review": [
@@ -188,6 +212,12 @@
         "reviewedAt": "2026-06-19T17:53:00Z",
         "deferred": "All remaining duplication consolidations — tracked in run 4 scan but stopped after iteration 2",
         "rootCause": "User has very large uncommitted work-in-progress (mid-migration: 8 atoms deleted, 200+ lines added to Application.jsx, modernized helpers.ts with jwtCookieOptions/getPublicIPAddress removal, untracked installer.ts/labels.ts and other server files). Any sanitizeName-style consolidation requires editing helpers.ts which has user's unstaged jwtCookieOptions; or editing untracked migration files. Either path either (a) commits user work alongside cleanup or (b) breaks the gate by isolating cleanup from its dependencies. The cleanup-loop's behavior-preserving contract assumes a clean working tree — that contract is broken until the user commits their migration. Resume after the user lands their pending refactor."
+      },
+      {
+        "module": "Various scan-4 candidates rejected by ponytail-filter",
+        "reviewedAt": "2026-06-19T18:24:00Z",
+        "deferred": "sliceFactory(3 slices), createWithNavigate factory, getMyResourceList factory, populateRelation factory, useUser* hook collapse, getMy* common, deleteWithDashboardRefresh factory, list* CLI 5-line one-liners, updateRepository/updateDeployment 9-line clone",
+        "rootCause": "ALL hit ladder rung 1 (doesn't need to exist) or rung 5+ (extraction adds a util file for 2-3 callers, not net-cleaner). Each adds an indirection layer the codebase doesn't need; readers benefit more from the explicit 8-line thunk than from a generic factory hiding 6 fields. Lazy says: leave it."
       }
     ]
   },
@@ -231,10 +261,10 @@
     }
   ],
   "stats": {
-    "iterations": 26,
-    "changesApplied": 20,
+    "iterations": 31,
+    "changesApplied": 24,
     "changesRejected": 1,
-    "modulesCompleted": 18,
+    "modulesCompleted": 22,
     "modulesManualReview": 10
   },
   "run": 4,

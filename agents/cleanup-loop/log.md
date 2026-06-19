@@ -222,3 +222,13 @@ Followed up on concrete leads from run-1's frontend scan that were never actione
 - **Why reverted**: helpers.ts has user's uncommitted `jwtCookieOptions` rewrite + `getPublicIPAddress` removal — gate breaks without those. installer.ts and labels.ts are entirely UNTRACKED files (part of user's mid-migration). Committing my edits would either sweep in user's work or red-gate the build by stashing it.
 - **Root cause logged in queue.manual_review**: cleanup-loop's atomic-commit contract assumes a clean working tree. User has a massive in-flight refactor not yet committed. Resume after user lands their migration.
 - **Stop**: Pending queue cleared. 8 other verified duplication candidates parked in manual_review with same blocker.
+
+### Iterations 3-6 (run-4 cont'd, 2026-06-19): 4 dedup wins shipped
+- **b77691c** client/docker — refreshDashboardData thunk replaces 4 copies of the 6-call cascade (-17 LOC)
+- **9b8c8a9** client/auth — signUp/signIn collapsed via runAuth helper (-8 LOC)
+- **ea8cbb8** server/database — findReachableDatabase helper folds 3 inline lookup+404 blocks
+- **613a0ca** server/cli — promptAndRemoveByEnvironment consolidates container/network removal flows
+
+Strategy: filtered scan to TRACKED+CLEAN files only (155 of 468) so the loop's atomic-commit contract holds despite user's heavy in-flight migration. Verified 11 candidates from a 6-partition parallel scan; ladder-filtered to 4 lazy wins, rejected 7 over-abstractions (factories, hook collapses, single-file cosmetic dedup).
+
+Net session: ~50 LOC of duplicated logic removed across server (database/cli) and client (loading-screen/docker/auth). Gate green at HEAD.

@@ -244,3 +244,13 @@ User-driven decision: Docker primitives (port-bindings, networks, images, contai
 Data layer (slices, services, server controllers/routes/models) intentionally LEFT IN PLACE — orphaned UI-wise but the server still uses these models internally for templates' auto-provisioning and orchestrator. Stripping the server side has bigger blast radius and would require touching the user's mid-migration tree. Park for a future "server-side prune" pass.
 
 Net session total: -819 LOC across 50 files (4 removal commits + 5 dedup commits + 1 chore).
+
+### Iteration 12-13 (2026-06-19): Server orphans cleanup
+- **8f7e5a4** drop client services for portBinding/docker primitives — UI is gone, data layer follows (-657 LOC)
+- **80403e1** drop client/hooks/api/user — no remaining callers (-149 LOC)
+- **5978081** drop unused ProtectedRoute.css + 10 dead docker/container API endpoints (-80 LOC)
+- **ed56f8b** drop fileUtils.js — humanFileSize had no callers (-10 LOC)
+
+Server-side data layer (controllers/routes/models/typings for portBinding/dockerContainer/dockerImage/dockerNetwork) intentionally LEFT IN PLACE — orchestrator and templates/installer still depend on the models for auto-provisioning.
+
+Net session: -1715 LOC across ~75 files. Dashboard now PaaS-shaped, no Docker primitives in user-facing layers. Server still uses these models internally — the user can prune the API endpoints separately when their server-side migration lands.

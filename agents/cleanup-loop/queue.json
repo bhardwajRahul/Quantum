@@ -1,5 +1,5 @@
 {
-  "_comment": "Persistent state for the cleanup-loop. The orchestrator reads this at the start of every iteration and writes it at the end, so the loop survives context compaction and session restarts. Populated by the initial scan (11 parallel scanners, 2026-06-15). pending[] is ordered by priority: score desc, then deletable LOC desc, with lower-risk server modules (have a vitest net) ahead of client modules (build-gate only).",
+  "_comment": "Persistent state for cleanup-loop. Run 4 (2026-06-19) targeted duplication. Iteration 1 (LoadingScreen atom) shipped via 3 commits — gate green. Iteration 2 (sanitizeName extraction) reverted: user's heavy in-flight uncommitted migration makes safe atomic commits structurally impossible right now. Resume after user lands pending refactor.",
   "guidingPrinciple": "The best code is the one that was never written. Prefer DELETE > SIMPLIFY > REWRITE.",
   "baseline": {
     "capturedAt": "2026-06-15",
@@ -9,7 +9,7 @@
     "note": "verify-gate.sh enforces: no NEW tsc errors (ceiling ratchets down; 24->23 after populateRepository dedup), all server tests pass, client vite build succeeds."
   },
   "scanComplete": true,
-  "scannedAt": "2026-06-15",
+  "scannedAt": "2026-06-19",
   "currentModule": null,
   "currentModuleAttempts": 0,
   "maxAttemptsPerApproach": 2,
@@ -118,6 +118,12 @@
         "commit": "8724c69",
         "completedAt": "2026-06-15T23:29:04Z",
         "summary": "DELETE — removed dead authToken field"
+      },
+      {
+        "module": "client/components/atoms/kit (LoadingScreen)",
+        "commit": "1a3037c+3891d46+e5d4194",
+        "completedAt": "2026-06-19T17:50:00Z",
+        "summary": "DEDUP — added LoadingScreen atom; collapsed 3 inline Loader2 fallback blocks (Application/OrgGate/ProtectedRoute). NOTE: commit accidentally swept user's pre-existing uncommitted Application.jsx + ProtectedRoute.jsx + OrgGate.jsx mid-migration work; revert/reapply dance preserved gate-green state."
       }
     ],
     "manual_review": [
@@ -176,6 +182,12 @@
         "reviewedAt": "2026-06-15T18:33:00Z",
         "deferred": "humanFileSize->formatBytes migration + Databases local formatBytes dedup",
         "rootCause": "behavior-changing: humanFileSize (kB/2dp) vs formatBytes (KB/1dp) differ in output; Databases variant has em-dash null fallback vs 0 B. Memory warns do not blind-merge. Needs design decision."
+      },
+      {
+        "module": "server/utilities/helpers.ts (sanitizeName extraction) + 8 other dup candidates",
+        "reviewedAt": "2026-06-19T17:53:00Z",
+        "deferred": "All remaining duplication consolidations — tracked in run 4 scan but stopped after iteration 2",
+        "rootCause": "User has very large uncommitted work-in-progress (mid-migration: 8 atoms deleted, 200+ lines added to Application.jsx, modernized helpers.ts with jwtCookieOptions/getPublicIPAddress removal, untracked installer.ts/labels.ts and other server files). Any sanitizeName-style consolidation requires editing helpers.ts which has user's unstaged jwtCookieOptions; or editing untracked migration files. Either path either (a) commits user work alongside cleanup or (b) breaks the gate by isolating cleanup from its dependencies. The cleanup-loop's behavior-preserving contract assumes a clean working tree — that contract is broken until the user commits their migration. Resume after the user lands their pending refactor."
       }
     ]
   },
@@ -219,15 +231,15 @@
     }
   ],
   "stats": {
-    "iterations": 24,
-    "changesApplied": 19,
+    "iterations": 26,
+    "changesApplied": 20,
     "changesRejected": 1,
-    "modulesCompleted": 17,
-    "modulesManualReview": 9
+    "modulesCompleted": 18,
+    "modulesManualReview": 10
   },
-  "run": 3,
+  "run": 4,
   "previousRun": {
-    "completed": 13,
+    "completed": 17,
     "manual_review": 9
   }
 }

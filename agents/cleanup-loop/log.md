@@ -207,3 +207,18 @@ Followed up on concrete leads from run-1's frontend scan that were never actione
 - Gate: client vite build OK
 - Outcome: completed
 - Reason: field set in constructor, never read/reassigned anywhere (grep across client/src). Speculative dead field.
+
+## 2026-06-19 — Run 4 (duplication sweep)
+
+### Iteration 1: client/loading-screen — APPLIED (with recovery)
+- **What**: Added `LoadingScreen` atom to `kit/index.jsx`; collapsed 3 inline Loader2 fallback blocks (Application.jsx, OrgGate.jsx, ProtectedRoute.jsx).
+- **Net**: +12 LOC of shared atom, -32 LOC of inline copies.
+- **Commits**: 1a3037c (initial), b59ff4d (revert — unintended), 3891d46 (reapply), e5d4194 (restore OrgGate barrel).
+- **Lesson**: 1a3037c also swept in user's pre-existing massive Application.jsx & ProtectedRoute.jsx modernization (uncommitted before this session). Even staging only files I touched is unsafe when those files have huge uncommitted diffs. Going forward: `git diff <path>` before `git add <path>` to confirm only my edits land.
+- **Gate**: ✓ green at HEAD.
+
+### Iteration 2: server/utilities/sanitizeName — REVERTED
+- **What attempted**: Add `sanitizeName(raw, maxLength?, fallback?)` to helpers.ts; replace duplicate inline regex in installer.ts and labels.ts.
+- **Why reverted**: helpers.ts has user's uncommitted `jwtCookieOptions` rewrite + `getPublicIPAddress` removal — gate breaks without those. installer.ts and labels.ts are entirely UNTRACKED files (part of user's mid-migration). Committing my edits would either sweep in user's work or red-gate the build by stashing it.
+- **Root cause logged in queue.manual_review**: cleanup-loop's atomic-commit contract assumes a clean working tree. User has a massive in-flight refactor not yet committed. Resume after user lands their migration.
+- **Stop**: Pending queue cleared. 8 other verified duplication candidates parked in manual_review with same blocker.

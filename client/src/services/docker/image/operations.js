@@ -13,9 +13,7 @@
 ****/
 
 import createOperation from '@utilities/api/operationHandler';
-import { getMyDockerContainers, countContainersByStatus } from '@services/docker/container/operations';
-import { getMyDockerNetworks } from '@services/docker/network/operations';
-import { getMyPortBindings } from '@services/portBinding/operations';
+import { refreshDashboardData } from '@services/docker/container/operations';
 import { getMyProfile } from '@services/authentication/operations';
 import * as dockerImageSlice from '@services/docker/image/slice';
 import * as dockerImageService from '@services/docker/image/service'
@@ -35,14 +33,7 @@ export const createDockerImage = (body, navigate) => async (dispatch) => {
 
 export const deleteDockerImage = (id) => async (dispatch) => {
     const operation = createOperation(dockerImageSlice, dispatch);
-    operation.on('finally', () => {
-        dispatch(getMyDockerContainers());
-        dispatch(getMyDockerNetworks());
-        dispatch(getMyPortBindings());
-        dispatch(getMyDockerImages());
-        dispatch(getMyProfile());        
-        dispatch(countContainersByStatus());
-    });
+    operation.on('finally', () => dispatch(refreshDashboardData()));
     operation.use({
         api: dockerImageService.deleteDockerImage,
         loaderState: 'isOperationLoading',

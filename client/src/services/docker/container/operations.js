@@ -50,6 +50,19 @@ export const countContainersByStatus = () => async (dispatch) => {
     });
 };
 
+// Refresh every dashboard slice that depends on container/image/network/port
+// state. Dispatched after any operation that may have mutated more than one
+// resource (delete-container cascades into images/networks/bindings, oneClickDeploy
+// creates all four). Centralized so the call list stays in one place.
+export const refreshDashboardData = () => (dispatch) => {
+    dispatch(getMyDockerContainers());
+    dispatch(getMyDockerNetworks());
+    dispatch(getMyPortBindings());
+    dispatch(getMyDockerImages());
+    dispatch(getMyProfile());
+    dispatch(countContainersByStatus());
+};
+
 export const setDockerStatus = (id, status) => async (dispatch) => {
     const operation = createOperation(dockerContainerSlice, dispatch);
     operation.on('finally', () => {
@@ -67,14 +80,7 @@ export const setDockerStatus = (id, status) => async (dispatch) => {
 
 export const deleteDockerContainer = (id) => async (dispatch) => {
     const operation = createOperation(dockerContainerSlice, dispatch);
-    operation.on('finally', () => {
-        dispatch(getMyDockerContainers());
-        dispatch(getMyDockerNetworks());
-        dispatch(getMyPortBindings());
-        dispatch(getMyDockerImages());
-        dispatch(countContainersByStatus());
-        dispatch(getMyProfile());
-    });
+    operation.on('finally', () => dispatch(refreshDashboardData()));
     operation.use({
         api: dockerContainerService.deleteDockerContainer,
         loaderState: 'isOperationLoading',
@@ -138,12 +144,7 @@ export const getRandomAvailablePort = () => async (dispatch) => {
 export const oneClickDeploy = (body, onResponse = () => {}) => async (dispatch) => {
     const operation = createOperation(dockerContainerSlice, dispatch);
     operation.on('response', () => {
-        dispatch(getMyDockerContainers());
-        dispatch(getMyDockerNetworks());
-        dispatch(getMyPortBindings());
-        dispatch(getMyDockerImages());
-        dispatch(getMyProfile());
-        dispatch(countContainersByStatus());
+        dispatch(refreshDashboardData());
         onResponse();
     });
     operation.use({

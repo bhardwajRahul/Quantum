@@ -14,7 +14,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Check, Copy, Loader2 } from 'lucide-react';
+import { Check, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /* ------------------------------------------------------------------ */
@@ -185,12 +185,6 @@ export const CopyInline = ({ value }) => {
 /* Loading helpers. */
 export const LoadingBlock = ({ label = 'Loading' }) => (
     <div className='grid place-items-center py-20 text-sm text-muted-foreground'>{label}…</div>
-);
-
-export const LoadingScreen = ({ minHeight = '100vh' }) => (
-    <div style={{ display: 'grid', placeItems: 'center', minHeight }}>
-        <Loader2 className='h-8 w-8 animate-spin text-primary' />
-    </div>
 );
 
 export const TableSkeleton = ({ rows = 5, cols = 4 }) => (

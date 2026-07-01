@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-const useDocumentTitle = (title, retainOnUnmount = false) => {
+const useDocumentTitle = (title) => {
     const defaultTitle = useRef(document.title);
     const suffix = 'Quantum Cloud';
 
@@ -10,11 +10,9 @@ const useDocumentTitle = (title, retainOnUnmount = false) => {
             document.title = newTitle;
         }
         return () => {
-            if(!retainOnUnmount){
-                document.title = defaultTitle.current;
-            }
+            document.title = defaultTitle.current;
         }
-    }, [title, retainOnUnmount]);
+    }, [title]);
 };
 
 export default useDocumentTitle;

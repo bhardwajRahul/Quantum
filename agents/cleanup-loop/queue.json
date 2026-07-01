@@ -1,5 +1,5 @@
 {
-  "_comment": "Persistent state for cleanup-loop. Run 4 closed (2026-06-19): 9 commits total this session — 5 dedup + 4 vertical removals — net -819 LOC across 50 files. Dashboard now PaaS-shaped (Projects/Repositories/Databases/Domains/Templates), no Docker primitives exposed.",
+  "_comment": "Persistent state for cleanup-loop. Run 5 closed (2026-07-01): safe-surface pass while the working tree is mid a large uncommitted migration. Gate GREEN (client build OK, 131 tests, server tsc 18 < 23 ceiling). Actionable surface = clean tracked unmodified files only; re-scanned via 3 parallel scanners. 2 clean commits (36f68e5 delete nginxHandler.d.ts, 52d7914 trim useDocumentTitle param). setup-utility deferred: its own build is structurally red at baseline (missing vite-env.d.ts + NodeJS-namespace error in a DIRTY migration file) so nothing there can be gated green. Run 4 closed (2026-06-19): 9 commits — 5 dedup + 4 vertical removals — net -819 LOC across 50 files.",
   "guidingPrinciple": "The best code is the one that was never written. Prefer DELETE > SIMPLIFY > REWRITE.",
   "baseline": {
     "capturedAt": "2026-06-15",
@@ -9,7 +9,8 @@
     "note": "verify-gate.sh enforces: no NEW tsc errors (ceiling ratchets down; 24->23 after populateRepository dedup), all server tests pass, client vite build succeeds."
   },
   "scanComplete": true,
-  "scannedAt": "2026-06-19",
+  "scannedAt": "2026-07-01",
+  "scanNote": "Run-5 scan scoped to the SAFE surface only (clean tracked unmodified files). The user's mid-migration working tree (456 modified / 294 deleted / 447 untracked) is off-limits. A full re-scan must wait until the migration lands and the tree is clean again.",
   "currentModule": null,
   "currentModuleAttempts": 0,
   "maxAttemptsPerApproach": 2,
@@ -172,6 +173,18 @@
         "commit": "13bb6bc",
         "completedAt": "2026-06-19T18:42:00Z",
         "summary": "DELETE — Container Create/Update/Explorer + Shell/Storage/EnvVars sub-pages, hooks, routes, AppShell Infrastructure group (-416 LOC)."
+      },
+      {
+        "module": "server/typings/services/nginxHandler.d.ts",
+        "commit": "36f68e5",
+        "completedAt": "2026-07-01T03:37:00Z",
+        "summary": "DELETE — dead DomainConfig interface, zero refs repo-wide, no nginx service exists (-5 LOC). Server gate green."
+      },
+      {
+        "module": "client/src/hooks/common/useDocumentTitle.js",
+        "commit": "52d7914",
+        "completedAt": "2026-07-01T03:45:00Z",
+        "summary": "SIMPLIFY — dropped dead retainOnUnmount param (all 13 callers single-arg; defaulted false so cleanup always ran). Removed param + guard + effect-dep (-3 LOC). Client build green."
       }
     ],
     "manual_review": [
@@ -247,6 +260,25 @@
         "module": "Server-side docker primitives data layer (slices, services, controllers, routes, models for portBinding/dockerContainer/dockerImage/dockerNetwork)",
         "reviewedAt": "2026-06-19T18:43:00Z",
         "deferred": "Stripping server-side requires touching user's mid-migration files (orchestrator/handlers, templates/installer, codespace/provisioner all depend on these models for auto-provisioning). The UI is gone; the data layer stays until user lands their migration. Server still uses these models internally — they're not dead, just orphaned at the dashboard layer."
+      },
+      {
+        "module": "setup-utility/client (whole sub-app)",
+        "reviewedAt": "2026-07-01T03:44:00Z",
+        "candidates": "clearToasts dead reducer (services/toast/slice.ts); Button.tsx dead ...props rest+spread; Toast.tsx duplicate inline toast type (should import Toast from slice); OptionalEnvironVariables.tsx 13 near-identical <Input> blocks -> field-config map (~90 LOC, biggest win); EnvironVariables.tsx no-op mount effect + god polling effect; DeployOutput.tsx god useEffect; pages barrels indirection.",
+        "rootCause": "setup-utility/client `npm run build` (tsc -b && vite build) is STRUCTURALLY RED at baseline, independent of any cleanup: (a) missing src/vite-env.d.ts (vite/client shim) so import.meta.env fails to typecheck in clean files useServerIP.ts + env/api.ts; (b) NodeJS-namespace type error in the DIRTY migration file EnvironVariables.tsx:12 (no @types/node). Sub-app is NOT covered by verify-gate.sh. Verified a clearToasts delete did not cause it (identical 5 errors with edit stashed) then reverted. No change here can be gated green until the user lands the migration and adds the vite-env shim. RESUME once setup-utility/client builds clean.",
+        "verifyWith": "cd setup-utility/client && npm run build (and npm run lint)"
+      },
+      {
+        "module": "server/controllers/common/dockerFS.ts",
+        "reviewedAt": "2026-07-01T03:44:00Z",
+        "deferred": "Both findings are behavior-CHANGING, not cleanup: `throw next(new RuntimeError(...))` double-dispatch at L15 (next() returns void; throwing it is meaningless), and updateContainerFile swallows writeFile errors in try/catch then still responds 200 success (L34-37), masking failures. Belong in knownBugs_notForSimplifier, fixed deliberately with a test.",
+        "rootCause": "behavior-preserving simplifier must not silently change these; no safe atomic win."
+      },
+      {
+        "module": "server/typings/services/oneClickDeploy.d.ts",
+        "reviewedAt": "2026-07-01T03:44:00Z",
+        "deferred": "`ports?: [{...}]` is a single-element tuple type, almost certainly meant to be an array `{...}[]`. Low-value type change with regression risk (changes the shape contract); no atomic cleanup win.",
+        "rootCause": "type-semantics change, not dead code."
       }
     ]
   },
@@ -282,7 +314,7 @@
     },
     {
       "item": "client EventManager removal",
-      "why": "15-line pub/sub used across ~33 call sites; rewriting to callbacks is MORE code with silent-break risk and no FE tests (prior analysis confirmed not worth it)"
+      "why": "Prior note said ~33 call sites; run-5 re-scan of the CURRENT tracked tree found exactly ONE importer (utilities/api/operationHandler.js). Still used (operationHandler extends it, emits response/error/finally), so not dead — but any consolidation now requires editing operationHandler.js which is a DIRTY migration file. DEFER regardless."
     },
     {
       "item": "splitImageRef merge (templates/compose vs prebuilt)",
@@ -290,15 +322,16 @@
     }
   ],
   "stats": {
-    "iterations": 35,
-    "changesApplied": 28,
+    "iterations": 37,
+    "changesApplied": 30,
     "changesRejected": 1,
-    "modulesCompleted": 26,
-    "modulesManualReview": 10
+    "modulesCompleted": 28,
+    "modulesManualReview": 13
   },
-  "run": 4,
+  "run": 5,
   "previousRun": {
-    "completed": 17,
-    "manual_review": 9
+    "run": 4,
+    "completed": 26,
+    "manual_review": 10
   }
 }

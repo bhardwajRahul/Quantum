@@ -254,3 +254,49 @@ Net session total: -819 LOC across 50 files (4 removal commits + 5 dedup commits
 Server-side data layer (controllers/routes/models/typings for portBinding/dockerContainer/dockerImage/dockerNetwork) intentionally LEFT IN PLACE — orchestrator and templates/installer still depend on the models for auto-provisioning.
 
 Net session: -1715 LOC across ~75 files. Dashboard now PaaS-shaped, no Docker primitives in user-facing layers. Server still uses these models internally — the user can prune the API endpoints separately when their server-side migration lands.
+
+---
+
+## Run 5 (2026-07-01): safe-surface pass over the mid-migration working tree
+
+Context: the working tree is mid a very large uncommitted migration (456 modified,
+294 deletions, 447 untracked). The gate is GREEN (client build OK, 131 tests pass,
+server tsc down to 18 — below the 23 ceiling). The behavior-preserving contract
+requires a verifiable gate + clean-tracked target files, so the actionable surface
+this run = **clean tracked unmodified files only** (~55 code files). Re-scanned that
+surface with 3 parallel cleanup-scanner subagents (server / client-src / setup-utility).
+
+### Iteration 1 — server/typings/services/nginxHandler.d.ts — APPLIED (DELETE)
+- **36f68e5** delete dead file. `DomainConfig`/`nginxHandler` had zero refs repo-wide;
+  no nginx service exists. Server gate green (tsc 18, vitest 131). -5 LOC.
+
+### Iteration 2 — client/src/hooks/common/useDocumentTitle.js — APPLIED (SIMPLIFY)
+- **52d7914** drop dead `retainOnUnmount` param. All 13 call sites pass a single arg;
+  it defaulted to false so the unmount cleanup always restored the title. Removed the
+  param, its guard branch, and the effect-dep. Re-export is signature-agnostic. Client
+  build green. -3 LOC.
+
+### DEFERRED → manual_review (root cause: unverifiable / out-of-scope)
+- **setup-utility/client (whole sub-app)** — DEFER. Its `npm run build` (`tsc -b && vite
+  build`) is **structurally RED at baseline**, independent of any cleanup: (a) missing
+  `src/vite-env.d.ts` vite/client shim → `import.meta.env` fails to typecheck in clean
+  files (useServerIP.ts, env/api.ts); (b) `NodeJS` namespace error in the DIRTY migration
+  file EnvironVariables.tsx:12 (no @types/node). Not covered by verify-gate.sh. Verified
+  the clearToasts-delete edit did NOT cause it (identical 5 errors with the edit stashed),
+  then reverted the edit (git checkout --). Real candidates parked: clearToasts dead reducer
+  (slice.ts), Button.tsx dead ...props spread, Toast.tsx duplicate inline type, and the
+  big win — OptionalEnvironVariables.tsx 13 near-identical <Input> blocks → field-config
+  map (~90 LOC). All blocked until the user lands their migration + adds the vite-env shim
+  so the sub-app builds green.
+- **server/controllers/common/dockerFS.ts** — DEFER (not a cleanup). Both findings are
+  behavior-CHANGING: `throw next(new RuntimeError(...))` double-dispatch nuance (L15), and
+  updateContainerFile swallows writeFile errors then still responds 200 (L34-37, masks
+  failures). Belong in knownBugs, not the behavior-preserving simplifier.
+- **server/typings/services/oneClickDeploy.d.ts** — DEFER. `ports?: [{...}]` single-element
+  tuple likely meant `{...}[]`; low-value type change with regression risk, no atomic win.
+
+Scanner false-positive corrected: eventManager.js prior "~33 call sites" note is STALE —
+current tracked tree has exactly ONE importer (operationHandler.js). Still used, not dead.
+
+Net run 5: -8 LOC, 2 clean commits. Safe surface (clean tracked files) drained; remaining
+duplication consolidations stay blocked on the user's in-flight migration.

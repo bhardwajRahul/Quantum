@@ -3,6 +3,7 @@ import { LogOut } from 'lucide-react';
 import { sections, sectionFor } from '@/app/navigation/sections';
 import { panelFor } from '@/app/navigation/panels';
 import { endSession } from '@/shared/services/end-session';
+import OrganizationSwitcher from '@/modules/organization/components/OrganizationSwitcher';
 
 const navItemClass = (active: boolean): string =>
     `flex h-8 w-full items-center gap-2.5 rounded-md px-2 text-[0.875rem] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground motion-reduce:transition-none ${
@@ -42,10 +43,14 @@ const DashboardLayout = () => {
 
             <div className='chrome-frame flex min-w-0 flex-1'>
                 <div className='chrome-surface flex min-w-0 flex-1 flex-col overflow-hidden bg-[var(--dashboard-surface)]'>
-                    <header className='flex h-[var(--app-header-height)] shrink-0 items-center px-6'>
+                    <header className='flex h-[var(--app-header-height)] shrink-0 items-center gap-4 px-6'>
                         <h1 className='text-[0.9375rem] font-medium text-foreground'>
                             {section?.label ?? 'Quantum'}
                         </h1>
+
+                        <div className='ml-auto flex items-center'>
+                            <OrganizationSwitcher />
+                        </div>
                     </header>
 
                     <main className='page-view animate-enter flex-1 overflow-y-auto px-4'>

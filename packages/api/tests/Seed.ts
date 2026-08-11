@@ -2,12 +2,14 @@ import User from '@/modules/user/models/User';
 import PasswordService from '@/modules/auth/services/PasswordService';
 import Organization from '@/modules/organization/models/Organization';
 import OrganizationMembership from '@/modules/organization/models/OrganizationMembership';
+import Project from '@/modules/project/models/Project';
 import { OrganizationRole } from '@quantum/contracts/modules/organization/domain';
 import { UserRole } from '@quantum/contracts/modules/user/domain';
 
 export interface OrgContext{
     user: User;
     org: Organization;
+    project: Project;
 }
 
 export const TEST_PASSWORD = 'password123';
@@ -64,13 +66,23 @@ export default class Seed{
         return user;
     }
 
+    async project(org: Organization): Promise<Project>{
+        const n = this.sequence();
+        return Project.create({
+            name: `Project ${n}`,
+            slug: `project-${n}-${org.id}`,
+            organizationId: org.id
+        }).save();
+    }
+
     async orgContext(role: OrganizationRole = OrganizationRole.Owner): Promise<OrgContext>{
         const user = await this.user();
         const org = await this.org(user);
         if(role !== OrganizationRole.Owner){
             await OrganizationMembership.update({ userId: user.id, organizationId: org.id }, { role });
         }
-        return { user, org };
+        const project = await this.project(org);
+        return { user, org, project };
     }
 }
 

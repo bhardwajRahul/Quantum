@@ -1,8 +1,10 @@
+import { In } from 'typeorm';
 import { MiddlewareFn } from '@/shared/middlewares/Middleware';
 import { AuthError } from '@/modules/auth/contracts/domain/errors';
 import { UserRole } from '@quantum/contracts/modules/user/domain';
 import { OrganizationRole } from '@quantum/contracts/modules/organization/domain';
 import User from '@/modules/user/models/User';
+import Project from '@/modules/project/models/Project';
 import Organization from '../models/Organization';
 import OrganizationMembership from '../models/OrganizationMembership';
 import { TenancyError } from '../contracts/domain/errors';
@@ -51,7 +53,7 @@ class TenantResolver{
             projectId,
             role: resolved.role,
             organizationIds,
-            projectIds: this.projectIdsFor(resolved.organization ? [resolved.organization.id] : organizationIds),
+            projectIds: await this.projectIdsFor(resolved.organization ? [resolved.organization.id] : organizationIds),
             isPlatformAdmin
         };
     }
@@ -101,9 +103,10 @@ class TenantResolver{
         return { organization, role };
     }
 
-    // The Project entity lands in a later wave; until then tenants have no project scope.
-    private projectIdsFor(_organizationIds: number[]): number[]{
-        return [];
+    private async projectIdsFor(organizationIds: number[]): Promise<number[]>{
+        if(organizationIds.length === 0) return [];
+        const projects = await Project.find({ where: { organizationId: In(organizationIds) }, select: { id: true } });
+        return projects.map((project) => project.id);
     }
 }
 

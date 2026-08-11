@@ -1,0 +1,198 @@
+@import "@heroui/styles";
+
+/**
+ * Quantum's accent is monochrome: the accent IS the foreground, inverted.
+ * HeroUI drives every accent surface off these three tokens, so redefining
+ * them here is what makes `<Button>` black-on-light / white-on-dark — call
+ * sites never restate it.
+ */
+:root,
+.light,
+[data-theme="light"],
+.dark,
+[data-theme="dark"] {
+    --accent: var(--foreground);
+    --accent-foreground: var(--background);
+    --accent-soft-foreground: var(--default-foreground);
+}
+
+:root,
+.light,
+[data-theme="light"] {
+    --dashboard-surface: #f4f4f5;
+}
+
+.dark,
+[data-theme="dark"] {
+    --background: #090909;
+    --dashboard-surface: #101011;
+    --field-background: #171719;
+}
+
+/**
+ * HeroUI lifts a field off the page with a drop shadow and gives it no border. This app does
+ * the opposite: a field is defined by its edge, so the shadow is emptied and the border — 0px
+ * by default — becomes a hairline in both themes. `--field-border-hover` and
+ * `--field-border-focus` derive from `--field-border` and follow.
+ *
+ * The shadow is emptied to a transparent inset rather than `none`, which is HeroUI's own trick
+ * in dark: `.input` applies `shadow-field`, which feeds Tailwind's `--tw-shadow`, and a `none`
+ * inside a box-shadow list would take the focus ring down with it.
+ */
+:root,
+.light,
+[data-theme="light"],
+.dark,
+[data-theme="dark"] {
+    --field-shadow: 0 0 0 0 transparent inset;
+    --field-border-width: 1px;
+    --field-border: var(--border);
+}
+
+/**
+ * Overflow is signalled by ScrollShadow's fade, never by browser chrome, so the
+ * scrollbar is hidden everywhere. HeroUI's own scroll surfaces apply its `scrollbar`
+ * utility, which reads `scrollbar-width: var(--scrollbar-width)` — so rebasing that
+ * one token reaches inside components this app never renders directly.
+ */
+:root,
+.light,
+[data-theme="light"],
+.dark,
+[data-theme="dark"] {
+    --scrollbar-width: none;
+}
+
+* {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+    display: none;
+}
+
+.button {
+    --spacing: 0.3rem;
+}
+
+:root {
+    --ease-emphasized: cubic-bezier(0.22, 1, 0.36, 1);
+    --page-transition-duration: 420ms;
+    --layout-transition-duration: 420ms;
+    --app-header-height: 3.5rem;
+    --page-viewport: 100dvh;
+}
+
+/**
+ * HeroUI animates the popover with `animate-in`/`animate-out`, whose curve is
+ * read from `--tw-ease` — so rebasing that one variable puts the app's own
+ * easing on every anchored popover without restating the animation.
+ */
+.popover {
+    --tw-ease: var(--ease-emphasized);
+}
+
+@keyframes enter-rise {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+        filter: blur(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+        filter: blur(0);
+    }
+}
+
+.animate-enter {
+    animation: enter-rise 0.6s var(--ease-emphasized) both;
+}
+
+.app-sidebar {
+    width: 14rem;
+}
+
+.chrome-frame {
+    padding: 0.5rem;
+}
+
+.chrome-surface {
+    border-radius: 1rem;
+}
+
+@media (width < 64rem) {
+    .chrome-frame {
+        padding: 0;
+    }
+
+    .chrome-surface {
+        border-radius: 0;
+    }
+}
+
+/**
+ * Page transitions. `:root` opts out of the root snapshot so that only the named
+ * content region is captured — everything else (sidebar, header) keeps rendering
+ * live and runs its own transitions. Two regions, never mounted at the same time
+ * as each other: `page` is the dashboard's content area, `screen` is a
+ * full-viewport screen (auth, not-found).
+ */
+:root {
+    view-transition-name: none;
+}
+
+/**
+ * The dashboard's scrollport is this `main`, not the viewport: it begins below
+ * the header. A page that wants a column exactly as tall as what the reader can
+ * see reads `--page-viewport`, never `100dvh`.
+ */
+.page-view {
+    view-transition-name: page;
+    --page-viewport: calc(100dvh - var(--app-header-height));
+}
+
+.screen-view {
+    view-transition-name: screen;
+}
+
+::view-transition-group(page),
+::view-transition-group(screen) {
+    animation-duration: var(--page-transition-duration);
+    animation-timing-function: var(--ease-emphasized);
+}
+
+::view-transition-old(page),
+::view-transition-old(screen) {
+    animation: page-exit 200ms var(--ease-emphasized) both;
+}
+
+::view-transition-new(page),
+::view-transition-new(screen) {
+    animation: enter-rise var(--page-transition-duration) var(--ease-emphasized) both;
+}
+
+@keyframes page-exit {
+    to {
+        opacity: 0;
+        filter: blur(4px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .animate-enter {
+        animation: none;
+    }
+
+    .popover[data-entering="true"],
+    .popover[data-exiting="true"] {
+        animation: none;
+    }
+
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+        animation: none !important;
+    }
+}

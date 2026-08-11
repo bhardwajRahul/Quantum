@@ -32,6 +32,8 @@ export default class Application{
             disableRequestLogging: true
         });
 
+        this.#registerRawBodyCapture();
+
         await this.#app.register(cors, {
             origin: config.corsOrigins,
             credentials: true,
@@ -64,6 +66,17 @@ export default class Application{
     async stop(){
         await this.#app.close();
         await this.#dataSource?.destroy();
+    }
+
+    #registerRawBodyCapture(){
+        this.#app.addContentTypeParser('application/json', { parseAs: 'buffer' }, (req, body: Buffer, done) => {
+            req.rawBody = body;
+            try{
+                done(null, JSON.parse(body.toString('utf8')));
+            }catch{
+                done(new RuntimeError('Request::ValidationFailed', 400), undefined);
+            }
+        });
     }
 
     #registerErrorHandler(){

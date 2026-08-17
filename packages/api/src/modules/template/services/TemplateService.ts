@@ -40,7 +40,8 @@ export default class TemplateService{
             website: input.website ?? null,
             source: TemplateSource.Custom,
             organizationId: tenant.organizationId,
-            spec: input.spec
+            spec: input.spec,
+            inputsSchema: input.inputsSchema ?? []
         }).save();
     }
 

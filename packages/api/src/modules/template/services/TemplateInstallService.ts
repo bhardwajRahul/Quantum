@@ -1,4 +1,7 @@
+import { randomBytes } from 'node:crypto';
 import Project from '@/modules/project/models/Project';
+import Template from '../models/Template';
+import SecretCipher from '@/shared/services/SecretCipher';
 import { eventBus } from '@/shared/events/EventBus';
 import TemplateInstall from '../models/TemplateInstall';
 import TemplateService from './TemplateService';
@@ -8,10 +11,12 @@ import type { InstallTemplateInput } from '@quantum/contracts/modules/template/h
 
 export default class TemplateInstallService{
     #templates = new TemplateService();
+    #cipher = new SecretCipher();
 
     async install(userId: number, tenant: Tenant, projectId: number, input: InstallTemplateInput): Promise<TemplateInstall>{
         const project = await this.#projectFor(tenant, projectId);
         const template = await this.#templates.get(tenant, input.templateId);
+        const inputsEnc = this.#resolveInputs(template, input.inputs ?? {});
 
         const install = await TemplateInstall.create({
             templateId: template.id,
@@ -21,11 +26,38 @@ export default class TemplateInstallService{
             projectId: project.id,
             environmentId: input.environmentId ?? null,
             userId,
-            nodeId: process.env.NODE_ID ?? 'local'
+            nodeId: process.env.NODE_ID ?? 'local',
+            inputsEnc
         }).save();
 
         this.#startProvisioning(install, userId);
         return install;
+    }
+
+    #resolveInputs(template: Template, supplied: Record<string, string | number | boolean>): string | null{
+        const resolved: Record<string, string> = {};
+
+        for(const def of template.inputsSchema){
+            let value: string | undefined;
+
+            if(def.generate){
+                value = randomBytes(def.generate === 'token' ? 32 : 24).toString('base64url');
+            }else if(supplied[def.key] !== undefined){
+                value = String(supplied[def.key]);
+            }else if(def.default !== undefined){
+                value = String(def.default);
+            }
+
+            if(value === undefined){
+                if(def.required) throw TemplateInstallError.MissingInput(def.key);
+                continue;
+            }
+
+            resolved[def.key] = value;
+        }
+
+        if(Object.keys(resolved).length === 0) return null;
+        return this.#cipher.encrypt(JSON.stringify(resolved));
     }
 
     async listForProject(tenant: Tenant, projectId: number): Promise<TemplateInstall[]>{

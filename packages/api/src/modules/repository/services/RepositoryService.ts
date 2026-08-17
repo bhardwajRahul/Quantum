@@ -16,7 +16,8 @@ const ALIAS_MAX_LENGTH = 32;
 
 const REDEPLOY_FIELDS: Array<keyof UpdateRepositoryInput> = [
     'buildCommand', 'installCommand', 'startCommand', 'rootDirectory',
-    'branch', 'framework', 'runtime', 'runtimeVersion', 'outputDirectory'
+    'branch', 'framework', 'runtime', 'runtimeVersion', 'outputDirectory',
+    'buildStrategy', 'dockerfilePath', 'image'
 ];
 
 export default class RepositoryService{
@@ -110,6 +111,9 @@ export default class RepositoryService{
         if(input.runtimeVersion !== undefined) repository.runtimeVersion = input.runtimeVersion;
         if(input.outputDirectory !== undefined) repository.outputDirectory = input.outputDirectory;
         if(input.port !== undefined) repository.port = input.port;
+        if(input.buildStrategy !== undefined) repository.buildStrategy = input.buildStrategy;
+        if(input.dockerfilePath !== undefined) repository.dockerfilePath = input.dockerfilePath === '' ? null : input.dockerfilePath;
+        if(input.image !== undefined) repository.image = input.image === '' ? null : input.image;
         if(input.projectId !== undefined){
             repository.projectId = (await this.#projectFor(tenant, input.projectId)).id;
         }

@@ -2,7 +2,7 @@ import { Entity, Column, Index } from 'typeorm';
 import BaseModel from '@/shared/models/BaseModel';
 import { TemplateSource } from '@quantum/contracts/modules/template/domain';
 import { TemplateFields } from '../contracts/domain/template';
-import type { TemplateSpec } from '@quantum/contracts/modules/template/domain';
+import type { InputDef, TemplateSpec } from '@quantum/contracts/modules/template/domain';
 
 @Entity()
 @Index(['slug', 'version'], { unique: true })
@@ -36,4 +36,7 @@ export default class Template extends BaseModel implements TemplateFields{
 
     @Column('simple-json')
     spec!: TemplateSpec;
+
+    @Column({ type: 'simple-json', default: [] })
+    inputsSchema!: InputDef[];
 }

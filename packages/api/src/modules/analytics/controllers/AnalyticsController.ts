@@ -13,17 +13,29 @@ export default class AnalyticsController extends BaseController{
     #service = new AnalyticsService();
 
     @Route(analyticsRoutes.summary)
-    summary(@Tenant() tenant: Tenant, @Query('minutes') minutes: string | undefined){
-        return this.#service.summary(tenant, minutes);
+    summary(
+        @Tenant() tenant: Tenant,
+        @Query('minutes') minutes: string | undefined,
+        @Query('domainId') domainId: string | undefined
+    ){
+        return this.#service.summary(tenant, minutes, domainId);
     }
 
     @Route(analyticsRoutes.top)
-    top(@Tenant() tenant: Tenant, @Query('minutes') minutes: string | undefined){
-        return this.#service.top(tenant, minutes);
+    top(
+        @Tenant() tenant: Tenant,
+        @Query('minutes') minutes: string | undefined,
+        @Query('domainId') domainId: string | undefined
+    ){
+        return this.#service.top(tenant, minutes, domainId);
     }
 
     @Route(analyticsRoutes.domains)
-    domains(@Tenant() tenant: Tenant, @Query('minutes') minutes: string | undefined){
-        return this.#service.domains(tenant, minutes);
+    domains(
+        @Tenant() tenant: Tenant,
+        @Query('minutes') minutes: string | undefined,
+        @Query('domainId') domainId: string | undefined
+    ){
+        return this.#service.domains(tenant, minutes, domainId);
     }
 }

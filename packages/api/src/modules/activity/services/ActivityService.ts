@@ -1,13 +1,46 @@
 import { In, MoreThanOrEqual } from 'typeorm';
 import Paginated from '@/shared/controllers/Paginated';
 import ActivityEvent from '../models/ActivityEvent';
+import { eventBus } from '@/shared/events/EventBus';
 import type { FindOptionsWhere } from 'typeorm';
 import type { Page } from '@/shared/contracts/params';
 import type { Tenant } from '@/modules/organization/contracts/types/fastify';
+import type { ActivityLevel } from '@quantum/contracts/modules/activity/domain';
 
 const MAX_LIMIT = 500;
 
+export interface CreateActivityEventInput{
+    organizationId: number | null;
+    userId: number | null;
+    scope: string | null;
+    level: ActivityLevel;
+    title: string;
+    message?: string;
+    source: string | null;
+    correlationId: string | null;
+    meta?: Record<string, unknown>;
+}
+
 export default class ActivityService{
+    async create(input: CreateActivityEventInput): Promise<ActivityEvent>{
+        const activity = await ActivityEvent.create({
+            organizationId: input.organizationId,
+            userId: input.userId,
+            scope: input.scope,
+            level: input.level,
+            title: input.title,
+            message: input.message ?? '',
+            source: input.source,
+            correlationId: input.correlationId,
+            meta: input.meta ?? {}
+        }).save();
+
+        if(activity.organizationId !== null){
+            eventBus.emit('activity.created', { activityEventId: activity.id, organizationId: activity.organizationId });
+        }
+        return activity;
+    }
+
     async list(
         userId: number,
         tenant: Tenant,

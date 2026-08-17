@@ -1,4 +1,7 @@
 import type SocketChannel from '@/shared/services/socket/SocketChannel';
+import type { ActivityServerFrames } from '@quantum/contracts/modules/activity/gateway';
+import type { DeploymentStatusFrame, DeploymentLogFrame } from '@quantum/contracts/modules/deployment/domain';
+import type { TerminalServerFrames } from '@quantum/contracts/modules/repository/gateway';
 
 export type ChannelStatus = 'connecting' | 'open' | 'reconnecting' | 'closed';
 
@@ -14,7 +17,15 @@ export interface ChannelHandlers{
     [type: string]: MessageHandler<unknown>;
 }
 
-export interface ChannelMap{}
+export interface ChannelMap{
+    '/activity/stream': ActivityServerFrames;
+    '/deployment/stream': {
+        'deployment.statusChanged': DeploymentStatusFrame;
+        'deployment.completed': DeploymentStatusFrame;
+        'deployment.log': DeploymentLogFrame;
+    };
+    '/repository/:repositoryId/terminal': TerminalServerFrames;
+}
 
 export type HandlersFor<P extends string> = P extends keyof ChannelMap
     ? { [K in keyof ChannelMap[P]]?: MessageHandler<ChannelMap[P][K]> }

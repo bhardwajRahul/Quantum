@@ -1,4 +1,4 @@
-import type { RepositoryOperation } from './domain';
+import type { BuildStrategy, RepositoryOperation } from './domain';
 
 export interface CreateRepositoryInput{
     /**
@@ -66,6 +66,9 @@ export interface UpdateRepositoryInput{
      * @type int
      */
     projectId?: number;
+    buildStrategy?: BuildStrategy;
+    dockerfilePath?: string;
+    image?: string;
 }
 
 export interface RepositoryOperationInput{

@@ -1,5 +1,6 @@
 import { Entity, Column } from 'typeorm';
 import BaseModel from '@/shared/models/BaseModel';
+import { Hidden } from '@/shared/models/Hidden';
 import { TemplateInstallFields } from '../contracts/domain/template';
 
 @Entity()
@@ -27,4 +28,8 @@ export default class TemplateInstall extends BaseModel implements TemplateInstal
 
     @Column({ type: 'varchar', default: 'local' })
     nodeId!: string;
+
+    @Hidden()
+    @Column({ type: 'varchar', nullable: true })
+    inputsEnc!: string | null;
 }

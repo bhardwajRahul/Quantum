@@ -38,6 +38,17 @@ export interface TemplateSpec{
     services: Record<string, TemplateServiceSpec>;
 }
 
+export type TemplateInputType = 'string' | 'number' | 'boolean' | 'secret';
+
+export interface InputDef{
+    key: string;
+    label: string;
+    type: TemplateInputType;
+    default?: string | number | boolean;
+    required?: boolean;
+    generate?: 'password' | 'token';
+}
+
 export interface Template extends BaseEntity{
     name: string;
     slug: string;
@@ -49,6 +60,7 @@ export interface Template extends BaseEntity{
     source: TemplateSource;
     organizationId: number | null;
     spec: TemplateSpec;
+    inputsSchema: InputDef[];
 }
 
 export interface TemplateInstall extends BaseEntity{

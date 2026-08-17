@@ -1,4 +1,4 @@
-import type { TemplateCategory, TemplateSource, TemplateSpec } from '@quantum/contracts/modules/template/domain';
+import type { InputDef, TemplateCategory, TemplateSource, TemplateSpec } from '@quantum/contracts/modules/template/domain';
 
 export interface TemplateFields{
     name: string;
@@ -11,6 +11,7 @@ export interface TemplateFields{
     source: TemplateSource;
     organizationId: number | null;
     spec: TemplateSpec;
+    inputsSchema: InputDef[];
     createdAt: Date;
     updatedAt: Date;
 }
@@ -24,6 +25,7 @@ export interface TemplateInstallFields{
     organizationId: number | null;
     userId: number | null;
     nodeId: string;
+    inputsEnc: string | null;
     createdAt: Date;
     updatedAt: Date;
 }

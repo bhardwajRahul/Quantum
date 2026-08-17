@@ -1,3 +1,4 @@
+import { Link as RouterLink } from 'react-router-dom';
 import { useSession } from '@/modules/auth/hooks/use-session';
 import PageBody from '@/shared/components/layout/PageBody';
 import LoadingState from '@/shared/components/LoadingState';
@@ -27,6 +28,10 @@ const Account = () => {
                     </div>
                 ))}
             </dl>
+
+            <RouterLink to='/change-password' className='mt-6 inline-block text-[0.875rem] text-foreground underline-offset-4 hover:underline'>
+                Change password
+            </RouterLink>
         </PageBody>
     );
 };

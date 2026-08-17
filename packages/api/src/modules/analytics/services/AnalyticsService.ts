@@ -1,6 +1,7 @@
 import { In, MoreThanOrEqual } from 'typeorm';
 import AnalyticsEvent from '../models/AnalyticsEvent';
 import AnalyticsRollup from '../models/AnalyticsRollup';
+import DomainService from '@/modules/domain/services/DomainService';
 import type { FindOptionsWhere } from 'typeorm';
 import type { Tenant } from '@/modules/organization/contracts/types/fastify';
 import type { AnalyticsSummary, AnalyticsTop, DomainStat, TopEntry } from '@quantum/contracts/modules/analytics/domain';
@@ -10,8 +11,11 @@ const MAX_MINUTES = 90 * 24 * 60;
 const DEFAULT_MINUTES = 1440;
 
 export default class AnalyticsService{
-    async summary(tenant: Tenant, rawMinutes: string | undefined): Promise<AnalyticsSummary>{
-        const rollups = await AnalyticsRollup.find({ where: this.#rollupScope(tenant, this.#since(rawMinutes)) });
+    #domains = new DomainService();
+
+    async summary(tenant: Tenant, rawMinutes: string | undefined, rawDomainId: string | undefined): Promise<AnalyticsSummary>{
+        const domainId = await this.#resolveDomainId(tenant, rawDomainId);
+        const rollups = await AnalyticsRollup.find({ where: this.#rollupScope(tenant, this.#since(rawMinutes), domainId) });
 
         const pageviews = rollups.reduce((sum, rollup) => sum + rollup.pageviews, 0);
         const visitors = rollups.reduce((sum, rollup) => sum + rollup.visitors, 0);
@@ -21,11 +25,12 @@ export default class AnalyticsService{
         return { pageviews, visitors, bounces, bounceRate };
     }
 
-    async top(tenant: Tenant, rawMinutes: string | undefined): Promise<AnalyticsTop>{
+    async top(tenant: Tenant, rawMinutes: string | undefined, rawDomainId: string | undefined): Promise<AnalyticsTop>{
+        const domainId = await this.#resolveDomainId(tenant, rawDomainId);
         const since = this.#since(rawMinutes);
-        const rollups = await AnalyticsRollup.find({ where: this.#rollupScope(tenant, since) });
+        const rollups = await AnalyticsRollup.find({ where: this.#rollupScope(tenant, since, domainId) });
         const events = await AnalyticsEvent.find({
-            where: this.#eventScope(tenant, since),
+            where: this.#eventScope(tenant, since, domainId),
             select: { utmSource: true, utmMedium: true, utmCampaign: true }
         });
 
@@ -45,8 +50,9 @@ export default class AnalyticsService{
         };
     }
 
-    async domains(tenant: Tenant, rawMinutes: string | undefined): Promise<DomainStat[]>{
-        const rollups = await AnalyticsRollup.find({ where: this.#rollupScope(tenant, this.#since(rawMinutes)) });
+    async domains(tenant: Tenant, rawMinutes: string | undefined, rawDomainId: string | undefined): Promise<DomainStat[]>{
+        const domainId = await this.#resolveDomainId(tenant, rawDomainId);
+        const rollups = await AnalyticsRollup.find({ where: this.#rollupScope(tenant, this.#since(rawMinutes), domainId) });
 
         const totals = new Map<string, number>();
         for(const rollup of rollups){
@@ -59,21 +65,29 @@ export default class AnalyticsService{
             .sort((a, b) => b.pageviews - a.pageviews || a.host.localeCompare(b.host));
     }
 
+    async #resolveDomainId(tenant: Tenant, rawDomainId: string | undefined): Promise<number | undefined>{
+        if(rawDomainId === undefined) return undefined;
+        const domain = await this.#domains.getOwned(tenant, Number(rawDomainId));
+        return domain.id;
+    }
+
     #since(rawMinutes: string | undefined): Date{
         const minutes = Math.min(Number(rawMinutes) || DEFAULT_MINUTES, MAX_MINUTES);
         return new Date(Date.now() - minutes * 60 * 1000);
     }
 
-    #rollupScope(tenant: Tenant, since: Date): FindOptionsWhere<AnalyticsRollup>{
-        return tenant.isPlatformAdmin
+    #rollupScope(tenant: Tenant, since: Date, domainId: number | undefined): FindOptionsWhere<AnalyticsRollup>{
+        const scope = tenant.isPlatformAdmin
             ? { bucket: MoreThanOrEqual(since) }
             : { organizationId: In(tenant.organizationIds), bucket: MoreThanOrEqual(since) };
+        return domainId === undefined ? scope : { ...scope, domainId };
     }
 
-    #eventScope(tenant: Tenant, since: Date): FindOptionsWhere<AnalyticsEvent>{
-        return tenant.isPlatformAdmin
+    #eventScope(tenant: Tenant, since: Date, domainId: number | undefined): FindOptionsWhere<AnalyticsEvent>{
+        const scope = tenant.isPlatformAdmin
             ? { ts: MoreThanOrEqual(since) }
             : { organizationId: In(tenant.organizationIds), ts: MoreThanOrEqual(since) };
+        return domainId === undefined ? scope : { ...scope, domainId };
     }
 
     #hostnameTotals(rollups: AnalyticsRollup[]): TopEntry[]{

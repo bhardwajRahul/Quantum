@@ -4,6 +4,7 @@ import DockerContainer from '@/modules/docker/models/DockerContainer';
 import ProvisionService from '../ProvisionService';
 import ContainerOps from '../ContainerOps';
 import IngressService from '../IngressService';
+import ActivityStepContext from '@/modules/activity/services/ActivityStepContext';
 import { resolveStrategy, getBuilder } from '../build';
 import { emitBuildLog, type BuildContext } from '../build/BuildContext';
 import { emitStatusChanged, emitCompleted } from '../statusEvents';
@@ -21,12 +22,22 @@ export default class DeployHandler{
         const repository = await Repository.findOneBy({ id: job.repositoryId });
         if(!repository) throw new Error('Deploy::Repository::NotFound');
 
+        const activity = new ActivityStepContext({
+            organizationId: repository.organizationId,
+            userId: job.userId ?? repository.userId,
+            scope: 'deployment',
+            source: 'orchestrator.deploy',
+            correlationId: String(job.id)
+        });
+
         const reason = (job.payload.reason as string) ?? 'manual';
-        if(reason === 'rollback') return this.#rollback(job, repository);
-        await this.#forward(job, repository);
+        if(reason === 'rollback') return this.#rollback(job, repository, activity);
+        await this.#forward(job, repository, activity);
     }
 
-    async #rollback(job: Job, repository: Repository): Promise<void>{
+    async #rollback(job: Job, repository: Repository, activity: ActivityStepContext): Promise<void>{
+        await activity.progress('Rolling back to previous artifact');
+
         const rollbackTo = job.payload.rollbackTo as number | null;
         const target = rollbackTo
             ? await Deployment.findOneBy({ id: rollbackTo, repositoryId: repository.id })
@@ -49,8 +60,8 @@ export default class DeployHandler{
         }
     }
 
-    async #forward(job: Job, repository: Repository): Promise<void>{
-        const container = await this.#provision.ensureRepositoryInfra(repository);
+    async #forward(job: Job, repository: Repository, activity: ActivityStepContext): Promise<void>{
+        const container = await activity.step('Provisioning infrastructure', () => this.#provision.ensureRepositoryInfra(repository));
         await new ContainerOps(container).stop().catch((error) =>
             logger.warn(`stop before redeploy failed (continuing): ${(error as Error).message}`, { scope: 'orchestrator.handler.deploy' }));
 
@@ -58,7 +69,7 @@ export default class DeployHandler{
         emitStatusChanged(deployment.id, repository.id, DeploymentStatus.Building);
 
         try{
-            await this.#buildAndLaunch(job, repository, container, deployment);
+            await activity.step('Building application', () => this.#buildAndLaunch(job, repository, container, deployment));
             deployment.status = DeploymentStatus.Success;
             await deployment.save();
             emitStatusChanged(deployment.id, repository.id, DeploymentStatus.Success);

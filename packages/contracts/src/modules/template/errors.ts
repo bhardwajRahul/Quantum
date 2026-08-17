@@ -15,7 +15,8 @@ export const TemplateInstallErrors = {
     domain: 'TemplateInstall',
     causes: {
         NotFound: 404,
-        Forbidden: 403
+        Forbidden: 403,
+        MissingInput: 400
     }
 } as const satisfies ErrorTable;
 

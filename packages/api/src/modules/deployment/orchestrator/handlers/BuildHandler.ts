@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs';
 import Deployment from '../../models/Deployment';
 import Repository from '@/modules/repository/models/Repository';
 import DockerContainer from '@/modules/docker/models/DockerContainer';
+import ActivityStepContext from '@/modules/activity/services/ActivityStepContext';
 import { resolveStrategy, getBuilder } from '../build';
 import { emitBuildLog, type BuildContext } from '../build/BuildContext';
 import { emitStatusChanged } from '../statusEvents';
@@ -31,22 +32,35 @@ export default class BuildHandler{
         const storagePath = container?.storagePath ?? null;
         const nodeId = job.nodeId || 'local';
 
+        const activity = new ActivityStepContext({
+            organizationId: repository.organizationId,
+            userId: job.userId ?? repository.userId,
+            scope: 'deployment',
+            source: 'orchestrator.build',
+            correlationId: String(job.id)
+        });
+
         deployment.status = DeploymentStatus.Building;
         await deployment.save();
         emitStatusChanged(deployment.id, repository.id, DeploymentStatus.Building);
 
         try{
-            const files = await listSourceFiles(storagePath);
-            const strategy = resolveStrategy(repository, files);
-            emitBuildLog(deployment, `[build] Strategy resolved to "${strategy}"\n`);
-            logger.info(`build repo=${repository.id} deployment=${deployment.id} strategy=${strategy}`, { scope: 'orchestrator.handler.build' });
+            const strategy = await activity.step('Resolving build strategy', async () => {
+                const files = await listSourceFiles(storagePath);
+                const strategy = resolveStrategy(repository, files);
+                emitBuildLog(deployment, `[build] Strategy resolved to "${strategy}"\n`);
+                logger.info(`build repo=${repository.id} deployment=${deployment.id} strategy=${strategy}`, { scope: 'orchestrator.handler.build' });
+                return strategy;
+            });
 
             const ctx: BuildContext = { repository, deployment, container, nodeId, storagePath };
-            const artifact = await getBuilder(strategy).build(ctx);
+            const artifact = await activity.step('Building image artifact', () => getBuilder(strategy).build(ctx));
 
-            deployment.artifact = artifact;
-            await deployment.save();
-            emitBuildLog(deployment, `[build] Artifact recorded (builder=${artifact.builder}, tag=${artifact.tag || 'n/a'})\n`);
+            await activity.step('Recording artifact', async () => {
+                deployment.artifact = artifact;
+                await deployment.save();
+                emitBuildLog(deployment, `[build] Artifact recorded (builder=${artifact.builder}, tag=${artifact.tag || 'n/a'})\n`);
+            });
         }catch(error){
             const message = error instanceof Error ? error.message : String(error);
             emitBuildLog(deployment, `[build] FAILED: ${message}\n`);

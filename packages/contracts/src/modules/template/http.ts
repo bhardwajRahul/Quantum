@@ -1,4 +1,4 @@
-import type { TemplateSpec } from './domain';
+import type { InputDef, TemplateSpec } from './domain';
 
 export interface CreateTemplateInput{
     /**
@@ -29,6 +29,7 @@ export interface CreateTemplateInput{
     /** @maxLength 512 */
     website?: string;
     spec: TemplateSpec;
+    inputsSchema?: InputDef[];
 }
 
 export interface InstallTemplateInput{
@@ -47,4 +48,5 @@ export interface InstallTemplateInput{
      * @minimum 1
      */
     environmentId?: number | null;
+    inputs?: Record<string, string | number | boolean>;
 }

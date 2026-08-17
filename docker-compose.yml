@@ -1,115 +1,156 @@
 services:
-  server:
-    container_name: quantum-server
-    build: 
-      context: ./server
-      dockerfile: Dockerfile
-    
+  api:
+    container_name: quantum-api
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: packages/api/Dockerfile
+
     ports:
-      - "${SERVER_PORT}:80"
+      - "${SERVER_PORT:-7080}:${SERVER_PORT:-7080}"
 
     environment:
-      # REQUIRED
-      SERVER_IP: ${SERVER_IP}
-      CLIENT_HOST: ${CLIENT_HOST}
-      CLIENT_DEV_HOST: ${CLIENT_HOST}
-      DOMAIN: ${DOMAIN}
-      MONGO_URI: mongodb://${MONGO_DB_USER}:${MONGO_DB_PASSWORD}@mongodb:${MONGO_DB_PORT}
-      SECRET_KEY: ${SECRET_KEY}
-      SESSION_SECRET: ${SESSION_SECRET}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
-      ENCRYPTION_IV: ${ENCRYPTION_IV}
+      DOMAIN: ${DOMAIN:-http://localhost:${SERVER_PORT:-7080}}
+      CLIENT_HOST: ${CLIENT_HOST:-http://localhost:${CLIENT_WEB_APP_PORT:-5050}}
+      SERVER_PORT: ${SERVER_PORT:-7080}
+      CORS_ORIGIN: ${CORS_ORIGIN:-${CLIENT_HOST:-http://localhost:${CLIENT_WEB_APP_PORT:-5050}}}
 
-      # OPTIONAL
-      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
-      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+      SECRET_KEY: ${SECRET_KEY:?run scripts/deploy.sh, or set SECRET_KEY in .env}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?run scripts/deploy.sh, or set ENCRYPTION_KEY in .env}
 
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT}
-      SMTP_AUTH_USER: ${SMTP_AUTH_USER}
-      SMTP_AUTH_PASSWORD: ${SMTP_AUTH_PASSWORD}
-      WEBMASTER_MAIL: ${WEBMASTER_MAIL}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-quantum}:${POSTGRES_PASSWORD:?run scripts/deploy.sh, or set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-quantum}
+
+      OAUTH_CALLBACK_BASE_URL: ${OAUTH_CALLBACK_BASE_URL:-${DOMAIN:-http://localhost:${SERVER_PORT:-7080}}}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_AUTH_USER: ${SMTP_AUTH_USER:-}
+      SMTP_AUTH_PASSWORD: ${SMTP_AUTH_PASSWORD:-}
+      WEBMASTER_MAIL: ${WEBMASTER_MAIL:-}
 
       NODE_ENV: ${NODE_ENV:-production}
-      LOG_LEVEL: info
-
-      SERVER_PORT: 80
-      SERVER_HOSTNAME: 0.0.0.0
-
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       JWT_EXPIRATION_DAYS: ${JWT_EXPIRATION_DAYS:-7}
-      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      REGISTRATION_DISABLED: ${REGISTRATION_DISABLED:-false}
+      DOCKER_APK_STARTER_PACKAGES: ${DOCKER_APK_STARTER_PACKAGES:-git nodejs npm python3 py3-pip}
 
-      MONGO_AUTH_SOURCE: ${MONGO_AUTH_SOURCE:-admin}
-      PRODUCTION_DATABASE: ${PRODUCTION_DATABASE:-quantumcloud@production}
-      DEVELOPMENT_DATABASE: ${DEVELOPMENT_DATABASE:-quantumcloud@development}
+      BASE_DOMAIN: ${BASE_DOMAIN:-}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+      ACME_CA_SERVER: ${ACME_CA_SERVER:-https://acme-staging-v02.api.letsencrypt.org/directory}
+      INGRESS_ENABLED: ${INGRESS_ENABLED:-true}
 
-      DOCKER_APK_STARTER_PACKAGES: ${DOCKER_APK_STARTER_PACKAGES:-"git nodejs npm python3 py3-pip"}
-      REGISTRATION_DISABLED: ${REGISTRATION_DISABLED:-"true"}
-      LOG_PATH_MAX_SIZE: ${LOG_PATH_MAX_SIZE:-250}
-
-    privileged: true
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /usr/bin/docker:/usr/bin/docker
       - /var/lib/quantum:/var/lib/quantum
+      - traefik_logs:/logs:ro
 
     depends_on:
-      mongodb:
+      postgres:
         condition: service_healthy
-    
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:${SERVER_PORT:-7080}/server/health').then(()=>process.exit(0),()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
     networks:
       - quantum_network
-    
-  client:
-    container_name: quantum-client
+      - quantum_edge
+
+  web:
+    container_name: quantum-web
+    restart: unless-stopped
     build:
-      context: ./client
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: packages/web/Dockerfile
       args:
-        VITE_SERVER: ${VITE_SERVER:-${DOMAIN}}
-        VITE_API_SUFFIX: ${VITE_API_SUFFIX:-/api/v1}
+        VITE_SERVER: ${VITE_SERVER:-${DOMAIN:-http://localhost:${SERVER_PORT:-7080}}}
+        VITE_API_SUFFIX: ${VITE_API_SUFFIX:-}
 
     ports:
-      - "${CLIENT_WEB_APP_PORT}:80"
+      - "${CLIENT_WEB_APP_PORT:-5050}:80"
 
-    volumes:
-      - ./client:/app
-    
     depends_on:
-      server:
+      api:
         condition: service_started
-    
+
     networks:
       - quantum_network
-    
-  mongodb:
-    container_name: quantum-mongodb
-    image: mongo:7.0
+
+  postgres:
+    container_name: quantum-postgres
+    image: postgres:18-alpine
+    restart: unless-stopped
+
     ports:
-      - "${MONGO_DB_PORT}:27021"
+      - "${POSTGRES_BIND_ADDRESS:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
 
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_DB_USER}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_DB_PASSWORD}
-
-    command: ["mongod", "--port", "${MONGO_DB_PORT}", "--bind_ip", "0.0.0.0"]
+      POSTGRES_USER: ${POSTGRES_USER:-quantum}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run scripts/deploy.sh, or set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-quantum}
 
     volumes:
-      - mongodb_data:/data/db
+      - postgres_data:/var/lib/postgresql
 
     networks:
       - quantum_network
 
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh 0.0.0.0:${MONGO_DB_PORT}/test --quiet
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-quantum} -d ${POSTGRES_DB:-quantum}"]
       interval: 10s
       timeout: 10s
       retries: 5
       start_period: 40s
 
+  traefik:
+    container_name: quantum-traefik
+    image: traefik:v3.3
+    restart: unless-stopped
+    command:
+      - --providers.docker
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --certificatesresolvers.le.acme.email=${ACME_EMAIL:-}
+      - --certificatesresolvers.le.acme.storage=/acme/acme.json
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.le.acme.caserver=${ACME_CA_SERVER:-https://acme-staging-v02.api.letsencrypt.org/directory}
+      - --accesslog=true
+      - --accesslog.format=json
+      - --accesslog.filepath=/logs/access.log
+      - --accesslog.fields.headers.names.User-Agent=keep
+      - --accesslog.fields.headers.names.Referer=keep
+
+    ports:
+      - "${TRAEFIK_HTTP_PORT:-80}:80"
+      - "${TRAEFIK_HTTPS_PORT:-443}:443"
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_acme:/acme
+      - traefik_logs:/logs
+
+    networks:
+      - quantum_network
+      - quantum_edge
+
 networks:
   quantum_network:
     driver: bridge
 
+  quantum_edge:
+    name: quantum-edge-${NODE_ENV:-production}
+    driver: bridge
+    attachable: true
+
 volumes:
-  mongodb_data:
+  postgres_data:
+  traefik_acme:
+  traefik_logs:

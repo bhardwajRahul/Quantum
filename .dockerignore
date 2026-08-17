@@ -1,0 +1,16 @@
+.git
+node_modules
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+screenshots
+agents
+.claude
+tools
+qa
+server
+client
+*.log
+.env
+.env.*
+!.env.example

@@ -6,26 +6,24 @@
 <br /> <br />
 
 ## Table of Contents
-- [Cloning Repository](#cloning-repository)
-- [Deploying with Quantum Setup Utility (Recommended)](#deploying-with-quantum-setup-utility-recommended)
-- [Deploying with Docker Compose](#deploying-with-docker-compose)
-- [Quantum CLI via Docker](#quantum-cli-via-docker)
-- [In Case You Don’t Deploy in Docker](#in-case-you-dont-deploy-in-docker)
-- [Features](#features)
+- [Quick Start](#quick-start)
+- [Configuration Reference](#configuration-reference)
+- [Automatic Domains and HTTPS](#automatic-domains-and-https)
+- [Day-to-Day Operations](#day-to-day-operations)
+- [Deploying Without Docker](#deploying-without-docker)
 - [Obtaining GitHub Client Secret and Client ID](#obtaining-github-client-secret-and-client-id)
 - [Using NGINX as a Reverse Proxy](#using-nginx-as-a-reverse-proxy)
-- [The Quantum CLI & Admin User Creation](#the-quantum-cli--admin-user-creation)
+- [Creating Your Admin Account](#creating-your-admin-account)
 - [Where Are Repositories and Logs Stored?](#where-are-repositories-and-logs-stored)
 - [What Happens When the Server Is Closed?](#what-happens-when-the-server-is-closed)
 - [Custom Domains for Your Deployments](#custom-domains-for-your-deployments)
-- [How Can I Migrate to New Versions?](#how-can-i-migrate-to-new-versions)
 - [We'd Love Your Feedback and Support!](#wed-love-your-feedback-and-support)
 
 Quantum allows you to effortlessly deploy your GitHub repositories, integrating real-time continuous deployment seamlessly. Additionally, you can easily deploy and manage Docker containers. With "One Click Services," you have access to over 20 applications that you can deploy to your Quantum account with just a single click. Among these applications are Uptime Kuma, Code Server, Ollama, various Databases, and many more.
 
 With Quantum, you have full access to the file systems of all your Docker containers and your deployed GitHub repositories. This enables you to make adjustments directly without the need to perform an immediate commit. You can configure environment variables, access the terminal, restart or shut down containers, and utilize many other functionalities.
 
-To deploy the application, you can use the [Quantum Setup Utility](#deploying-with-quantum-setup-utility-recommended), which simplifies the installation process on your VPS quickly and easily. Alternatively, you also have the option to use [Docker Compose](#deploying-with-docker-compose).
+To deploy the application you only need Docker — see [Quick Start](#quick-start) below. One command clones, configures, generates secrets and brings the whole stack up.
 
 ![Quantum Cloud Dashboard](/screenshots/Dashboard.png)
 ![Quantum Cloud Console](/screenshots/Cloud-Console.png)
@@ -38,83 +36,134 @@ While Quantum offers a panel for configuring commands such as installing depende
 ![User Profile](/screenshots/User-Profile.png)
 I've successfully **migrated all my frontend applications from Vercel and my various VPS services to Quantum**. The platform's ease of use and efficiency are evident in the 15 repositories I currently have deployed – a testament to my confidence in Quantum.
 
-## Cloning Repository
+## Quick Start
+
+You need a Linux host with Docker and the Compose plugin. If you don't have Docker yet, `bash scripts/install_docker.sh` installs it.
+
 ```bash
 git clone https://github.com/rodyherrera/Quantum
+cd Quantum
+bash scripts/deploy.sh
 ```
-This command clones the Quantum repository from GitHub to your local machine.
 
-You can deploy using **Quantum Setup Utility (Recommended)**, **Docker Compose** or from **source**.
+That's it. The script creates `.env` from `.env.example`, generates every secret with `openssl rand`, builds the images, starts the stack and waits until the API answers. When it finishes it prints your URLs.
 
-## Deploying with Quantum Setup Utility (Recommended)
-The easiest way to deploy is with Docker. You can configure environment variables through the **.env** file located at the root of the repository. And then just type **docker compose up -d --build**. But also, you can use the **Quantum deployment tool**.
+By default the web app is served on port **5050** and the API on **7080**.
 
-In the **root of the repository** write the following command:
+Then create your first account by signing up through the web app — self-signup
+is open by default. Lock it back down once you have an account by setting
+`REGISTRATION_DISABLED=true` in `.env` and running
+`docker compose up -d --build api`.
+
+### Deploying on a public server
 
 ```bash
-bash scripts/deploy-setup-utility.sh
+bash scripts/deploy.sh --public                      # autodetect the public IP
+bash scripts/deploy.sh --host quantum.example.com    # or use a domain
 ```
 
-Once executed, the deployment of the tool should begin, **environment variables will be adjusted automatically and this is the reason why we recommend using this method.**
+Make sure ports `5050`, `7080`, `80` and `443` are open in your firewall.
 
-![Setup Utility Script](/screenshots/Setup-Utility-Script.png)
-![Setup Utility Script Home Page](/screenshots/Setup-Utility-Home.png)
-![Setup Utility Script Home Page](/screenshots/Setup-Utility-Quantum-Deployment.png)
+### Re-running and updating
 
-**NOTE**: If you want to use a domain, you can use NGINX to reverse proxy or use the NGINX Reverse Proxy application (Recommended).
-
-## Deploying with Docker Compose
-Deploying through Docker is relatively simple. Within the root of the directory there is a **.env** file. **You must fill in ALL the variables that are NOT commented.** Those environment variables that are mentioned are optional.
-
-![Docker Compose Environ Variables](/screenshots/Docker-Compose-Environ-Variables.png)
-
-Then, run the following command in the root of the directory.
+`scripts/deploy.sh` is idempotent — it never overwrites a value you already set in `.env`. To pull an update:
 
 ```bash
-docker-compose up -d --build 
+git pull && bash scripts/deploy.sh
 ```
-When deploying to Docker, you will have three new containers:
- 1. The Quantum server (back-end)
- 2. The web application (front-end)
- 3. The MongoDB instance (database)
 
-By default, the back-end server will be deployed on port **7080**. The front-end server on port **5050**.
+### If you prefer plain Compose
 
-**NOTE**: If you want to use a domain, you can use NGINX to reverse proxy or use the NGINX Reverse Proxy application (Recommended).
-
-## Quantum CLI via Docker
-This is useful, as it will help you create `your administrator user`. 
-If you have already deployed to Docker, you can access the CLI via the following command:
-```bash
-docker exec -it quantum-server-1 npm run cli
-```
-After running it, if your container is active, you will be able to correctly access the available options.
-[You can learn more about the Quantum CLI here.](#the-quantum-cli)
-
-## In case you don't deploy in Docker
-
-Thought about Docker and deployment setup for 5 seconds
-Here’s a unified text that summarizes everything clearly:
-
-When deploying with Docker, you only need to edit a single `.env` file located at the root of the repository (as mentioned in the corresponding section). Most environment variables are already set, so you typically only have to adjust the secret keys.
-
-If you choose not to use Docker, you must still configure the environment variables, but this time they won’t be centralized in a single file. Instead, you’ll need to modify variables in both the `client/` and `server/` directories, and you’ll also have to update additional variables—such as the MongoDB URI.
-
-For the client application, go to the `client/` directory, run `npm install`, then `npm run build`. After building, you can serve the `dist` folder on a specific port with a tool like `serve` by running `npx serve -s dist`. In that same folder, rename `client/.env.example` to `client/.env`. There are only two variables you need to change:
+The script is only a convenience wrapper. This works too, as long as `.env` has the two secrets and a Postgres password filled in:
 
 ```bash
-# VITE_SERVER: Address where the 
-# Quantum backend is deployed.
-VITE_SERVER = http://0.0.0.0:8000
-
-# VITE_API_SUFFIX: Suffix to make API 
-# calls, you should not change /api/v1.
-VITE_API_SUFFIX = /api/v1
+cp .env.example .env
+# fill SECRET_KEY, ENCRYPTION_KEY, POSTGRES_PASSWORD
+docker compose up -d --build
 ```
 
-For the server application, navigate to the `server/` directory, run `npm install`, and then launch the server with `npm run start`.
+Every other variable has a working default, and Compose fails with an explicit message naming the variable if a required secret is missing.
 
-Once you’ve configured and built both the client and server applications (and updated all necessary environment variables), you’ll have everything you need to proceed with the deployment.
+## Configuration Reference
+
+Everything lives in a single `.env` at the repository root; [`.env.example`](.env.example) documents each variable. Only these need your attention:
+
+| Variable | Required | Notes |
+|---|---|---|
+| `SECRET_KEY` | yes | Any long random string. Generated for you. Signs JWTs. |
+| `ENCRYPTION_KEY` | yes | **64 hex chars**, or base64 for exactly 32 bytes — encrypts stored GitHub tokens. |
+| `POSTGRES_PASSWORD` | yes | Generated for you. |
+| `DOMAIN`, `CLIENT_HOST` | yes | Full URLs *with* scheme and port, as the **browser** sees them. Never `0.0.0.0` here — the API allows CORS only from exactly `CLIENT_HOST`, so it must match the hostname in your address bar (`localhost` locally, or `127.0.0.1` if that's what you type). |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | for repo deploys | See [GitHub OAuth](#obtaining-github-client-secret-and-client-id). |
+| `BASE_DOMAIN`, `ACME_EMAIL` | optional | Enables per-deployment subdomains with HTTPS. |
+| `SMTP_*`, `WEBMASTER_MAIL` | optional | Password resets and alert emails. |
+
+`DOMAIN` is compiled into the frontend bundle at image build time, so rebuild the web app after changing it: `docker compose up -d --build web`.
+
+## Automatic Domains and HTTPS
+
+The stack ships with [Traefik](https://traefik.io/), so you do not need to configure a reverse proxy by hand for your deployments. Point a wildcard DNS record at the server:
+
+```
+*.apps.example.com    A    <your server IP>
+```
+
+then set in `.env`:
+
+```bash
+BASE_DOMAIN=apps.example.com
+ACME_EMAIL=you@example.com
+# once staging certificates work, switch to the rate-limited production CA:
+ACME_CA_SERVER=https://acme-v02.api.letsencrypt.org/directory
+```
+
+Every deployment now gets its own HTTPS subdomain with a Let's Encrypt certificate, issued and renewed automatically. Leave `BASE_DOMAIN` empty to skip this entirely — deployments still work and stay reachable through their published ports.
+
+Traefik needs ports **80** and **443**. If they're already taken on the host, set `TRAEFIK_HTTP_PORT` / `TRAEFIK_HTTPS_PORT`, but note that Let's Encrypt's HTTP challenge only works on the standard ports.
+
+## Day-to-Day Operations
+
+```bash
+docker compose ps                      # what's running
+docker compose logs -f api             # follow API logs
+docker compose restart api             # restart just the API
+docker compose down                    # stop everything, data preserved
+docker compose down -v                 # stop and DELETE all data
+```
+
+The stack is four containers: `quantum-api` (API), `quantum-web` (web app), `quantum-postgres` (database) and `quantum-traefik` (ingress/TLS).
+
+Postgres is bound to `127.0.0.1` only, so it is reachable for backups from the host but never from the internet:
+
+```bash
+docker compose exec postgres pg_dump --username "$POSTGRES_USER" "$POSTGRES_DB" > backup.sql
+```
+
+## Deploying Without Docker
+
+Not recommended — Quantum drives the Docker daemon to run your deployments, so Docker has to be present anyway. If you still want the services on the host, run everything from the repo root (it's a pnpm workspace) and supply your own Postgres:
+
+**API**
+
+```bash
+pnpm install
+DOMAIN=http://localhost:7080 \
+CLIENT_HOST=http://localhost:5050 \
+SECRET_KEY=... \
+ENCRYPTION_KEY=... \
+DATABASE_URL=postgresql://quantum:password@localhost:5432/quantum \
+pnpm --filter @quantum/api start
+```
+
+See [Configuration Reference](#configuration-reference) and `packages/api/src/shared/config.ts` for the full list of variables the API reads.
+
+**Web**
+
+```bash
+pnpm install
+VITE_SERVER=http://localhost:7080 pnpm --filter @quantum/web build
+npx serve -s packages/web/dist
+```
 
 ## Obtaining GitHub Client Secret and Client ID
 To integrate your application with GitHub's API, you'll need to obtain a Client Secret and Client ID. Follow these detailed steps to acquire them:
@@ -123,7 +172,7 @@ To integrate your application with GitHub's API, you'll need to obtain a Client 
 2. **Access your account settings:** Click on your profile avatar in the top right corner and select "Settings" from the dropdown menu.
 3. **Navigate to the "Developer settings" section:** In the left sidebar, click on "Developer settings."
 4. **Create a new OAuth application:** Select "OAuth Apps" and click on the "New OAuth App" button.
-5. **Provide application information:** Please enter your app name, your home page URL, and return authorization URL. Please note that the "Home Page URL" must be the address where the server is hosted and cannot be local, that is, it must be accessible to third parties, for example: "http://82.208.22.71:5001 " or "quantum-server.mydomain.com". Likewise, the "Return Authorization URL" must contain the address where the server is hosted followed by the path of the API responsible for returning authorization from Github, for example: "http://82.208.22.71:5002/api/v1/github/callback/" or "https://quantum-server.mydomain.com/api/v1/github/callback/".
+5. **Provide application information:** Please enter your app name, your home page URL, and return authorization URL. Please note that the "Home Page URL" must be the address where the server is hosted and cannot be local, that is, it must be accessible to third parties, for example: "http://82.208.22.71:5001 " or "quantum-server.mydomain.com". Likewise, the "Return Authorization URL" must contain the address where the server is hosted followed by the path of the API responsible for returning authorization from Github, for example: "http://82.208.22.71:5002/github/oauth/callback" or "https://quantum-server.mydomain.com/github/oauth/callback".
 6. **Register the application:** Click on the "Register application" button.
 7. **Copy the application credentials:** Once registered, GitHub will generate a Client ID and Client Secret. Copy these values and securely store them.
 8. **Utilize the credentials in your application:** Use the Client ID and Client Secret in your application's configuration to authenticate requests to GitHub's API.
@@ -134,7 +183,10 @@ It is important that you do this step, otherwise NO ONE will simply be able to u
 ![Github OAuth App Config](/screenshots/Github-OAuth-App-Config.png)
 
 ## Using NGINX as a reverse proxy
-If you want to assign a custom domain (or multiple domains) to your Quantum deployment, using NGINX as a reverse proxy is the recommended approach. Below is a general outline of how to set this up.
+
+> For **your deployments**, you don't need this — the bundled Traefik already issues certificates and routes subdomains automatically. See [Automatic Domains and HTTPS](#automatic-domains-and-https).
+>
+> This section is for putting a custom domain in front of **Quantum's own dashboard**, if you'd rather not expose ports 5050/7080 directly.
 
 Personally, I recommend you use [NGINX Proxy Manager](https://nginxproxymanager.com/).
 ![NGINX Proxy Manager](/screenshots/NGINX-Proxy-Manager.png)
@@ -208,30 +260,25 @@ You should see your Quantum application served via NGINX at your custom domain.
 
 **That’s it!** You have successfully set up NGINX as a reverse proxy for your Quantum deployment. From now on, you can access your Quantum server (and any associated front-end or back-end services) via the domain name(s) you configured, without needing to remember the internal ports or IP addresses.
 
-## The Quantum CLI & Admin User Creation
-Through the CLI, you can create a user account as an administrator, reestablish the database among other options provided by the platform for management purposes.
+## Creating Your Admin Account
+Self-signup is open by default, so create your first account the normal way: open the web app and sign up.
 
-In order to access the CLI, you must go to the "server" directory, and there execute the "npm run cli" command, followed by this, the program will start and you must choose the option you want to use in the administrator.
+Once you have an account, lock further signups by setting `REGISTRATION_DISABLED=true` in `.env` and rebuilding the API:
 
 ```bash
-# Entering the "server" directory.
-cd server/
-# Initializing the CLI
-npm run cli
+docker compose up -d --build api
 ```
 
-When deploying Quantum, you must use this CLI, since user registration for security reasons is disabled, therefore both through the API and through the web-UI you will not be able to create a new account, therefore you must After creating the account through the CLI, just run it.
-
-![Quantum CLI](/screenshots/QuantumCLI.png)
-
 ## Custom domains for your deployments
-Regardless of the service you have deployed (whether it’s a GitHub repository or a Docker application), once you have exposed the port, you can use a reverse proxy to, among other things, assign a domain to your application. For instance, with NGINX Reverse Proxy you can:
+The easiest route is [BASE_DOMAIN](#automatic-domains-and-https): set it once and every deployment gets its own HTTPS subdomain automatically, no per-app configuration.
+
+If you'd rather map your own domain to a single service, expose its port and point a reverse proxy at it:
 
 1. Use the public IP of the server where Quantum is hosted along with the exposed port of your service to set up the reverse proxy.
 
 2. Alternatively, use the internal IP of the Docker container along with the internal port of your service.
 
-If you’re using NGINX Reverse Proxy, you’ll need to create A records that point to the IP address of the server where Quantum is hosted (as shown in the attached Namecheap screenshot). Basically, it’s the same process you’ve been following all this time.
+Either way you'll need A records pointing to the IP address of the server where Quantum is hosted (as shown in the attached Namecheap screenshot).
 
 ![NameCheap A Record](/screenshots/NameCheapARecord.png)
 

@@ -7,6 +7,7 @@ import { OrganizationRole } from '@quantum/contracts/modules/organization/domain
 import User from '@/modules/user/models/User';
 import Organization from '../models/Organization';
 import OrganizationMembership from '../models/OrganizationMembership';
+import Project from '@/modules/project/models/Project';
 
 const ctx = useApp();
 
@@ -37,6 +38,9 @@ describe('organization', () => {
 
         const updated = await User.findOneBy({ id: user.id });
         expect(updated?.defaultOrganizationId).toBe(org.id);
+
+        const project = await Project.findOneBy({ organizationId: org.id });
+        expect(project).toMatchObject({ name: 'Default Environment', isDefault: true });
 
         await flushEvents();
     });

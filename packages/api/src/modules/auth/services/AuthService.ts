@@ -6,13 +6,21 @@ import { config } from '@/shared/config';
 import { isUniqueViolation } from '@/shared/models/isUniqueViolation';
 import JWTService from './JWTService';
 import PasswordService from './PasswordService';
-import type { Session } from '@quantum/contracts/modules/auth/domain';
+import ValidationError from '@/shared/errors/ValidationError';
+import type { EmailAvailability, Session } from '@quantum/contracts/modules/auth/domain';
 import type { SignInInput, SignUpInput, UpdatePasswordInput } from '@quantum/contracts/modules/auth/http';
 import type { UpdateMyAccountInput } from '@quantum/contracts/modules/user/http';
 
 export default class AuthService{
     #jwt = new JWTService();
     #password = new PasswordService();
+
+    async checkEmail(email: string | undefined): Promise<EmailAvailability>{
+        if(!email) throw new ValidationError({ email: 'Required' });
+
+        const user = await User.findOneBy({ email: email.toLowerCase() });
+        return { exists: user !== null };
+    }
 
     async signIn(input: SignInInput, clientIp: string): Promise<Session>{
         const user = await User.findOneBy({ email: input.email.toLowerCase() });

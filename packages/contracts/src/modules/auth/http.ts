@@ -1,3 +1,8 @@
+export interface CheckEmailInput{
+    /** @format email */
+    email: string;
+}
+
 export interface SignInInput{
     /** @format email */
     email: string;

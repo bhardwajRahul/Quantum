@@ -1,7 +1,7 @@
 import BaseController from '@/shared/controllers/BaseController';
 import { Route } from '@/shared/controllers/Route';
 import { Status } from '@/shared/controllers/Status';
-import { Body } from '@/shared/controllers/RequestParams';
+import { Body, Query } from '@/shared/controllers/RequestParams';
 import { Middleware } from '@/shared/middlewares/Middleware';
 import { RateLimit } from '@/shared/middlewares/RateLimit';
 import { AuthenticatedRoute } from '../middlewares/AuthenticatedRoute';
@@ -14,6 +14,12 @@ import type { UpdateMyAccountInput } from '@quantum/contracts/modules/user/http'
 
 export default class AuthController extends BaseController{
     #service = new AuthService();
+
+    @Route(authRoutes.checkEmail)
+    @RateLimit({ max: 3, window: '15m' })
+    checkEmail(@Query('email') email: string | undefined){
+        return this.#service.checkEmail(email);
+    }
 
     @Route(authRoutes.signIn)
     @RateLimit({ max: 100, window: '15m' })

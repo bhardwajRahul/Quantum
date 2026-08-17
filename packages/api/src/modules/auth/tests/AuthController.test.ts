@@ -6,6 +6,8 @@ import { authRoutes } from '@quantum/contracts/modules/auth/routes';
 import { userRoutes } from '@quantum/contracts/modules/user/routes';
 import { UserRole } from '@quantum/contracts/modules/user/domain';
 import User from '@/modules/user/models/User';
+import Organization from '@/modules/organization/models/Organization';
+import Project from '@/modules/project/models/Project';
 import JWTService from '@/modules/auth/services/JWTService';
 import type { SignUpInput } from '@quantum/contracts/modules/auth/http';
 
@@ -31,6 +33,15 @@ describe('auth', () => {
         expect(session.user).not.toHaveProperty('passwordHash');
 
         await flushEvents();
+
+        const updated = await User.findOneBy({ id: session.user.id });
+        expect(updated?.defaultOrganizationId).not.toBeNull();
+
+        const organization = await Organization.findOneBy({ id: updated!.defaultOrganizationId! });
+        expect(organization?.name).toBe('Default');
+
+        const project = await Project.findOneBy({ organizationId: organization!.id });
+        expect(project).toMatchObject({ name: 'Default Environment', isDefault: true });
     });
 
     it('rejects sign-up with mismatched passwords', async () => {
@@ -171,6 +182,30 @@ describe('auth', () => {
         const res = await request(ctx.app, authRoutes.signOut, { as: user.id });
 
         expect(res.status).toBe(204);
+    });
+});
+
+describe('email availability', () => {
+    it('reports exists:true for a registered email', async () => {
+        const user = await seed.user();
+
+        const res = await request(ctx.app, authRoutes.checkEmail, { query: { email: user.email } });
+
+        expect(res.status).toBe(200);
+        expect(res.data()).toMatchObject({ exists: true });
+    });
+
+    it('reports exists:false for an unregistered email', async () => {
+        const res = await request(ctx.app, authRoutes.checkEmail, { query: { email: 'ghost@quantum.test' } });
+
+        expect(res.status).toBe(200);
+        expect(res.data()).toMatchObject({ exists: false });
+    });
+
+    it('rejects a missing email', async () => {
+        const res = await request(ctx.app, authRoutes.checkEmail);
+
+        expectError(res, 400, 'Request::ValidationFailed');
     });
 });
 

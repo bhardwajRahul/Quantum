@@ -2,6 +2,7 @@ import { In, IsNull } from 'typeorm';
 import { v4 } from 'uuid';
 import slugify from 'slugify';
 import User from '@/modules/user/models/User';
+import Project from '@/modules/project/models/Project';
 import { eventBus } from '@/shared/events/EventBus';
 import { OrganizationRole } from '@quantum/contracts/modules/organization/domain';
 import Organization from '../models/Organization';
@@ -10,6 +11,8 @@ import { TenancyError } from '../contracts/domain/errors';
 import type { Tenant } from '../contracts/types/fastify';
 import type { TenantContext } from '@quantum/contracts/modules/organization/domain';
 import type { CreateOrganizationInput, UpdateOrganizationInput } from '@quantum/contracts/modules/organization/http';
+
+const DEFAULT_PROJECT_NAME = 'Default Environment';
 
 export default class OrganizationService{
     async listForTenant(tenant: Tenant): Promise<Organization[]>{
@@ -34,10 +37,23 @@ export default class OrganizationService{
 
         await this.#assignDefaultOrganization(ownerId, organization.id);
 
+        const project = await Project.create({
+            name: DEFAULT_PROJECT_NAME,
+            slug: this.#slug(DEFAULT_PROJECT_NAME),
+            organizationId: organization.id,
+            isDefault: true
+        }).save();
+
         eventBus.emit('organization.created', {
             organizationId: organization.id,
             ownerId,
             name: organization.name
+        });
+
+        eventBus.emit('project.created', {
+            projectId: project.id,
+            organizationId: project.organizationId,
+            name: project.name
         });
 
         return organization;

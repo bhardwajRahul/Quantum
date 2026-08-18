@@ -5,6 +5,7 @@
     "dev": "vite-node --watch src/server.ts",
     "lint": "oxlint --deny-warnings",
     "start": "vite-node src/server.ts",
+    "seed:templates": "vite-node scripts/seed-templates.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit -p tsconfig.json"

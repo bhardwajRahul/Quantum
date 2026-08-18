@@ -1,86 +1,138 @@
-/***
- * Copyright (C) Rodolfo Herrera Hernandez. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root
- * for full license information.
- *
- * =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
- *
- * For related information - https://github.com/rodyherrera/Quantum/
- *
- * All your applications, just in one place. 
- *
- * =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-****/
-
-import React from 'react';
-import MinimalForm from '@components/organisms/MinimalForm';
-import AuthSignInRelatedSections from '@components/molecules/AuthSignInRelatedSections';
-import WhenCreatingAccount from '@components/organisms/WhenCreatingAccount';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { useDocumentTitle } from '@hooks/common';
+import { ArrowRight } from 'lucide-react';
 import { signUp } from '@services/authentication/operations';
-import './SignUp.css';
+import { useDocumentTitle } from '@hooks/common';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import PasswordInput from '@/components/ui/PasswordInput';
 
 const SignUp = () => {
-    const { loadingStatus, error } = useSelector(state => state.auth);
+    const { loadingStatus, authStatus, error } = useSelector((state) => state.auth);
     const dispatch = useDispatch();
+    const navigate = useNavigate();
+    const [form, setForm] = useState({
+        username: '',
+        fullname: '',
+        email: '',
+        password: '',
+        passwordConfirm: ''
+    });
     useDocumentTitle('Sign Up');
 
-    const handleFormSubmit = (formValues) => {
-        dispatch(signUp(formValues));
+    useEffect(() => {
+        if(authStatus.isAuthenticated) navigate('/dashboard');
+    }, [authStatus.isAuthenticated, navigate]);
+
+    const onChange = (key) => (e) => setForm((prev) => ({ ...prev, [key]: e.target.value }));
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        dispatch(signUp(form));
     };
 
-    return <MinimalForm
-        headerTitle='Creating a new account'
-        headerSubtitle="Tell us a little more about yourself..."
-        submitButtonTitle='Create account'
-        breadcrumbsItems={[
-            { title: 'Home', to: '/' },
-            { title: 'Authentication', to: '/' },
-            { title: 'Create a new account', to: '/auth/sign-up/' }
-        ]}
-        RightContainerComponent={() => (
-            <div id='Sign-Up-Right-Container-Component'>
-                <AuthSignInRelatedSections />
-                <WhenCreatingAccount />
-            </div>
-        )}
-        handleFormSubmit={handleFormSubmit}
-        error={error}
-        isLoading={loadingStatus.isLoading}
-        formInputs={[
-            { 
-                type: 'email', 
-                name: 'email', 
-                helperText: "We'd like to stay in touch. Don't worry, we respect your privacy and will use it responsibly.",
-                placeholder: 'Enter your email address.'
-            },
-            { 
-                type: 'text', 
-                name: 'fullname', 
-                helperText: "To make our interactions more personal, we'd love to know your full name.",
-                placeholder: 'What is your full name?'
-            },
-            { 
-                type: 'text', 
-                name: 'username', 
-                helperText: "Feel free to share a name or any term you're comfortable with. This helps us personalize our interactions with you. 😊",
-                placeholder: 'What is your nickname, how can we call you?'
-            },
-            { 
-                type: 'password', 
-                name: 'password', 
-                helperText: "We take your privacy seriously. Your password will be encrypted and stored securely.",
-                placeholder: 'Enter your password.'
-            },
-            { 
-                type: 'password', 
-                name: 'passwordConfirm', 
-                helperText: "To ensure the security of your account, please re-enter your password for confirmation. Double-check to make sure it matches your initial password.",
-                placeholder: 'Confirm your password.'
-            }
-        ]}
-    />
+    return (
+        <div className='min-h-screen grid place-items-center bg-background px-4 py-8'>
+            <Card className='w-full max-w-md'>
+                <CardContent className='p-8'>
+                    <div className='mb-8'>
+                        <p className='text-xs font-semibold uppercase tracking-[0.2em] text-primary'>
+                            Quantum
+                        </p>
+                        <h1 className='mt-3 text-2xl font-semibold tracking-tight text-foreground'>
+                            Create your account
+                        </h1>
+                        <p className='mt-1 text-sm text-muted-foreground'>
+                            All your applications, just in one place.
+                        </p>
+                    </div>
+
+                    {error && (
+                        <p className='mb-6 text-sm text-destructive'>
+                            {String(error)}
+                        </p>
+                    )}
+
+                    <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
+                        <div className='space-y-1.5'>
+                            <label htmlFor='signup-username' className='text-sm font-medium text-foreground'>
+                                Username
+                            </label>
+                            <Input
+                                id='signup-username'
+                                name='username'
+                                value={form.username}
+                                onChange={onChange('username')}
+                                required
+                            />
+                        </div>
+                        <div className='space-y-1.5'>
+                            <label htmlFor='signup-fullname' className='text-sm font-medium text-foreground'>
+                                Full name
+                            </label>
+                            <Input
+                                id='signup-fullname'
+                                name='fullname'
+                                value={form.fullname}
+                                onChange={onChange('fullname')}
+                                required
+                            />
+                        </div>
+                        <div className='space-y-1.5'>
+                            <label htmlFor='signup-email' className='text-sm font-medium text-foreground'>
+                                Email address
+                            </label>
+                            <Input
+                                id='signup-email'
+                                name='email'
+                                type='email'
+                                value={form.email}
+                                onChange={onChange('email')}
+                                required
+                            />
+                        </div>
+                        <div className='space-y-1.5'>
+                            <label htmlFor='signup-password' className='text-sm font-medium text-foreground'>
+                                Password
+                            </label>
+                            <PasswordInput
+                                id='signup-password'
+                                name='password'
+                                value={form.password}
+                                onChange={onChange('password')}
+                                required
+                            />
+                        </div>
+                        <div className='space-y-1.5'>
+                            <label htmlFor='signup-password-confirm' className='text-sm font-medium text-foreground'>
+                                Confirm password
+                            </label>
+                            <PasswordInput
+                                id='signup-password-confirm'
+                                name='passwordConfirm'
+                                value={form.passwordConfirm}
+                                onChange={onChange('passwordConfirm')}
+                                required
+                            />
+                        </div>
+                        <Button type='submit' disabled={loadingStatus.isLoading} className='w-full'>
+                            {loadingStatus.isLoading ? 'Creating account…' : 'Create account'}
+                            <ArrowRight className='h-4 w-4' />
+                        </Button>
+                    </form>
+
+                    <p className='mt-6 text-sm text-muted-foreground'>
+                        Already have an account?{' '}
+                        <Link to='/auth/sign-in' className='font-medium text-primary hover:underline'>
+                            Sign in
+                        </Link>
+                    </p>
+                </CardContent>
+            </Card>
+        </div>
+    );
 };
 
 export default SignUp;

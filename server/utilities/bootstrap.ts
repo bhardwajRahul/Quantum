@@ -1,46 +1,17 @@
-/***
- * Copyright (C) Rodolfo Herrera Hernandez. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root
- * for full license information.
- *
- * =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
- *
- * For related information - https://github.com/rodyherrera/Quantum/
- *
- * All your applications, just in one place. 
- *
- * =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-****/
-
 import fs from 'fs';
 import path from 'path';
 import logger from '@utilities/logger';
 import { ConfigureAppParams } from '@typings/utilities/bootstrap';
 
-/**
- * Ensures the existence of the "../public" folder, creating it if necessary.
- * 
- * @returns {Promise<void>}
-*/
 export const ensurePublicFolderExistence = async (): Promise<void> => {
     const publicFolderPath = path.join(__dirname, '../public');
     try{
-        await fs.promises.access(publicFolderPath, fs.constants.F_OK); 
+        await fs.promises.access(publicFolderPath, fs.constants.F_OK);
     }catch(error){
         await fs.promises.mkdir(publicFolderPath);
     }
 };
 
-/**
- * Configures the Express application with provided routes, middlewares, and settings.
- *
- * @param {Object} options - Configuration options
- * @param {Object} options.app - The Express application instance.
- * @param {Array} options.routes - Array of route names.
- * @param {string} options.suffix - Base route suffix for the configured routes.
- * @param {Array} options.middlewares - Array of middleware functions.
- * @param {Object} options.settings - Settings for enabling/disabling app features.
-*/
 export const configureApp = async ({ app, routes, suffix, middlewares }: ConfigureAppParams): Promise<void> => {
     middlewares.forEach((middlewares) => app.use(middlewares));
     try{
@@ -64,81 +35,77 @@ export const configureApp = async ({ app, routes, suffix, middlewares }: Configu
     }
 };
 
-/**
- * Validates required environment variables and ensures compliance with format restrictions.
- * Exits the process if any validation fails.
-*/
 export const validateEnvironmentVariables = (): void => {
     const requiredVariables = [
-        { 
-            name: 'NODE_ENV', 
-            validation: /^(development|production|test)$/i, 
-            errorMessage: 'NODE_ENV must be one of "development", "production", or "test".' 
+        {
+            name: 'NODE_ENV',
+            validation: /^(development|production|test)$/i,
+            errorMessage: 'NODE_ENV must be one of "development", "production", or "test".'
         },
         { name: 'DOCKER_APK_STARTER_PACKAGES' },
-        { 
-            name: 'DOMAIN', 
-            validation: /^https?:\/\/\S+$/, 
-            errorMessage: 'DOMAIN must be a valid URL starting with "http://" or "https://".' 
+        {
+            name: 'DOMAIN',
+            validation: /^https?:\/\/\S+$/,
+            errorMessage: 'DOMAIN must be a valid URL starting with "http://" or "https://".'
         },
         { name: 'SECRET_KEY' },
-        { 
-            name: 'REGISTRATION_DISABLED', 
-            validation: /^(true|false)$/i, 
-            errorMessage: 'REGISTRATION_DISABLED must be either "true" or "false".' 
+        {
+            name: 'REGISTRATION_DISABLED',
+            validation: /^(true|false)$/i,
+            errorMessage: 'REGISTRATION_DISABLED must be either "true" or "false".'
         },
-        { 
-            name: 'CLIENT_HOST', 
-            validation: /^https?:\/\/\S+$/, 
-            errorMessage: 'CLIENT_HOST must be a valid URL starting with "http://" or "https://".' 
+        {
+            name: 'CLIENT_HOST',
+            validation: /^https?:\/\/\S+$/,
+            errorMessage: 'CLIENT_HOST must be a valid URL starting with "http://" or "https://".'
         },
-        { 
-            name: 'CLIENT_DEV_HOST', 
-            validation: /^https?:\/\/\S+$/, 
-            errorMessage: 'CLIENT_DEV_HOST must be a valid URL starting with "http://" or "https://".' 
+        {
+            name: 'CLIENT_DEV_HOST',
+            validation: /^https?:\/\/\S+$/,
+            errorMessage: 'CLIENT_DEV_HOST must be a valid URL starting with "http://" or "https://".'
         },
-        { 
-            name: 'SERVER_PORT', 
-            validation: /^(?:[1-9][0-9]{0,4}|6553[0-5])$/, 
-            errorMessage: 'SERVER_PORT must be a valid port number between 1 and 65535.' 
+        {
+            name: 'SERVER_PORT',
+            validation: /^(?:[1-9][0-9]{0,4}|6553[0-5])$/,
+            errorMessage: 'SERVER_PORT must be a valid port number between 1 and 65535.'
         },
         { name: 'SERVER_HOSTNAME' },
         { name: 'LOG_LEVEL' },
         { name: 'SESSION_SECRET' },
         { name: 'GITHUB_CLIENT_ID' },
         { name: 'GITHUB_CLIENT_SECRET' },
-        { 
-            name: 'SERVER_IP', 
-            validation: /^(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})(\.(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})){3}$/, 
-            errorMessage: 'SERVER_IP must be a valid IPv4 address.' 
+        {
+            name: 'SERVER_IP',
+            validation: /^(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})(\.(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})){3}$/,
+            errorMessage: 'SERVER_IP must be a valid IPv4 address.'
         },
-        { 
-            name: 'JWT_EXPIRATION_DAYS', 
-            validation: /^[-+]?\d+$/, 
-            errorMessage: 'JWT_EXPIRATION_DAYS must be a number.' 
+        {
+            name: 'JWT_EXPIRATION_DAYS',
+            validation: /^[-+]?\d+$/,
+            errorMessage: 'JWT_EXPIRATION_DAYS must be a number.'
         },
         { name: 'CORS_ORIGIN' },
         { name: 'PRODUCTION_DATABASE' },
         { name: 'DEVELOPMENT_DATABASE' },
-        { 
-            name: 'LOG_PATH_MAX_SIZE', 
-            validation: /^\d+$/, 
-            errorMessage: 'LOG_PATH_MAX_SIZE must be a positive integer representing size in kilobytes.' 
+        {
+            name: 'LOG_PATH_MAX_SIZE',
+            validation: /^\d+$/,
+            errorMessage: 'LOG_PATH_MAX_SIZE must be a positive integer representing size in kilobytes.'
         },
-        { 
-            name: 'MONGO_URI', 
-            validation: /^mongodb(?:\+srv)?:\/\/\S+$/, 
-            errorMessage: 'MONGO_URI must be a valid MongoDB connection URI.' 
+        {
+            name: 'MONGO_URI',
+            validation: /^mongodb(?:\+srv)?:\/\/\S+$/,
+            errorMessage: 'MONGO_URI must be a valid MongoDB connection URI.'
         },
-        { 
-            name: 'ENCRYPTION_KEY', 
-            validation: /^[0-9a-fA-F]{64}$/, 
-            errorMessage: 'ENCRYPTION_KEY must be a 64-character hexadecimal string (32 bytes). Use https://www.browserling.com/tools/random-hex.' 
+        {
+            name: 'ENCRYPTION_KEY',
+            validation: /^[0-9a-fA-F]{64}$/,
+            errorMessage: 'ENCRYPTION_KEY must be a 64-character hexadecimal string (32 bytes). Use https://www.browserling.com/tools/random-hex.'
         },
-        { 
-            name: 'ENCRYPTION_IV', 
-            validation: /^[0-9a-fA-F]{32}$/, 
-            errorMessage: 'ENCRYPTION_IV must be a 32-character hexadecimal string (16 bytes). Use https://www.browserling.com/tools/random-hex.' 
+        {
+            name: 'ENCRYPTION_IV',
+            validation: /^[0-9a-fA-F]{32}$/,
+            errorMessage: 'ENCRYPTION_IV must be a 32-character hexadecimal string (16 bytes). Use https://www.browserling.com/tools/random-hex.'
         }
     ];
 
@@ -151,7 +118,7 @@ export const validateEnvironmentVariables = (): void => {
             process.exit(1);
         }
     });
-    
+
     if(missingVariables.length > 0){
         logger.error('@utilities/bootstrap.ts (validateEnvironmentVariables): The following environment variables are missing:');
         logger.error(missingVariables.join(', '));

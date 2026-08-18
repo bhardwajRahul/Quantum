@@ -3,7 +3,7 @@
     "version": "1.0.7",
     "description": "🚀 Self-hosted open source alternative to Vercel, Heroku and Netlify. All your applications, just in one place. Develop and deploy with your favorite tools and continuous deployment with Github.",
     "scripts": {
-        "start": "bash start.sh",
+        "start": "tsx server.ts",
         "cli": "IS_CLI=true npx tsx cli/manager.ts",
         "seed:templates": "npx tsx scripts/runSeed.ts",
         "typecheck": "tsc --noEmit",

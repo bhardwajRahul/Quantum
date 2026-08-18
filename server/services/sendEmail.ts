@@ -1,34 +1,7 @@
-/***
- * Copyright (C) Rodolfo Herrera Hernandez. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root
- * for full license information.
- *
- * =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
- *
- * For related information - https://github.com/rodyherrera/Quantum/
- *
- * All your applications, just in one place. 
- *
- * =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-****/
-
 import nodemailer from 'nodemailer';
 import logger from '@utilities/logger';
 import { EmailOptions } from '@typings/services/emailHandler';
 
-/**
- * Boolean flag indicating whether all the necessary SMTP environment 
- * variables are defined for sending emails.
- * 
- * The required variables are:
- *  * SMTP_HOST
- *  * SMTP_PORT
- *  * SMTP_AUTH_USER
- *  * SMTP_AUTH_PASSWORD
- *  * WEBMASTER_MAIL
- * 
- * @type {boolean} 
-*/
 const IS_SMTP_DEFINED = (
     process.env.SMTP_HOST &&
     process.env.SMTP_PORT &&
@@ -37,10 +10,6 @@ const IS_SMTP_DEFINED = (
     process.env.WEBMASTER_MAIL
 );
 
-/**
- * Creates a mailer transport object using Nodemailer, configured with 
- * environment variables for security and authentication.
-*/
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT),
@@ -51,13 +20,6 @@ const transporter = nodemailer.createTransport({
     tls: { rejectUnauthorized: false }
 });
 
-/**
- * Asynchronously sends an email using the preconfigured Nodemailer transporter.
-
- * @param {EmailOptions} emailOptions - Options for configuring the email.
- * @returns {Promise<void>} A promise that resolves when the email is sent.
- * @throws {Error} If there's an error during the sending process.
-*/
 const sendEmail = async({ to = process.env.WEBMASTER_MAIL, subject, html }: EmailOptions): Promise<void> => {
     if(!IS_SMTP_DEFINED) return;
     try{

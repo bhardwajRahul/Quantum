@@ -3,11 +3,6 @@ const getResponseStateId = (config) => {
     return id;
 }
 
-/**
- * Middleware to measure how long the operation takes.
- * @param {object} config - The operation configuration.
- * @returns {object} Modified configuration with timing information.
- */
 export const timingMiddleware = (config) => {
     const startTime = Date.now();
     const id = getResponseStateId(config);
@@ -22,11 +17,6 @@ export const timingMiddleware = (config) => {
     };
 };
 
-/**
- * Middleware to track and log errors.
- * @param {object} config - The operation configuration.
- * @returns {object} Modified configuration to capture errors.
- */
 export const errorTrackingMiddleware = (config) => {
     const id = getResponseStateId(config);
     return {

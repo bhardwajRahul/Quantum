@@ -1,15 +1,17 @@
 import Repository from '@models/repository';
 import HandlerFactory from '@controllers/common/handlerFactory';
 import Deployment from '@models/deployment';
+import DockerContainer from '@models/docker/container';
 import Github from '@services/github';
-import { catchAsync } from '@utilities/helpers';
+import { catchAsync, filterObject } from '@utilities/helpers';
 import { Response, NextFunction } from 'express';
 import { IRepository } from '@typings/models/repository';
 import { IRequest } from '@typings/controllers/common';
 import { Octokit } from '@octokit/rest';
 import { detectPreset } from '@services/runtime/detect';
-import { enqueueDeploy } from '@services/orchestrator';
+import { enqueueDeploy, enqueueReload } from '@services/orchestrator';
 import { ensureOrgDefaults } from '@services/tenancy/provisioning';
+import { resolveRepositoryOr403 } from '@middlewares/tenancy';
 import RuntimeError from '@utilities/runtimeError';
 
 const RepositoryFactory = new HandlerFactory({
@@ -24,13 +26,13 @@ const RepositoryFactory = new HandlerFactory({
         'project',
         'environment',
         'alias',
-        'deployments', 
+        'deployments',
         'container',
         'buildCommand',
-        'port', 
-        'installCommand', 
+        'port',
+        'installCommand',
         'branch',
-        'startCommand', 
+        'startCommand',
         'rootDirectory',
         'framework',
         'runtime',
@@ -43,31 +45,33 @@ export const getRepositories = RepositoryFactory.getAll();
 export const getRepository = RepositoryFactory.getOne();
 export const deleteRepository = RepositoryFactory.deleteOne();
 
-const COMMAND_FIELDS = ['buildCommand', 'installCommand', 'startCommand', 'rootDirectory'];
+const REDEPLOY_FIELDS = [
+    'buildCommand', 'installCommand', 'startCommand', 'rootDirectory',
+    'branch', 'framework', 'runtime', 'runtimeVersion', 'outputDirectory'
+];
+const RELOAD_FIELDS = ['port'];
 
-/**
- * Updates a repository. When build/install/start commands (or the root dir)
- * change, a redeploy is ENQUEUED after the update — replacing the old
- * Repository.pre('findOneAndUpdate') hook that fired a fire-and-forget build.
- */
 export const updateRepository = RepositoryFactory.updateOne({
     async responseInterceptor(req: IRequest, res: Response, body: any): Promise<void>{
-        const changedCommands = COMMAND_FIELDS.some((f) => req.body?.[f] !== undefined);
         const repo = body?.data;
-        if(changedCommands && repo?._id){
-            await enqueueDeploy(repo._id.toString(), { reason: 'manual', userId: repo.user?.toString() });
+        if(repo?._id){
+            const changedRedeploy = REDEPLOY_FIELDS.some((f) => req.body?.[f] !== undefined);
+            const changedReload = RELOAD_FIELDS.some((f) => req.body?.[f] !== undefined);
+            const actorId = (req.user as any)?._id?.toString();
+            if(changedRedeploy){
+                await enqueueDeploy(repo._id.toString(), { reason: 'manual', userId: actorId });
+            }else if(changedReload){
+
+                const container = await DockerContainer.findOne({ repository: repo._id }).select('_id');
+                if(container){
+                    await enqueueReload(container._id.toString(), { userId: actorId });
+                }
+            }
         }
         res.status(200).json(body);
     }
 });
 
-/**
- * Creates a repository, then ENQUEUES the initial deploy. The model's pre('save')
- * hook is now pure persistence — it no longer creates containers, clones, or
- * builds. All of that runs asynchronously in the orchestrator (ADR-0001), so this
- * returns 201 with the new repo immediately and the build progresses in the
- * background (status surfaced via the deployment:status socket event).
- */
 export const createRepository = catchAsync(async (req: IRequest, res: Response, next: NextFunction) => {
     const user: any = req.user;
     const allowed = [
@@ -75,21 +79,15 @@ export const createRepository = catchAsync(async (req: IRequest, res: Response, 
         'branch', 'startCommand', 'rootDirectory', 'framework', 'runtime',
         'runtimeVersion', 'outputDirectory'
     ];
-    const data: Record<string, any> = { user: user._id };
-    for(const key of allowed){
-        if(req.body[key] !== undefined) data[key] = req.body[key];
-    }
-    // Stamp tenancy from the request-resolved tenant. The active org comes from
-    // resolveTenant (scoped route → guaranteed, or already errored Reconfigure);
-    // there is no silent defaultOrganization fallback and no auto-org creation.
+    const data: Record<string, any> = { user: user._id, ...filterObject(req.body, ...allowed) };
+
     const tenant = req.tenant;
     const orgId = tenant?.org?._id;
     if(!orgId){
         return next(new RuntimeError('Repository::Organization::Required', 400));
     }
     data.organization = orgId;
-    // Project/environment: prefer the resolved tenant; otherwise fall back to the
-    // org's OWN defaults (its default project + production env), never a personal org.
+
     if(tenant?.project?._id) data.project = tenant.project._id;
     if(!data.project || !data.environment){
         const { project, environment } = await ensureOrgDefaults(orgId);
@@ -97,22 +95,14 @@ export const createRepository = catchAsync(async (req: IRequest, res: Response, 
         if(!data.environment) data.environment = environment._id;
     }
     const repository = await Repository.create(data);
-    await enqueueDeploy(repository._id.toString(), { reason: 'initial', userId: user._id.toString() });
-    res.status(201).json({ status: 'success', data: repository });
+    const job = await enqueueDeploy(repository._id.toString(), { reason: 'initial', userId: user._id.toString() });
+    res.status(201).json({ status: 'success', data: { ...repository.toObject(), jobId: job._id.toString() } });
 });
 
-/**
- * Rolls a repository back to a prior deployment's immutable build artifact. The
- * deploy worker re-runs that artifact tag without rebuilding (Phase 3 rollback).
- * Returns 202 — the swap runs asynchronously via the orchestrator.
- */
 export const rollbackRepository = catchAsync(async (req: IRequest, res: Response) => {
     const user: any = req.user;
     const { id, deploymentId } = req.params;
-    const repository = await Repository.findOne({ _id: id }).select('_id user');
-    if(!repository){
-        throw new RuntimeError('Repository::Not::Found', 404);
-    }
+    const repository = await resolveRepositoryOr403(req, id, 'Deployment::Rollback');
     const target = await Deployment.findOne({ _id: deploymentId, repository: repository._id }).select('artifact');
     if(!target?.artifact?.tag){
         throw new RuntimeError('Deployment::Rollback::NoArtifact', 400);
@@ -146,7 +136,7 @@ const getGithubRepositories = async (accessToken: string): Promise<any[]> => {
     return reposWithBranches;
 };
 
-const filterRepositories = (githubRepositories: any[], userRepositories: any[]): any[] => 
+const filterRepositories = (githubRepositories: any[], userRepositories: any[]): any[] =>
     githubRepositories.filter(repo => !userRepositories.some(userRepo => userRepo.name === repo.name && userRepo.owner === repo.owner.login));
 
 export const getMyGithubRepositories = catchAsync(async (req: IRequest, res: Response) => {
@@ -175,25 +165,23 @@ export const detectFramework = catchAsync(async (req: IRequest, res: Response) =
             packageJson = JSON.parse(Buffer.from(pkg.content, 'base64').toString('utf8'));
         }
     }catch(error){
-        // Ignore if package.json does not exist (404).
+
     }
     res.status(200).json({ status: 'success', data: detectPreset(files, packageJson) });
 });
 
 export const getMyRepositories = RepositoryFactory.getAll({
     middlewares: {
-        pre: [async (req: IRequest): Promise<void> => { 
+        pre: [async (req: IRequest): Promise<void> => {
             req.query.user = req.user;
-            req.query.populate = 'deployments container'; 
+            req.query.populate = 'deployments container';
         }]
     },
     async responseInterceptor(req: IRequest, res: Response, body): Promise<void>{
         const user: any = req.user;
         const data = JSON.parse(JSON.stringify(body));
         for(const repo of data.data){
-            // The active deployment is the MOST RECENT one (deployments is push-ordered),
-            // not deployments[0] (the oldest). 'deployments' is already populated by the
-            // pre-middleware, so read its status directly instead of re-querying.
+
             const deployments = repo.deployments || [];
             const activeDeployment = deployments[deployments.length - 1];
             if(activeDeployment && activeDeployment.status){
@@ -202,9 +190,7 @@ export const getMyRepositories = RepositoryFactory.getAll({
         }
         const enrichedData = await Promise.all(data.data.map(async (repo: IRepository) => {
             const github = new Github(user, repo);
-            // Never let a single repo's remote lookup drop it from the list or fail the
-            // whole dashboard. getRepositoryInfo() is non-destructive and returns a
-            // { remoteUnavailable } marker on error; we always keep the stored repo data.
+
             const repoInfo = await github.getRepositoryInfo().catch(() => ({ remoteUnavailable: true }));
             return { ...repoInfo, ...repo };
         }));

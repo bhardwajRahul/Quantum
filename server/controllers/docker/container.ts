@@ -3,21 +3,27 @@ import RuntimeError from '@utilities/runtimeError';
 import DockerImage from '@models/docker/image';
 import DockerNetwork from '@models/docker/network';
 import HandlerFactory from '@controllers/common/handlerFactory';
-import DockerContainerService from '@services/docker/container';
+import DockerContainerService, { materializeContainer } from '@services/docker/container';
 import mongoose from 'mongoose';
 import { IDockerImage } from '@typings/models/docker/image';
 import { IDockerNetwork } from '@typings/models/docker/network';
+import { IDockerContainer } from '@typings/models/docker/container';
 import { IRequestDockerImage } from '@typings/controllers/docker/container';
-import { isImageAvailable } from '@services/docker/image';
+import { isImageAvailable, createAndMaterializeImage } from '@services/docker/image';
+import { createAndMaterializeNetwork } from '@services/docker/network';
 import { catchAsync, findRandomAvailablePort } from '@utilities/helpers';
 import { NextFunction, Request, Response } from 'express';
 import { IUser } from '@typings/models/user';
 import { IRequest } from '@typings/controllers/common';
 import { parseConfigAndDeploy } from '@services/oneClickDeploy';
+import { ensureOrgDefaults } from '@services/tenancy/provisioning';
+import { enqueueReload } from '@services/orchestrator';
+import logger from '@utilities/logger';
 import sendEmail from '@services/sendEmail';
 
 const DockerContainerFactory = new HandlerFactory({
     model: DockerContainer,
+    scope: { field: 'organization' },
     fields: [
         'volumes',
         'user',
@@ -43,19 +49,37 @@ export const deleteDockerContainer = DockerContainerFactory.deleteOne({
 export const getMyDockerContainers = DockerContainerFactory.getAll({
     middlewares: {
         pre: [(req: IRequest, query: any) => {
-            query.user = req.user;
+
+            query.organization = req.tenant?.org?._id;
             return query;
         }]
     }
 });
 
-export const updateDockerContainer = DockerContainerFactory.updateOne();
+export const updateDockerContainer = DockerContainerFactory.updateOne({
+    middlewares: {
+        post: [async (req: IRequest, data: any) => {
+            const changed = req.body && (('environment' in req.body) || ('command' in req.body));
+            const containerId = data?._id?.toString();
+            if(changed && containerId){
+                enqueueReload(containerId, { userId: (req.user as any)?._id?.toString() }).catch((error) =>
+                    logger.warn('@controllers/docker/container.ts (updateDockerContainer): reload enqueue failed: ' + error));
+            }
+            return data;
+        }]
+    }
+});
 
-export const countUserContainersByStatus = catchAsync(async (req: IRequest, res: Response) => {
+export const countUserContainersByStatus = catchAsync(async (req: IRequest, res: Response, next: NextFunction) => {
+
+    const orgId = req.tenant?.org?._id;
+    if(!orgId){
+        return next(new RuntimeError('DockerContainer::Organization::Required', 400));
+    }
     const result = await DockerContainer.aggregate([
         {
             $match: {
-                user: req.user._id
+                organization: new mongoose.Types.ObjectId(orgId.toString())
             }
         },
         {
@@ -81,6 +105,7 @@ export const countUserContainersByStatus = catchAsync(async (req: IRequest, res:
 const findOrCreateImage = async (
     image: string | IRequestDockerImage,
     userId: string,
+    organizationId: string,
     next: NextFunction
 ): Promise<IDockerImage | null> => {
     let containerImage = null;
@@ -93,7 +118,7 @@ const findOrCreateImage = async (
             next(new RuntimeError('DockerContainer::CreateDocker::ImageNotFound', 404));
             return null;
         }
-        containerImage = await DockerImage.create({ name, tag, user: userId });
+        containerImage = await createAndMaterializeImage({ name, tag, user: userId, organization: organizationId });
     }
     return containerImage;
 };
@@ -101,14 +126,16 @@ const findOrCreateImage = async (
 const findOrCreateNetwork = async (
     network: string,
     userId: string,
+    organizationId: string,
 ): Promise<IDockerNetwork | null> => {
     let containerNetwork = null;
     if(mongoose.isValidObjectId(network)){
         containerNetwork = await DockerNetwork.findById(network).select('_id');
     }
     if(!containerNetwork){
-        containerNetwork = await DockerNetwork.create({
+        containerNetwork = await createAndMaterializeNetwork({
             user: userId,
+            organization: organizationId,
             driver: 'bridge',
             name: network
         });
@@ -119,9 +146,7 @@ const findOrCreateNetwork = async (
 export const randomAvailablePort = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
     const port = await findRandomAvailablePort();
     if(port === -1){
-        // "ManyFailedAttempts" comes from the fact that, if the function finds that 
-        // a port is busy, it will try another 9 times to look for a free one. 
-        // If all attempts fail (10), it will return -1.
+
         return next(new RuntimeError('DockerContainer::RandomAvailablePort::ManyFailedAttempts', 500));
     }
     res.status(200).json({ status: 'success', data: port });
@@ -132,7 +157,14 @@ export const oneClickDeploy = catchAsync(async (req: Request, res: Response, nex
     if(!config){
         return next(new RuntimeError('Docker::Container::OneClickDeploy::MissingConfig', 400));
     }
-    const container = await parseConfigAndDeploy(req.user as IUser, config);
+    const tenant = (req as IRequest).tenant;
+    const orgId = tenant?.org?._id;
+    if(!orgId){
+        return next(new RuntimeError('Docker::Container::OneClickDeploy::Organization::Required', 400));
+    }
+    const { project } = await ensureOrgDefaults(orgId);
+    const scope = { organization: orgId, project: tenant?.project?._id || project._id };
+    const container = await parseConfigAndDeploy(req.user as IUser, config, scope);
     res.status(200).json({ status: 'success', data: container });
 });
 
@@ -144,8 +176,14 @@ export const createDockerContainer = catchAsync(async (req: Request, res: Respon
     const user = req.user as IUser;
     const userId = user._id.toString();
 
-    const containerImage = await findOrCreateImage(image, userId, next);
-    const containerNetwork = await findOrCreateNetwork(network, userId);
+    const orgRef = (req as IRequest).tenant?.org?._id;
+    if(!orgRef){
+        return next(new RuntimeError('DockerContainer::Organization::Required', 400));
+    }
+    const organizationId = orgRef.toString();
+
+    const containerImage = await findOrCreateImage(image, userId, organizationId, next);
+    const containerNetwork = await findOrCreateNetwork(network, userId, organizationId);
     if(!containerNetwork || !containerImage){
         return next(new RuntimeError('DockerContainer::CreateDocker::ImageOrNetworkError', 500));
     }
@@ -153,10 +191,12 @@ export const createDockerContainer = catchAsync(async (req: Request, res: Respon
     const container = await DockerContainer.create({
         name,
         user: userId,
+        organization: organizationId,
         command,
         image: containerImage._id,
         network: containerNetwork._id
     });
+    await materializeContainer(container as unknown as IDockerContainer);
 
     sendEmail({
         to: user.email,
@@ -181,7 +221,7 @@ export const containerStatus = catchAsync(async (req: Request, res: Response, ne
     if(!container){
         return next(new RuntimeError('DockerContainer::Status::NotFound', 400));
     }
-    
+
     const containerService = new DockerContainerService(container);
     const statusMap: Record<string, () => Promise<void>> = {
         async stop(){

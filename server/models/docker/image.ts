@@ -1,5 +1,4 @@
 import mongoose, { Schema, Model } from 'mongoose';
-import { getImageSize, pullImage } from '@services/docker/image';
 import { IDockerImage } from '@typings/models/docker/image';
 import RuntimeError from '@utilities/runtimeError';
 
@@ -19,6 +18,12 @@ const DockerImageSchema: Schema<IDockerImage> = new Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     },
+    organization: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Organization',
+        required: [true, 'Image::Organization::Required'],
+        index: true
+    },
     containers: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'DockerContainer'
@@ -27,7 +32,7 @@ const DockerImageSchema: Schema<IDockerImage> = new Schema({
     timestamps: true
 });
 
-DockerImageSchema.index({ name: 1, tag: 1, user: 1 }, { unique: true });
+DockerImageSchema.index({ name: 1, tag: 1, user: 1, organization: 1 }, { unique: true });
 
 const cascadeDeleteHandler = async (document: IDockerImage): Promise<void> => {
     if(!document) return;
@@ -69,18 +74,8 @@ DockerImageSchema.post('findOneAndDelete', async function(deletedDoc){
 });
 
 DockerImageSchema.pre('save', async function(next){
-    try{
-        if(this.isNew){
-            // Pull image if not exists
-            await pullImage(this.name, this.tag);
-            this.size = await getImageSize(this.name, this.tag);
-            const updateUser = { $push: { images: this._id } };
-            await mongoose.model('User').updateOne({ _id: this.user }, updateUser);
-        }
-        next();
-    }catch(error: any){
-        next(error);   
-    }
+
+    next();
 });
 
 const DockerImage: Model<IDockerImage> = mongoose.model('DockerImage', DockerImageSchema);

@@ -3,6 +3,7 @@ import mongoose, { Document } from 'mongoose';
 export interface IDockerImage extends Document{
     _id: mongoose.Schema.Types.ObjectId,
     user: mongoose.Schema.Types.ObjectId,
+    organization: mongoose.Types.ObjectId,
     containers: mongoose.Schema.Types.ObjectId[],
     name: string,
     tag: string,

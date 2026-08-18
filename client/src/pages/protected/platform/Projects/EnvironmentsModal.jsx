@@ -1,9 +1,3 @@
-/***
- * Copyright (C) Rodolfo Herrera Hernandez. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root
- * for full license information.
-****/
-
 import { useState, useEffect, useCallback } from 'react';
 import { Trash2 } from 'lucide-react';
 import { StatusBadge, LoadingBlock } from '@components/atoms/kit';
@@ -16,6 +10,9 @@ import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from '@/components/ui/dialog';
 import { environments } from '@services/platform/service';
+import { useAsyncAction } from '@hooks/common';
+import { errText } from '@utilities/common/errText';
+import { unwrapList } from '@utilities/api/unwrap';
 
 const ENV_TYPES = [
     { value: 'production', label: 'Production' },
@@ -23,12 +20,6 @@ const ENV_TYPES = [
     { value: 'preview', label: 'Preview' }
 ];
 
-/**
- * Self-contained environments manager rendered inside a Dialog. Owns its own
- * fetch / create / delete state so the parent page stays lean. Lists the
- * environments of a single project, with an inline create form (name + type)
- * and per-row delete.
- */
 const EnvironmentsModal = ({ project, onClose }) => {
     const projectId = project?._id;
     const [loading, setLoading] = useState(false);
@@ -37,10 +28,10 @@ const EnvironmentsModal = ({ project, onClose }) => {
 
     const [name, setName] = useState('');
     const [type, setType] = useState('production');
-    const [submitting, setSubmitting] = useState(false);
-    const [formError, setFormError] = useState(null);
-
     const [deletingId, setDeletingId] = useState(null);
+
+    const create = useAsyncAction({ fallback: 'Failed to create environment.' });
+    const remove = useAsyncAction({ onError: setError, fallback: 'Failed to delete environment.' });
 
     const load = useCallback(async () => {
         if(!projectId) return;
@@ -48,9 +39,9 @@ const EnvironmentsModal = ({ project, onClose }) => {
         setError(null);
         try{
             const res = await environments.listByProject({ query: { params: { projectId } } });
-            setList(res?.data || []);
+            setList(unwrapList(res));
         }catch(err){
-            setError(typeof err === 'string' ? err : (err?.message || 'Failed to load environments.'));
+            setError(errText(err, 'Failed to load environments.'));
         }finally{
             setLoading(false);
         }
@@ -60,31 +51,23 @@ const EnvironmentsModal = ({ project, onClose }) => {
 
     const handleCreate = async () => {
         if(!name.trim() || !projectId) return;
-        setSubmitting(true);
-        setFormError(null);
-        try{
-            await environments.createInProject({ query: { params: { projectId } }, body: { name: name.trim(), type } });
+        const ok = await create.run(() => environments.createInProject({
+            query: { params: { projectId } },
+            body: { name: name.trim(), type }
+        }));
+        if(ok){
             setName('');
             setType('production');
             await load();
-        }catch(err){
-            setFormError(typeof err === 'string' ? err : (err?.message || 'Failed to create environment.'));
-        }finally{
-            setSubmitting(false);
         }
     };
 
     const handleDelete = async (env) => {
         setDeletingId(env._id);
-        setError(null);
-        try{
-            await environments.remove({ query: { params: { id: env._id } } });
+        if(await remove.run(() => environments.remove({ query: { params: { id: env._id } } }))){
             await load();
-        }catch(err){
-            setError(typeof err === 'string' ? err : (err?.message || 'Failed to delete environment.'));
-        }finally{
-            setDeletingId(null);
         }
+        setDeletingId(null);
     };
 
     return (
@@ -150,14 +133,14 @@ const EnvironmentsModal = ({ project, onClose }) => {
                                 </SelectContent>
                             </Select>
                         </div>
-                        {formError && <p className='text-sm text-destructive'>{formError}</p>}
+                        {create.error && <p className='text-sm text-destructive'>{create.error}</p>}
                     </div>
                 </div>
 
                 <DialogFooter>
                     <Button variant='outline' onClick={onClose}>Close</Button>
-                    <Button onClick={handleCreate} disabled={submitting || !name.trim()}>
-                        {submitting ? 'Creating…' : 'Create environment'}
+                    <Button onClick={handleCreate} disabled={create.pending || !name.trim()}>
+                        {create.pending ? 'Creating…' : 'Create environment'}
                     </Button>
                 </DialogFooter>
             </DialogContent>

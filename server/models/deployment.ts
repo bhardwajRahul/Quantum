@@ -1,17 +1,3 @@
-/***
- * Copyright (C) Rodolfo Herrera Hernandez. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root
- * for full license information.
- *
- * =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
- *
- * For related information - https://github.com/rodyherrera/Quantum/
- *
- * All your applications, just in one place. 
- *
- * =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-****/
-
 import mongoose, { Query } from 'mongoose';
 import { IDeployment } from '@typings/models/deployment';
 
@@ -20,6 +6,12 @@ const DeploymentSchema = new mongoose.Schema<IDeployment>({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: [true, 'Deployment::User::Required']
+    },
+
+    organization: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Organization',
+        index: true
     },
     githubDeploymentId: {
         type: String,
@@ -47,8 +39,16 @@ const DeploymentSchema = new mongoose.Schema<IDeployment>({
     },
     status: {
         type: String,
-        enum: ['pending', 'success', 'stopped', 'failure', 'queued', 'building'],
+        enum: ['pending', 'success', 'stopped', 'failure', 'queued', 'building', 'rolledback'],
         default: 'pending'
+    },
+
+    artifact: {
+        image: String,
+        tag: String,
+        digest: String,
+        builder: String,
+        sizeBytes: Number
     },
     url: { type: String },
     createdAt: { type: Date, default: Date.now }
@@ -75,10 +75,10 @@ DeploymentSchema.pre('deleteMany', async function() {
     }));
 });
 
-DeploymentSchema.methods.getFormattedEnvironment = function () {
-    const formattedEnvironment = Array.from(
-        this.environment.variables, ([key, value]) => `${key.trim()}="${value.trim()}"`);
-    return formattedEnvironment.join(' ');
+DeploymentSchema.methods.getEnvironmentArray = function (): string[] {
+
+    return Array.from(
+        this.environment.variables, ([key, value]: [string, string]) => `${key.trim()}=${value}`);
 };
 
 DeploymentSchema.post('findOneAndUpdate', async function (){

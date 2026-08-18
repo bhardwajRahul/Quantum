@@ -4,6 +4,7 @@ import { IUser } from '../user';
 export interface IDockerNetwork{
     _id: mongoose.Schema.Types.ObjectId,
     user: mongoose.Schema.Types.ObjectId | IUser,
+    organization: mongoose.Types.ObjectId,
     containers: mongoose.Schema.Types.ObjectId[],
     name: string,
     subnet: string,

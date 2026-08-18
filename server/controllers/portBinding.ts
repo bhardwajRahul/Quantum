@@ -15,10 +15,6 @@ const PortBindingFactory = new HandlerFactory({
     ]
 });
 
-// ADR-0001: adding/removing a port binding used to recreate the container inside
-// the model hooks. The reload is now a durable job enqueued here after the
-// mutation (best-effort; never blocks the response). The container must be
-// recreated so the published/unpublished port takes effect.
 const reloadBindingContainer = async (req: IRequest, data: any) => {
     const containerId = data?.container?.toString();
     if(containerId){
@@ -28,10 +24,6 @@ const reloadBindingContainer = async (req: IRequest, data: any) => {
     return data;
 };
 
-// Stamp the owning user from the authenticated session, not the request body:
-// the create form only sends { internalPort, externalPort, container }, and the
-// model requires `user`. Without this, POST /port-binding fails with
-// PortBinding::User::Required. (organization is already stamped by the scope.)
 const stampUser = (req: IRequest, data: any) => {
     data.user = (req.user as any)?._id;
     return data;

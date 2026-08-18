@@ -1,6 +1,7 @@
 import express from 'express';
 import * as dockerContainerController from '@controllers/docker/container';
 import * as authMiddleware from '@middlewares/authentication';
+import { resolveTenant } from '@middlewares/tenancy';
 import DockerContainer from '@models/docker/container';
 import DockerFS from '@controllers/common/dockerFS';
 import { verifyOwnership } from '@middlewares/common';
@@ -9,9 +10,8 @@ const router = express.Router();
 const containerFS = new DockerFS();
 const ownership = verifyOwnership(DockerContainer);
 
+router.use(authMiddleware.protect, resolveTenant);
 router.get('/random-available-port/', dockerContainerController.randomAvailablePort);
-
-router.use(authMiddleware.protect);
 router.get('/me/', dockerContainerController.getMyDockerContainers);
 router.post('/', dockerContainerController.createDockerContainer);
 router.get('/count-containers-by-status/', dockerContainerController.countUserContainersByStatus);

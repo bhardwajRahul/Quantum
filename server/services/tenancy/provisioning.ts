@@ -1,21 +1,5 @@
-/***
- * Copyright (C) Rodolfo Herrera Hernandez. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root
- * for full license information.
- *
- * =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
- *
- * For related information - https://github.com/rodyherrera/Quantum/
- *
- * All your applications, just in one place.
- *
- * =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-****/
-
 import mongoose from 'mongoose';
-import { v4 } from 'uuid';
 import Organization from '@models/organization';
-import Membership from '@models/membership';
 import Project from '@models/project';
 import Environment from '@models/environment';
 import DockerContainer from '@models/docker/container';
@@ -23,63 +7,14 @@ import DockerImage from '@models/docker/image';
 import DockerNetwork from '@models/docker/network';
 import logger from '@utilities/logger';
 import { IUser } from '@typings/models/user';
-import { IOrganization } from '@typings/models/organization';
 import { IProject } from '@typings/models/project';
 import { IEnvironment } from '@typings/models/environment';
-import { IMembership } from '@typings/models/membership';
 import { IDockerContainer } from '@typings/models/docker/container';
 
-interface TenancyResult{
-    organization: IOrganization;
-    project: IProject;
-    environment: IEnvironment;
-    membership: IMembership;
-}
-
-/**
- * Turn an arbitrary string into a URL/DB-friendly slug. Lowercases, strips
- * non-alphanumeric runs to single dashes and trims leading/trailing dashes.
- */
-const slugify = (value: string): string => {
-    return value
-        .toString()
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
-};
-
-/**
- * Produce a slug that does not collide with an existing Organization. If the
- * base slug is taken, append a short uuid suffix (same pattern as the repository
- * alias de-duplication) until a free slug is found.
- */
-const ensureUniqueOrgSlug = async (base: string): Promise<string> => {
-    let candidate = base || 'org';
-    // Loop is bounded in practice: a 4-char uuid slice collision twice is
-    // astronomically unlikely, but we cap iterations to stay safe.
-    for(let attempt = 0; attempt < 5; attempt++){
-        const existing = await Organization.findOne({ slug: candidate }).lean();
-        if(!existing) return candidate;
-        candidate = `${base}-${v4().slice(0, 4)}`;
-    }
-    return `${base}-${v4().slice(0, 8)}`;
-};
-
-/**
- * Idempotently ensure an organization has its default Project + production
- * Environment. Resolve-or-create, so it is safe to call on every org creation
- * (existing defaults are returned, never duplicated). This is the per-org slice
- * of tenancy, independent of any "personal org" notion — it is the single
- * source of truth for "a usable org has a default project and environment",
- * shared by createOrganization (UI path) and ensureDefaultTenancy (legacy path).
- *
- * @param organizationId - the org to provision defaults under.
- */
 export const ensureOrgDefaults = async (
     organizationId: mongoose.Types.ObjectId | string
 ): Promise<{ project: IProject; environment: IEnvironment }> => {
-    // Project (default).
+
     let project = await Project.findOne({ organization: organizationId, slug: 'default' })
         ?? await Project.findOne({ organization: organizationId, isDefault: true });
     if(!project){
@@ -91,7 +26,6 @@ export const ensureOrgDefaults = async (
         });
     }
 
-    // Environment (production, default).
     let environment = await Environment.findOne({ project: project._id, isDefault: true })
         ?? await Environment.findOne({ project: project._id, name: 'production' });
     if(!environment){
@@ -107,21 +41,6 @@ export const ensureOrgDefaults = async (
     return { project, environment };
 };
 
-/**
- * Provision a user's personal web-shell container (isUserContainer) under the
- * given organization, ONCE per user. The DB docs are created PURE (no Docker
- * daemon I/O, per ADR-0001); the real image/network/container are materialized
- * out-of-band by a reconcile the caller enqueues, and the personal shell also
- * self-heals on first console connect. Stamps `organization` on the image,
- * network and container (all three require it). Persists user.container +
- * the images/networks/containers arrays via updateOne (no save-hook re-trigger).
- *
- * No-op (returns the existing container) if the user already has one — keeps the
- * personal container a strict one-per-user invariant.
- *
- * @param user  - the owning user document.
- * @param orgId - the organization the personal container belongs to.
- */
 export const createUserContainer = async (
     user: IUser,
     orgId: mongoose.Types.ObjectId | string
@@ -144,7 +63,7 @@ export const createUserContainer = async (
             command: '/bin/sh',
             isUserContainer: true
         });
-        // Persist the back-references without re-triggering the user save hooks.
+
         await User.updateOne(
             { _id: user._id },
             {
@@ -152,7 +71,7 @@ export const createUserContainer = async (
                 $push: { images: image._id, networks: network._id, containers: container._id }
             }
         );
-        // Keep the in-memory doc coherent for callers that continue using it.
+
         user.container = container._id as any;
         (user.images as any)?.push?.(image._id);
         (user.networks as any)?.push?.(network._id);
@@ -164,150 +83,14 @@ export const createUserContainer = async (
     }
 };
 
-/**
- * Normalize a user id / ObjectId / hydrated doc into a loaded user document
- * (or null if an id was given that resolves to nothing).
- */
-const hydrateUser = async (
-    user: IUser | mongoose.Types.ObjectId | string
-): Promise<IUser | null> => {
-    if(typeof user === 'string' || user instanceof mongoose.Types.ObjectId){
-        return mongoose.model<IUser>('User').findById(user);
-    }
-    return user as IUser;
-};
-
-/**
- * Fast path for ensureDefaultTenancy: if the user is ALREADY fully provisioned,
- * return the complete hierarchy. Returns null when any piece is missing so the
- * caller falls through and repairs it (resolve-or-create).
- */
-const loadCompleteTenancy = async (userDoc: IUser): Promise<TenancyResult | null> => {
-    if(!userDoc.defaultOrganization) return null;
-    const organization = await Organization.findById(userDoc.defaultOrganization);
-    if(!organization) return null;
-    const project = await Project.findOne({ organization: organization._id, isDefault: true })
-        ?? await Project.findOne({ organization: organization._id });
-    const environment = project
-        ? (await Environment.findOne({ project: project._id, isDefault: true })
-            ?? await Environment.findOne({ project: project._id }))
-        : null;
-    const membership = await Membership.findOne({
-        user: userDoc._id,
-        organization: organization._id,
-        project: null
-    });
-    if(project && environment && membership){
-        return { organization, project, environment, membership };
-    }
-    return null;
-};
-
-/** Resolve-or-create the user's personal organization (keyed by owner + isPersonal). */
-const ensurePersonalOrg = async (userDoc: IUser): Promise<IOrganization> => {
-    const existing = await Organization.findOne({ owner: userDoc._id, isPersonal: true });
-    if(existing) return existing;
-    const slug = await ensureUniqueOrgSlug(slugify(userDoc.username));
-    return Organization.create({
-        name: userDoc.username,
-        slug,
-        owner: userDoc._id,
-        isPersonal: true
-    });
-};
-
-/** Resolve-or-create the owner membership (org-wide → project null). */
-const ensureOwnerMembership = async (
-    userDoc: IUser,
-    organization: IOrganization
-): Promise<IMembership> => {
-    const existing = await Membership.findOne({
-        user: userDoc._id,
-        organization: organization._id,
-        project: null
-    });
-    if(existing) return existing;
-    return Membership.create({
-        user: userDoc._id,
-        organization: organization._id,
-        project: null,
-        role: 'owner'
-    });
-};
-
-/** Persist the user's defaultOrganization back-ref without re-triggering save hooks. */
-const linkDefaultOrganization = async (userDoc: IUser, organization: IOrganization): Promise<void> => {
-    if(userDoc.defaultOrganization
-        && userDoc.defaultOrganization.toString() === organization._id.toString()) return;
-    await mongoose.model<IUser>('User').updateOne(
-        { _id: userDoc._id },
-        { defaultOrganization: organization._id }
-    );
-    userDoc.defaultOrganization = organization._id;
-};
-
-/**
- * Idempotently ensure a user has a personal tenancy hierarchy:
- * Organization (isPersonal) > Membership (owner) > Project (default) > Environment (production/default).
- *
- * If the user already has `defaultOrganization` set, the existing hierarchy is
- * loaded and returned without creating duplicates. Safe to call repeatedly and
- * safe to retry after a partial failure (each step is resolved-or-created).
- *
- * NOTE: with the explicit-org-setup model, new users no longer get a personal
- * org automatically — this remains only for the legacy backfill of pre-existing
- * accounts that already had a `defaultOrganization`. New first-org provisioning
- * lives in createOrganization (which reuses ensureOrgDefaults + createUserContainer).
- *
- * @param user - A loaded user document or a user id.
- */
-export const ensureDefaultTenancy = async (
-    user: IUser | mongoose.Types.ObjectId | string
-): Promise<TenancyResult | null> => {
-    try{
-        const userDoc = await hydrateUser(user);
-        if(!userDoc){
-            logger.error('@services/tenancy/provisioning.ts (ensureDefaultTenancy): User not found.');
-            return null;
-        }
-        const existing = await loadCompleteTenancy(userDoc);
-        if(existing) return existing;
-
-        const organization = await ensurePersonalOrg(userDoc);
-        const membership = await ensureOwnerMembership(userDoc, organization);
-        const { project, environment } = await ensureOrgDefaults(organization._id);
-        await linkDefaultOrganization(userDoc, organization);
-
-        return { organization, project, environment, membership };
-    }catch(error){
-        logger.error('@services/tenancy/provisioning.ts (ensureDefaultTenancy): ' + error);
-        // Non-fatal: callers (e.g. the user post-save hook) must not break.
-        return null;
-    }
-};
-
 interface BackfillResult{
     usersProvisioned: number;
     reposBackfilled: number;
-    // Per-collection count of documents stamped with a resolved `organization`.
+
     orgBackfilled: Record<string, number>;
+    projectBackfilled: Record<string, number>;
 }
 
-/**
- * Idempotently stamp `organization` on every document of a newly-org-linked
- * collection that is missing it, resolving the org from a parent reference
- * already present on the document.
- *
- * Only touches docs where `organization` is missing/null. Resilient: a failure
- * to resolve any single document (or the whole collection) is logged and
- * skipped rather than thrown, so one bad collection never aborts the migration.
- *
- * @param childModelName  - registered Mongoose model name of the collection to backfill.
- * @param parentField     - field on the child doc holding the parent's id (e.g. 'repository', 'project', 'user').
- * @param parentModelName - registered Mongoose model name of the parent.
- * @param parentOrgField  - field on the parent holding the org id ('organization' or, for User, 'defaultOrganization').
- * @returns the number of documents stamped.
- */
 const backfillOrgFromParent = async (
     childModelName: string,
     parentField: string,
@@ -317,7 +100,7 @@ const backfillOrgFromParent = async (
     let count = 0;
     try{
         const ChildModel = mongoose.model(childModelName);
-        // Only legacy rows missing the direct org ref.
+
         const docs = await ChildModel.find({
             $or: [
                 { organization: { $exists: false } },
@@ -327,7 +110,7 @@ const backfillOrgFromParent = async (
         if(docs.length === 0) return 0;
 
         const ParentModel = mongoose.model(parentModelName);
-        // Cache parent → org lookups so shared parents are resolved once.
+
         const orgCache = new Map<string, mongoose.Types.ObjectId | null>();
 
         for(const doc of docs){
@@ -343,8 +126,7 @@ const backfillOrgFromParent = async (
                 orgCache.set(parentKey, resolved);
             }
             if(!orgId) continue;
-            // strict:false so we can write `organization` even on docs whose
-            // in-memory schema instance predates the field.
+
             await ChildModel.updateOne({ _id: doc._id }, { organization: orgId }, { strict: false });
             count++;
         }
@@ -354,12 +136,6 @@ const backfillOrgFromParent = async (
     return count;
 };
 
-/**
- * Backfill the org/project/environment refs onto legacy repositories that predate
- * the tenancy model. Only repos whose owner ALREADY has a `defaultOrganization`
- * are stamped — org-less owners are skipped (we never mint an org here). Returns
- * the number of repositories stamped.
- */
 const backfillRepositories = async (): Promise<number> => {
     const User = mongoose.model<IUser>('User');
     const Repository = mongoose.model('Repository');
@@ -381,10 +157,10 @@ const backfillRepositories = async (): Promise<number> => {
             logger.error(`@services/tenancy/provisioning.ts (backfillRepositories): Owner ${ownerId} for repository ${repository._id} not found; skipping.`);
             continue;
         }
-        // Skip repos whose owner has no organization — do NOT provision one.
+
         const orgId = (owner as any).defaultOrganization;
         if(!orgId) continue;
-        // Resolve the org's default project/environment (idempotent, no new org).
+
         const { project, environment } = await ensureOrgDefaults(orgId);
         const update: Record<string, unknown> = {
             organization: orgId,
@@ -394,22 +170,58 @@ const backfillRepositories = async (): Promise<number> => {
         if(!(repository as any).sourceType){
             update.sourceType = 'github';
         }
-        // strict:false so we can write fields that may not yet be in the schema.
+
         await Repository.updateOne({ _id: repository._id }, update, { strict: false });
         reposBackfilled++;
     }
     return reposBackfilled;
 };
 
-// Org-stamping passes, declared as data: [childModel, parentField, parentModel, parentOrgField].
-// Order matters: Docker resources stamp BEFORE Metric (which resolves via container.organization).
+const backfillProjectFromParent = async (
+    childModelName: string,
+    parentField: string,
+    parentModelName: string
+): Promise<number> => {
+    let count = 0;
+    try{
+        const ChildModel = mongoose.model(childModelName);
+        const docs = await ChildModel.find({
+            $or: [
+                { project: { $exists: false } },
+                { project: null }
+            ]
+        }).select(parentField);
+        if(docs.length === 0) return 0;
+
+        const ParentModel = mongoose.model(parentModelName);
+        const projectCache = new Map<string, mongoose.Types.ObjectId | null>();
+
+        for(const doc of docs){
+            const parentId = (doc as any)[parentField];
+            if(!parentId) continue;
+            const parentKey = parentId.toString();
+            let projectId = projectCache.get(parentKey);
+            if(projectId === undefined){
+                const parent = await ParentModel.findById(parentId).select('project').lean();
+                projectId = parent ? (((parent as any).project as mongoose.Types.ObjectId) ?? null) : null;
+                projectCache.set(parentKey, projectId);
+            }
+            if(!projectId) continue;
+
+            await ChildModel.updateOne({ _id: doc._id }, { project: projectId }, { strict: false });
+            count++;
+        }
+    }catch(error){
+        logger.error(`@services/tenancy/provisioning.ts (backfillProjectFromParent:${childModelName}): ` + error);
+    }
+    return count;
+};
+
 const ORG_STAMP_PASSES: ReadonlyArray<readonly [string, string, string, string]> = [
     ['Deployment', 'repository', 'Repository', 'organization'],
     ['Domain', 'repository', 'Repository', 'organization'],
     ['HealthCheck', 'repository', 'Repository', 'organization'],
     ['Database', 'project', 'Project', 'organization'],
-    ['AlertChannel', 'project', 'Project', 'organization'],
-    ['AlertRule', 'project', 'Project', 'organization'],
     ['Environment', 'project', 'Project', 'organization'],
     ['DockerContainer', 'user', 'User', 'defaultOrganization'],
     ['DockerImage', 'user', 'User', 'defaultOrganization'],
@@ -418,35 +230,40 @@ const ORG_STAMP_PASSES: ReadonlyArray<readonly [string, string, string, string]>
     ['Metric', 'container', 'DockerContainer', 'organization']
 ];
 
-/**
- * One-time, idempotent migration that brings legacy data up to the tenancy model.
- * It NEVER creates organizations (the explicit-org-setup model forbids auto-orgs);
- * it only stamps the direct `organization` ref onto child collections that resolve
- * it from a parent which ALREADY has one. Safe to run multiple times.
- */
+const PROJECT_STAMP_PASSES: ReadonlyArray<readonly [string, string, string]> = [
+    ['Deployment', 'repository', 'Repository'],
+    ['Domain', 'repository', 'Repository'],
+    ['HealthCheck', 'repository', 'Repository']
+];
+
 export const runTenancyBackfill = async (): Promise<BackfillResult> => {
-    // NO auto-provision: under the explicit-org-setup model an org-less user is
-    // valid and must create their first org via the UI. usersProvisioned stays 0
-    // (kept for the report shape).
+
     const usersProvisioned = 0;
     let reposBackfilled = 0;
     const orgBackfilled: Record<string, number> = {};
+    const projectBackfilled: Record<string, number> = {};
 
     try{
         reposBackfilled = await backfillRepositories();
-        // Each pass is idempotent (only touches docs missing `organization`) and
-        // self-contained (backfillOrgFromParent never throws).
+
         for(const [child, parentField, parentModel, parentOrgField] of ORG_STAMP_PASSES){
             orgBackfilled[child] = await backfillOrgFromParent(child, parentField, parentModel, parentOrgField);
+        }
+
+        for(const [child, parentField, parentModel] of PROJECT_STAMP_PASSES){
+            projectBackfilled[child] = await backfillProjectFromParent(child, parentField, parentModel);
         }
 
         const orgSummary = Object.entries(orgBackfilled)
             .map(([name, n]) => `${name}=${n}`)
             .join(', ');
-        logger.info(`@services/tenancy/provisioning.ts (runTenancyBackfill): Provisioned ${usersProvisioned} user(s), backfilled ${reposBackfilled} repository(ies). Organization stamped: ${orgSummary}.`);
+        const projectSummary = Object.entries(projectBackfilled)
+            .map(([name, n]) => `${name}=${n}`)
+            .join(', ');
+        logger.info(`@services/tenancy/provisioning.ts (runTenancyBackfill): Provisioned ${usersProvisioned} user(s), backfilled ${reposBackfilled} repository(ies). Organization stamped: ${orgSummary}. Project stamped: ${projectSummary}.`);
     }catch(error){
         logger.error('@services/tenancy/provisioning.ts (runTenancyBackfill): ' + error);
     }
 
-    return { usersProvisioned, reposBackfilled, orgBackfilled };
+    return { usersProvisioned, reposBackfilled, orgBackfilled, projectBackfilled };
 };

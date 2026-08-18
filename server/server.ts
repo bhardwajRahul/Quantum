@@ -1,17 +1,3 @@
-/***
- * Copyright (C) Rodolfo Herrera Hernandez. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root
- * for full license information.
- *
- * =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
- *
- * For related information - https://github.com/rodyherrera/Quantum/
- *
- * All your applications, just in one place. 
- *
- * =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-****/
-
 import { httpServer, io } from '@config/express';
 import { cleanHostEnvironment } from '@utilities/helpers';
 import logger from '@utilities/logger';
@@ -25,14 +11,9 @@ import wsController from '@controllers/wsController';
 
 wsController(io);
 
-// Server configuration
 const SERVER_PORT: number = Number(process.env.SERVER_PORT) || 8000;
 const SERVER_HOST: string = process.env.SERVER_HOSTNAME || '0.0.0.0';
 
-/**
- * Handles uncaught exceptions, cleans the environment, and restarts the server. 
- * @param {Error} err - The uncaught exception.
-*/
 process.on('uncaughtException', async (error:Error) => {
     logger.error('@server.ts: Uncaught Exception: ' + error);
     await cleanHostEnvironment();
@@ -44,17 +25,10 @@ process.on('uncaughtException', async (error:Error) => {
     });
 });
 
-/**
- * Handles unhandledRejection and print in console.
- * @param {String} reason - The unhandled rejection.
-*/
 process.on('unhandledRejection', (reason:any) => {
     logger.error('@server.ts: Unhandled Promise Rejection, reason: ' + reason);
 });
 
-/**
- * Handles SIGINT (Ctrl-C) for graceful shutdown.
-*/
 process.on('SIGINT', async () => {
     logger.info('@server.ts: SIGINT signal received, shutting down...');
     await cleanHostEnvironment();
@@ -65,19 +39,15 @@ process.on('SIGINT', async () => {
     process.exit(0);
 });
 
-// Starts the HTTP Server
 httpServer.listen(SERVER_PORT, SERVER_HOST, async () => {
     try{
-        // Ensures necessary environment variables exists
+
         bootstrap.validateEnvironmentVariables();
-        // Establishes a connection to the MongoDB database
+
         await mongoConnector();
-        // Backfill tenancy (default org/project/environment + owner membership for
-        // every pre-existing user/repository). Idempotent; must run before serving
-        // requests so the central tenant scoping has context to resolve against.
+
         await runTenancyBackfill();
-        // Seed the builtin template marketplace (idempotent: upserts by {slug,version},
-        // never duplicates). Best-effort — a seed failure must not block serving.
+
         try{
             const seed = await runTemplateSeed();
             logger.info(`@server.ts: template marketplace seed — created ${seed.created}, updated ${seed.updated}, skipped ${seed.skipped}.`);
@@ -85,11 +55,9 @@ httpServer.listen(SERVER_PORT, SERVER_HOST, async () => {
             logger.warn('@server.ts: template seed skipped: ' + error);
         }
         logger.info('@server.ts: Starting the deploy orchestrator. Containers will be reconciled (recreated/started) and user applications brought up as needed...');
-        // Start the orchestrator: worker pool + boot reconciliation (desired-vs-actual
-        // self-heal) + periodic reconcile. This replaces the old blanket
-        // bootstrap.deployContainers() Promise.all that force-started every container.
+
         await startOrchestrator();
-        // Email to WEBMASTER_MAIL to notify about the correct opening of the server.
+
         await sendMail({
             subject: 'The Quantum API is now accessible!',
             html: 'Your instance has been successfully deployed within your server.'

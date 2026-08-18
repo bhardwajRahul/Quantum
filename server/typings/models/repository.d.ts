@@ -18,6 +18,13 @@ export interface IRepository extends Document{
     runtime?: string;
     runtimeVersion?: string;
     outputDirectory?: string;
+    buildStrategy?: 'auto' | 'dockerfile' | 'prebuilt-image' | 'exec';
+    dockerfilePath?: string;
+    image?: string;
+    sourceType?: 'github';
+    organization?: mongoose.Types.ObjectId;
+    project?: mongoose.Types.ObjectId;
+    environment?: mongoose.Types.ObjectId;
     container: mongoose.Schema.Types.ObjectId | IDockerContainer;
     user: mongoose.Schema.Types.ObjectId | IUser;
     url: string;
@@ -25,7 +32,4 @@ export interface IRepository extends Document{
     deployments: mongoose.Types.ObjectId[],
     port?: number;
     createdAt: Date;
-    updateAliasIfNeeded(): Promise<void>;
-    getUserWithGithubData(): Promise<any>;
-    updateUserAndRepository(deployment: any): Promise<void>;
 }

@@ -1,5 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit';
-import * as reduxUtils from '@utilities/common/reduxUtils'; 
+import * as reduxUtils from '@utilities/common/reduxUtils';
 
 const initialState = {
     error: null,

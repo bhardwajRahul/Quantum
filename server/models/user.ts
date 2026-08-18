@@ -1,28 +1,14 @@
-/***
- * Copyright (C) Rodolfo Herrera Hernandez. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root
- * for full license information.
- *
- * =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
- *
- * For related information - https://github.com/rodyherrera/Quantum/
- *
- * All your applications, just in one place. 
- *
- * =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-****/
-
 import mongoose, { Schema, Model } from 'mongoose';
 import validator from 'validator';
 import bcrypt from 'bcryptjs';
 import { IUser } from '@typings/models/user';
-import { IDockerContainer } from '@typings/models/docker/container';
 import PortBinding from '@models/portBinding';
 import Repository from '@models/repository';
 import Github from '@models/github';
 import DockerContainer from '@models/docker/container';
 import DockerImage from '@models/docker/image';
 import DockerNetwork from '@models/docker/network';
+import logger from '@utilities/logger';
 
 const UserSchema: Schema<IUser> = new Schema({
     username: {
@@ -65,6 +51,10 @@ const UserSchema: Schema<IUser> = new Schema({
     github: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Github'
+    },
+    defaultOrganization: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Organization'
     },
     fullname: {
         type: String,
@@ -109,7 +99,7 @@ const UserSchema: Schema<IUser> = new Schema({
     passwordResetExpires: Date,
     createdAt: {
         type: Date,
-        default: Date.now()
+        default: Date.now
     }
 });
 
@@ -118,7 +108,7 @@ UserSchema.index({ username: 'text', fullname: 'text', email: 'text' });
 const cascadeDeleteHandler = async (document: IUser): Promise<void> => {
     if(!document) return;
     const query = { user: document._id };
-    // check for errors (cascade in the others models)
+
     await Repository.deleteMany(query);
     await Github.findOneAndDelete(query);
     await DockerContainer.findOneAndDelete({ _id: document.container });
@@ -128,27 +118,8 @@ const cascadeDeleteHandler = async (document: IUser): Promise<void> => {
         await DockerNetwork.deleteMany(query);
         await DockerImage.deleteMany(query);
     }catch(e){
-        // TODO: remove try-catch.
+        logger.error('@models/user.ts (cascadeDeleteHandler): ' + e);
     }
-};
-
-const createUserContainer = async (user: IUser): Promise<IDockerContainer> => {
-    const userId = user._id.toString();
-    const image = await DockerImage.create({ name: 'alpine', tag: 'latest', user: userId });
-    const network = await DockerNetwork.create({ user: userId, driver: 'bridge', name: userId });
-    const container = await DockerContainer.create({
-        name: userId,
-        user: userId,
-        image: image._id,
-        network: network._id,
-        command: '/bin/sh',
-        isUserContainer: true
-    });
-    // push?
-    user.images.push(image);
-    user.networks.push(network);
-    user.containers.push(container);
-    return container;
 };
 
 UserSchema.pre('findOneAndDelete', async function (){
@@ -167,20 +138,10 @@ UserSchema.pre('deleteMany', async function() {
     }));
 });
 
-/**
- * Remove all whitespace from a string.
- * @param {string} str - The string to process.
- * @returns {string} - The string without whitespace.
-*/
 const removeWhitespace = (str: string): string => {
     return str.replace(/\s/g, '');
 }
 
-/**
- * Hash a password using bcrypt.
- * @param {string} password - The password to hash.
- * @returns {Promise<string>} - The hashed password.
- */
 const hashPassword = async (password: string): Promise<string> => {
     const saltRounds = 12;
     return await bcrypt.hash(password, saltRounds);
@@ -188,22 +149,12 @@ const hashPassword = async (password: string): Promise<string> => {
 
 UserSchema.pre('save', async function(next){
     try{
-        /*
 
-            TODO: GITHUB AUTH OPTIONAL!!!!!!!!!!!
-
-        */
         if(!this.isModified('password')) return next();
         this.username = removeWhitespace(this.username);
         this.password = await hashPassword(this.password);
         this.passwordConfirm = undefined;
 
-        if(this.isNew){
-            this.container = await createUserContainer(this);
-        }
-        
-        // Set the passwordChangedAt field if the password was 
-        // modified and it's not a new document
         if(this.isModified('password') && !this.isNew){
             this.passwordChangedAt = new Date();
         }

@@ -18,11 +18,6 @@ class RepositoryHandler{
         this.container = null;
     }
 
-    getValidCommands(): string[]{
-        const { buildCommand, installCommand, startCommand } = this.repository;
-        return [installCommand, buildCommand, startCommand].filter(Boolean) as string[];
-    }
-
     async getCurrentDeployment(): Promise<any>{
         const currentDeploymentId = this.repository.deployments.slice(-1)[0]
         return await Deployment
@@ -38,9 +33,9 @@ class RepositoryHandler{
 
     async start(githubService: GithubService): Promise<void>{
         try{
-            if(this.getValidCommands().length === 0) return;
             const { installCommand, buildCommand, startCommand } = this.repository;
             const buildCommands = [installCommand, buildCommand].filter(Boolean) as string[];
+            if(buildCommands.length === 0 && !startCommand) return;
             const deployment = await this.getCurrentDeployment();
             const { githubDeploymentId } = deployment;
             deployment.status = 'building';
@@ -51,19 +46,32 @@ class RepositoryHandler{
             const userId = repositoryContainer.user.toString();
             const containerId = repositoryContainer._id.toString();
             const workingDir = '/app' + (this.repository.rootDirectory || '');
+            const envArray = deployment.getEnvironmentArray();
             await createLogStream(userId, containerId);
-            for(const cmd of buildCommands){
-                const res = await svc.executeCommand(cmd, { WorkingDir: workingDir });
-                await appendLog(userId, containerId, res.output);
-                if(res.exitCode !== 0){
-                    deployment.status = 'failure';
-                    await deployment.save();
-                    await githubService.updateDeploymentStatus(githubDeploymentId, 'failure');
-                    return;
+            const runBuild = async (): Promise<boolean> => {
+                for(const cmd of buildCommands){
+
+                    const res = await svc.executeCommand(['sh', '-c', cmd], { WorkingDir: workingDir, Env: envArray } as any);
+                    await appendLog(userId, containerId, res.output);
+                    if(res.exitCode !== 0) return false;
                 }
+                return true;
+            };
+            let built = await runBuild();
+            if(!built){
+
+                await new Promise((resolve) => setTimeout(resolve, 5000));
+                built = await runBuild();
+            }
+            if(!built){
+                deployment.status = 'failure';
+                await deployment.save();
+                await githubService.updateDeploymentStatus(githubDeploymentId, 'failure');
+                return;
             }
             if(startCommand){
-                svc.executeCommand('sh -c "' + startCommand.replace(/"/g, '\\"') + ' &"', { WorkingDir: workingDir }).catch(() => {});
+
+                svc.executeCommand(['sh', '-c', `${startCommand} &`], { WorkingDir: workingDir, Env: envArray } as any).catch(() => {});
             }
             deployment.status = 'success';
             await deployment.save();

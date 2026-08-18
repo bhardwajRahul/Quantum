@@ -1,22 +1,11 @@
-/***
- * Copyright (C) Rodolfo Herrera Hernandez. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root
- * for full license information.
- *
- * =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
- *
- * For related information - https://github.com/rodyherrera/Quantum/
- *
- * All your applications, just in one place. 
- *
- * =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-****/
-
 import express from 'express';
 import * as repositoryController from '@controllers/repository';
 import * as authMiddleware from '@middlewares/authentication';
+import { resolveTenant } from '@middlewares/tenancy';
 import * as githubMiddleware from '@middlewares/github';
 import { verifyOwnership } from '@middlewares/common';
+import validate from '@middlewares/validation';
+import { CreateRepositorySchema } from '@middlewares/validators';
 import Repository from '@models/repository';
 import DockerFS from '@controllers/common/dockerFS';
 
@@ -24,7 +13,7 @@ const router = express.Router();
 const repositoryFS = new DockerFS();
 const ownership = verifyOwnership(Repository);
 
-router.use(authMiddleware.protect);
+router.use(authMiddleware.protect, resolveTenant);
 
 router.get('/me/github/',
     githubMiddleware.populateRepositories,
@@ -40,7 +29,9 @@ router.get('/me/',
     githubMiddleware.populateGithubAccount,
     repositoryController.getMyRepositories);
 
-router.post('/',repositoryController.createRepository);
+router.post('/', validate(CreateRepositorySchema), repositoryController.createRepository);
+
+router.post('/:id/rollback/:deploymentId', ownership, repositoryController.rollbackRepository);
 
 router.get('/storage/:id/explore/:route?', ownership, repositoryFS.storageExplorer);
 router.get('/storage/:id/read/:route?', ownership, repositoryFS.readContainerFile);

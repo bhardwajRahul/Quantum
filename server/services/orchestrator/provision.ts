@@ -1,17 +1,3 @@
-/***
- * Copyright (C) Rodolfo Herrera Hernandez. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root
- * for full license information.
- *
- * =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
- *
- * For related information - https://github.com/rodyherrera/Quantum/
- *
- * All your applications, just in one place.
- *
- * =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-****/
-
 import mongoose from 'mongoose';
 import DockerContainer from '@models/docker/container';
 import DockerImage from '@models/docker/image';
@@ -29,11 +15,6 @@ import { IRepository } from '@typings/models/repository';
 import { IDockerContainer } from '@typings/models/docker/container';
 import logger from '@utilities/logger';
 
-/**
- * Load a repository with its owner + the owner's GitHub credentials populated —
- * the shape the build/deploy workers need to clone and run. Shared by buildHandler
- * and deployHandler (was duplicated verbatim in both).
- */
 export const populateRepository = (id: string) =>
     Repository.findById(id).populate({
         path: 'user',
@@ -41,14 +22,6 @@ export const populateRepository = (id: string) =>
         populate: { path: 'github', select: 'accessToken username' }
     });
 
-/**
- * Auto-publish a repository container's app port on a random host port, so a
- * freshly-deployed app is reachable without the user manually adding a port
- * binding. No-op when BASE_DOMAIN is set (Traefik routes by domain instead) or
- * when the repo already has a binding. The internal port is the repo's explicit
- * port or its runtime default (resolveInternalPort). Best-effort: a failure here
- * never blocks the deploy — the app still runs, just unpublished.
- */
 const ensureAutoPortBinding = async (
     repository: IRepository,
     container: IDockerContainer,
@@ -56,7 +29,7 @@ const ensureAutoPortBinding = async (
     org: any
 ): Promise<void> => {
     try{
-        if(process.env.BASE_DOMAIN) return; // ingress/domain path handles exposure
+        if(process.env.BASE_DOMAIN) return;
         const already = await PortBinding.findOne({ container: container._id });
         if(already) return;
         const internalPort = resolveInternalPort(repository);
@@ -79,24 +52,10 @@ const ensureAutoPortBinding = async (
     }
 };
 
-/**
- * Idempotently ensures the infrastructure backing a repository exists: the image
- * doc, the network, the repository container, and (best-effort) the GitHub
- * webhook. This is the relocation of what used to be createRepositoryContainer in
- * models/repository.ts's pre('save') hook — moved out of the model so persistence
- * is pure and the orchestrator owns side effects (ADR-0001).
- *
- * Safe to call repeatedly: it finds existing infra before creating, so a retried
- * deploy job won't duplicate containers/networks.
- */
 export const ensureRepositoryInfra = async (repository: IRepository): Promise<IDockerContainer> => {
     const existing = await DockerContainer.findOne({ repository: repository._id });
     if(existing) return existing as unknown as IDockerContainer;
 
-    // deployHandler populates repository.user (full User doc, incl. github token).
-    // Pass the _id — never the populated doc — as the ownership ref, or the
-    // container's pre('save') would derive its storagePath from the whole object
-    // (ENAMETOOLONG + leaks the token into a filesystem path).
     const userId = (repository.user as any)?._id ?? repository.user;
     const { name, tag } = getRuntimeImage(repository.runtime, repository.runtimeVersion);
     const org = (repository as any).organization;
@@ -118,14 +77,10 @@ export const ensureRepositoryInfra = async (repository: IRepository): Promise<ID
         command: '/bin/sh',
         isRepositoryContainer: true
     });
-    // Auto-expose the app on a host port so it is reachable right after deploy.
-    // Without this, an exec-strategy app runs but is published nowhere (no port,
-    // no domain) and the user has no URL. Created BEFORE materialize so the port
-    // is published on the container's first start (no reload needed). Skipped only
-    // when ingress will route by domain instead (BASE_DOMAIN configured).
+
     await ensureAutoPortBinding(repository, container as unknown as IDockerContainer, userId, org);
     await materializeContainer(container as unknown as IDockerContainer);
-    // Keep the back-reference the rest of the code relies on.
+
     await mongoose.model('Repository').updateOne(
         { _id: repository._id },
         { container: container._id }
@@ -133,10 +88,6 @@ export const ensureRepositoryInfra = async (repository: IRepository): Promise<ID
     return container as unknown as IDockerContainer;
 };
 
-/**
- * Best-effort webhook registration for auto-deploy. Never throws into the deploy
- * path — a repo without a webhook simply won't auto-deploy on push.
- */
 export const ensureWebhook = async (repository: IRepository, githubUser: any): Promise<void> => {
     if(repository.webhookId) return;
     try{

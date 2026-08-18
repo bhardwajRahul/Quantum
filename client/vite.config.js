@@ -1,17 +1,3 @@
-/***
- * Copyright (C) Rodolfo Herrera Hernandez. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root
- * for full license information.
- *
- * =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
- *
- * For related information - https://github.com/rodyherrera/Quantum/
- *
- * All your applications, just in one place. 
- *
- * =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-****/
-
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 
@@ -23,6 +9,8 @@ export default defineConfig({
       allowedHosts: true
    },
    resolve: {
+
+      dedupe: ['react', 'react-dom'],
       alias: {
          '@': '/src/',
          '@pages': '/src/pages/',
@@ -33,6 +21,22 @@ export default defineConfig({
          '@services': '/src/services/',
          '@hooks': '/src/hooks/',
          '@images': '/src/assets/images/'
+      }
+   },
+   build: {
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+         output: {
+            manualChunks(id){
+               if(!id.includes('node_modules')) return;
+
+               if(id.includes('@xterm') || id.includes('xterm')) return 'xterm';
+               if(id.includes('three') || id.includes('@react-three')) return 'three';
+               if(id.includes('gsap')) return 'gsap';
+
+               return 'vendor';
+            }
+         }
       }
    },
 });

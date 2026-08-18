@@ -1,9 +1,3 @@
-/***
- * Copyright (C) Rodolfo Herrera Hernandez. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root
- * for full license information.
-****/
-
 import { useState, useEffect } from 'react';
 import { Settings, Plus, Trash2 } from 'lucide-react';
 import { PageHeader, EmptyState, Button } from '@components/atoms/kit';
@@ -16,34 +10,23 @@ import { organizations } from '@services/platform/service';
 import useTenancy from '@hooks/common/useTenancy';
 import { errText } from '@utilities/common/errText';
 
-/**
- * Organization settings (org-scoped). Lets the user rename the selected org,
- * see its read-only slug, create a new organization, and delete the current
- * one. organizations.update/remove are addressed by the org id from tenancy;
- * after a delete we hard-navigate to /dashboard so the tenancy redux state
- * re-bootstraps from scratch (the deleted org must drop out of the switcher).
- */
 const OrganizationSettings = () => {
     const { organization, organizationId } = useTenancy();
 
-    // Rename form.
     const [name, setName] = useState(organization?.name || '');
     const [saving, setSaving] = useState(false);
     const [saveError, setSaveError] = useState(null);
     const [saved, setSaved] = useState(false);
 
-    // Create-organization modal.
     const [createOpen, setCreateOpen] = useState(false);
     const [createName, setCreateName] = useState('');
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState(null);
 
-    // Delete-confirm modal.
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState(null);
 
-    // Re-seed the rename field whenever the selected org changes.
     useEffect(() => { setName(organization?.name || ''); }, [organization?.name]);
 
     const handleSave = async () => {
@@ -72,7 +55,7 @@ const OrganizationSettings = () => {
             await organizations.create({ body: { name: createName.trim() } });
             setCreateOpen(false);
             setCreateName('');
-            // Force a tenancy re-bootstrap so the new org appears in the switcher.
+
             window.location.assign('/dashboard');
         }catch(err){
             setCreateError(errText(err, 'Failed to create organization.'));
@@ -86,7 +69,7 @@ const OrganizationSettings = () => {
         setDeleteError(null);
         try{
             await organizations.remove({ query: { params: { id: organizationId } } });
-            // Hard navigate so tenancy redux re-bootstraps without the deleted org.
+
             window.location.assign('/dashboard');
         }catch(err){
             setDeleteError(errText(err, 'Failed to delete organization.'));
@@ -114,7 +97,6 @@ const OrganizationSettings = () => {
                 actions={createButton}
             />
 
-            {/* Create-organization modal (always available). */}
             <Dialog open={createOpen} onOpenChange={(o) => { if(!o && !creating) setCreateOpen(false); }}>
                 <DialogContent>
                     <DialogHeader>
@@ -170,13 +152,6 @@ const OrganizationSettings = () => {
                                             onChange={(e) => { setName(e.target.value); setSaved(false); }}
                                         />
                                     </div>
-                                    <div className='space-y-1.5'>
-                                        <label className='text-sm font-medium'>Slug</label>
-                                        <Input value={organization?.slug || ''} readOnly />
-                                        <p className='text-xs text-muted-foreground'>
-                                            Auto-generated identifier. Read-only.
-                                        </p>
-                                    </div>
                                     {saveError && <p className='text-sm text-destructive'>{saveError}</p>}
                                     <div>
                                         <Button type='submit' disabled={saving || !name.trim()}>
@@ -188,7 +163,6 @@ const OrganizationSettings = () => {
                         </CardContent>
                     </Card>
 
-                    {/* Danger zone. */}
                     <Card className='border-destructive/40'>
                         <CardHeader>
                             <CardTitle className='text-destructive'>Danger zone</CardTitle>
@@ -207,7 +181,6 @@ const OrganizationSettings = () => {
                         </CardContent>
                     </Card>
 
-                    {/* Delete-confirm modal. */}
                     <Dialog open={deleteOpen} onOpenChange={(o) => { if(!o && !deleting) setDeleteOpen(false); }}>
                         <DialogContent>
                             <DialogHeader>

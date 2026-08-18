@@ -1,33 +1,20 @@
-/***
- * Copyright (C) Rodolfo Herrera Hernandez. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root
- * for full license information.
- *
- * =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
- *
- * For related information - https://github.com/rodyherrera/Quantum/
- *
- * All your applications, just in one place. 
- *
- * =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-****/
-
 import Deployment from '@models/deployment';
 import Repository from '@models/repository';
 import HandlerFactory from '@controllers/common/handlerFactory';
 import RuntimeError from '@utilities/runtimeError';
 import Github from '@services/github';
-import DockerContainerService from '@services/docker/container';
-import DockerContainer from '@models/docker/container';
 import { catchAsync } from '@utilities/helpers';
+import { enqueueLifecycle } from '@services/orchestrator';
+import { resolveRepositoryOr403 } from '@middlewares/tenancy';
+import { IRequest } from '@typings/controllers/common';
 import { Request, Response } from 'express';
-import { ActiveDeploymentEnvironment, ActiveDeploymentRepositoryDocument } from '@typings/controllers/deployment';
-import sendEmail from '@services/sendEmail';
 
 const DeploymentFactory = new HandlerFactory({
     model: Deployment,
+    scope: { field: 'organization' },
     fields: [
         'user',
+        'organization',
         'repository',
         'environment',
         'commit',
@@ -38,189 +25,98 @@ const DeploymentFactory = new HandlerFactory({
 
 export const getDeployments = DeploymentFactory.getAll();
 export const getDeployment = DeploymentFactory.getOne();
-export const createDeployment = DeploymentFactory.createOne();
 export const updateDeployment = DeploymentFactory.updateOne();
 export const deleteDeployment = DeploymentFactory.deleteOne();
 
-/** 
- * Handles repository-related actions (restart, stop, start). Interacts with the GitHub API for deployment status updates.
- *
- * @param {Object} req - The Express request object.
- * @param {Object} res - The Express response object.
- * @returns {Promise<void>}
- */
-const repositoryOperationHandler = async (repository: any, action: string) => {
-    await repository.populate({
-        path: 'user',
-        select: 'username container email',
-        populate: { path: 'github', select: 'accessToken username' }
-    });
+const resolveRepositoryByAliasOr403 = async (req: IRequest, alias: string, prefix: string) => {
+    const tenant = (req as any).tenant;
 
-    const container = await DockerContainer.findOne({ repository });
-    if(!container){
-        throw new RuntimeError('Deployment::Container::NotFound', 404);
-    }
-    const containerService = new DockerContainerService(container);
-    const githubService = new Github(repository.user, repository);
-
-    const currentDeploymentId = repository.deployments?.[0];
-    if(!currentDeploymentId){
-        throw new RuntimeError('Deployment::CurrentDeployment::NotFound', 404);
-    }
-
-    const currentDeployment = await Deployment.findById(currentDeploymentId);
-    if(!currentDeployment){
-        throw new RuntimeError('Deployment::InvalidReference', 404);
-    }
-
-    const { githubDeploymentId } = currentDeployment;
-    currentDeployment.status = 'queued';
-    await currentDeployment.save();
-    githubService.updateDeploymentStatus(githubDeploymentId, 'queued');
-
-    try{
-        switch(action){
-            case 'restart':
-                await containerService.restart();
-                await githubService.updateDeploymentStatus(githubDeploymentId, 'success');
-                currentDeployment.status = 'success';
-                sendEmail({
-                    to: repository.user.email,
-                    subject: `You have successfully restarted "${repository.alias}"`,
-                    html: `Hello @${repository.user.username}, the container is currently restarting, the services will be redeployed and the installation, construction and execution commands will be executed.`
-                });
-                break;
-            case 'stop':
-                await containerService.stop();
-                await githubService.updateDeploymentStatus(githubDeploymentId, 'inactive');
-                currentDeployment.status = 'stopped';
-                sendEmail({
-                    to: repository.user.email,
-                    subject: `Container "${repository.alias}" shut down successfully.`,
-                    html: `Hi @${repository.user.username}, the container has been shut down successfully.`
-                });
-                break;
-            case 'start':
-                await containerService.start();
-                await githubService.updateDeploymentStatus(githubDeploymentId, 'success');
-                currentDeployment.status = 'success';
-                sendEmail({
-                    to: repository.user.email,
-                    subject: `Starting and deploying "${repository.alias}"`,
-                    html: `Hi @${repository.user.username}, the construction commands will be executed to proceed with the deployment.`
-                });
-                break;
-            default:
-                throw new RuntimeError('Deployment::Invalid::Action', 400);
-        }
-    }catch(error){
-        currentDeployment.status = 'failure';
-        githubService.updateDeploymentStatus(githubDeploymentId, 'failure');
-    }finally{
-        await currentDeployment.save();
-        return currentDeployment;
-    }
+    const orgIds = (tenant?.orgIds || []).map(String);
+    const filter: any = tenant?.isPlatformAdmin
+        ? { alias }
+        : (orgIds.length > 0
+            ? { alias, organization: { $in: orgIds } }
+            : { alias, user: (req.user as any)?._id });
+    const repository = await Repository.findOne(filter).select('_id user organization project');
+    if(!repository) throw new RuntimeError(`${prefix}::Repository::NotFound`, 404);
+    return resolveRepositoryOr403(req, repository._id.toString(), prefix);
 };
 
-/**
- * Handles repository operation requests, such as starting, stopping, and restarting deployments.
- *
- * @returns {Promise<void>}
- */
-export const repositoryOperations = catchAsync(async (req: Request, res: Response) => {
+export const repositoryOperations = catchAsync(async (req: IRequest, res: Response) => {
     const { user } = req as any;
     const { repositoryAlias } = req.params;
-    const repository = await Repository
-        .findOne({ user: user._id, alias: repositoryAlias });
-    if(!repository)
-        throw new RuntimeError('Repository::Not::Found', 404);
+    const repository = await resolveRepositoryByAliasOr403(req, repositoryAlias, 'Lifecycle');
     const { action } = req.body;
-    if(!action)
-        throw new RuntimeError('Repository::Action::Required', 400);
-    const currentDeployment = await repositoryOperationHandler(repository, action);
-    if(currentDeployment && currentDeployment.status === 'failure'){
-        res.status(400).json(currentDeployment);
-    }else{
-        res.status(200).json({
-            status: 'success',
-            data: { 
-                status: currentDeployment.status, 
-                repository 
-            } 
-        });
-    }
+
+    const job = await enqueueLifecycle(repository._id.toString(), action, user._id.toString());
+    res.status(202).json({
+        status: 'success',
+        data: { jobId: job._id.toString(), status: job.status, action }
+    });
 });
 
-/**
- * Retrieves the deployments of a GitHub repository.
- * 
- * @param {Object} req - Express request object.
- * @param {Object} res - Express response object.
- * @throws {RuntimeError} If the deployments are not found. 
- */
+const toDeploymentRow = (deployment: any) => ({
+    id: deployment._id,
+    _id: deployment._id,
+    commit: deployment.commit || undefined,
+    status: deployment.status,
+    environment: 'Production',
+    url: deployment.url || '',
+    created_at: deployment.createdAt,
+    artifact: deployment.artifact
+});
+
+const listLocalDeployments = async (repositoryId: any) => {
+    const deployments = await Deployment
+        .find({ repository: repositoryId })
+        .sort({ createdAt: -1 })
+        .select('commit status url artifact createdAt');
+    return deployments.map(toDeploymentRow);
+};
+
 export const getRepositoryDeployments = catchAsync(async (req: Request, res: Response) => {
     const { user } = req as any;
     const { repositoryName } = req.params;
-    const repository = await Repository.findOne({ name: repositoryName, user: user._id });
+    const repository = await Repository.findOne({ name: repositoryName, user: user._id }).select('_id');
     if(!repository)
         throw new RuntimeError('Repository::Not::Found', 404);
-    const github = new Github(user, repository);
-    const deployments = await github.getRepositoryDeployments();
-    if(!deployments)
-        throw new RuntimeError('Deployment::Not::Found', 404);
-    res.status(200).json({ status: 'success', data: deployments });
+    res.status(200).json({ status: 'success', data: await listLocalDeployments(repository._id) });
 });
 
-/**
- * Deletes a GitHub deployment and retrieves the updated deployments of a repository.  
- *
- * @param {Object} req - Express request object.
- * @param {Object} res - Express response object.
- * @throws {RuntimeError} If the deployments are not found. 
- */
 export const deleteGithubDeployment = catchAsync(async (req: Request, res: Response) => {
     const { user } = req as any;
     const { repositoryName, deploymentId } = req.params;
-    const repository = await Repository.findOne({ name: repositoryName, user: user._id });
+    const repository = await Repository.findOne({ name: repositoryName, user: user._id }).select('_id');
     if(!repository)
         throw new RuntimeError('Repository::Not::Found', 404);
     const github = new Github(user, repository);
-    await github.deleteRepositoryDeployment(deploymentId);
-    const deployments = await github.getRepositoryDeployments();
-    if(!deployments)
-        throw new RuntimeError('Deployment::Not::Found', 404);
-    res.status(200).json({ status: 'success', data: deployments });
+
+    await github.deleteRepositoryDeployment(deploymentId).catch(() => undefined);
+    await Deployment.deleteOne({ _id: deploymentId, repository: repository._id });
+    res.status(200).json({ status: 'success', data: await listLocalDeployments(repository._id) });
 });
 
-/**
- * Retrieves the active deployment environment for a given repository.
- *s
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @throws {RuntimeError} If the repository is not found.
- * @returns {Object} An object containing the environment details and deployment ID
- */
 export const getActiveDeploymentEnvironment = catchAsync(async (req: Request, res: Response) => {
     const { user } = req as any;
     const { repositoryAlias } = req.params;
     const repository = await Repository
         .findOne({ alias: repositoryAlias, user: user._id })
-        .select('deployments')
-        .populate<ActiveDeploymentRepositoryDocument>({
-            path: 'deployments',
-            select: '_id environment'
-        });
+        .select('_id');
     if(!repository)
         throw new RuntimeError('Repository::Not::Found', 404);
-    const activeDeployment = repository.deployments.pop() as ActiveDeploymentEnvironment;
-    const { environment, _id } = activeDeployment;
+    const activeDeployment = await Deployment
+        .findOne({ repository: repository._id })
+        .sort({ createdAt: -1 })
+        .select('_id environment');
+    if(!activeDeployment)
+        throw new RuntimeError('Deployment::Not::Found', 404);
+    const { environment, _id } = activeDeployment as any;
     res.status(200).json({ status: 'success', data: { ...environment, _id } });
 });
 
 export default {
     getDeployments,
     getDeployment,
-    createDeployment,
     updateDeployment,
     deleteDeployment,
     repositoryOperations,

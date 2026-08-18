@@ -13,6 +13,7 @@ export interface IUser extends Document{
     images: mongoose.Types.ObjectId[];
     networks: mongoose.Types.ObjectId[];
     github: mongoose.Types.ObjectId | IGithub;
+    defaultOrganization?: mongoose.Types.ObjectId;
     fullname: string;
     email: string;
     password: string;

@@ -3,11 +3,6 @@ import { filterObject } from '@utilities/helpers';
 import { RequestQueryString, Buffer, Options } from '@typings/utilities/apiFeatures';
 import RuntimeError from '@utilities/runtimeError';
 
-/**
- * Class for handling API features such as search, filter, sort, pagination, 
- * and field selection.
- * @class APIFeatures
-*/
 class APIFeatures{
     private model: Model<Document>;
     private requestQueryString: RequestQueryString;
@@ -15,15 +10,6 @@ class APIFeatures{
     private fields: string[];
     private buffer: Buffer;
 
-    /**
-     * Creates an instance of APIFeatures.
-     * @constructor
-     * @param {Options} options - Options object.
-     * @param {RequestQueryString} options.requestQueryString - Request query string object.
-     * @param {Model<Document>} options.model - Mongoose model.
-     * @param {string[]} [options.fields] - Array of fields to include in the query.
-     * @param {string|PopulateOptions|(string|PopulateOptions)[]} [options.populate] - Populate options for related documents.
-    */
     constructor({ requestQueryString, model, fields = [], populate = null }: Options) {
         this.model = model;
         this.requestQueryString = requestQueryString;
@@ -42,11 +28,6 @@ class APIFeatures{
         };
     }
 
-    /**
-     * Performs the query and returns the results.
-     * @async
-     * @returns {Promise<{records: Document[], totalResults: number, skippedResults: number, page: number, limit: number, totalPages: number}>} Query results and pagination data.
-    */
     async perform(): Promise<{
         records: Document[];
         totalResults: number;
@@ -77,10 +58,6 @@ class APIFeatures{
         };
     }
 
-    /**
-     * Applies a text search query based on the 'q' parameter in the request query string.
-     * @returns {APIFeatures} The current instance of APIFeatures.
-    */
     search(): APIFeatures{
         const { q } = this.requestQueryString;
         if(q){
@@ -92,10 +69,6 @@ class APIFeatures{
         return this;
     }
 
-     /**
-     * Applies a filter based on the request query string parameters, excluding specific fields.
-     * @returns {APIFeatures} The current instance of APIFeatures.
-    */
      filter(auxFilter: any = {}): APIFeatures{
         const excludedFields = ['page', 'sort', 'limit', 'fields', 'populate'];
         const query = Object.keys(this.requestQueryString)
@@ -104,16 +77,12 @@ class APIFeatures{
                 obj[key] = this.requestQueryString[key];
                 return obj;
             }, {} as Record<string, any>);
-        
+
         const filter = filterObject(query, ...this.fields);
         Object.assign(this.buffer.find, { ...filter, ...auxFilter });
         return this;
     }
 
-    /**
-     * Applies a sort order based on the 'sort' parameter in the request query string.
-     * @returns {APIFeatures} The current instance of APIFeatures.
-    */
     sort(): APIFeatures{
         const { sort: sortQuery } = this.requestQueryString;
         if(sortQuery){
@@ -134,10 +103,6 @@ class APIFeatures{
         return this;
     }
 
-    /**
-     * Applies a field selection based on the 'fields' parameter in the request query string.
-     * @returns {APIFeatures} The current instance of APIFeatures.
-    */
     limitFields(): APIFeatures{
         const { fields } = this.requestQueryString;
         if(fields){
@@ -146,12 +111,6 @@ class APIFeatures{
         return this;
     }
 
-    /**
-     * Applies pagination based on the 'page' and 'limit' parameters in the request query string.
-     * @async
-     * @returns {Promise<APIFeatures>} The current instance of APIFeatures.
-     * @throws {RuntimeError} If the requested page is out of range.
-    */
     async paginate(): Promise<APIFeatures>{
         const limit = this.requestQueryString.limit ? parseInt(this.requestQueryString.limit, 10) : this.buffer.limit;
         if(limit !== -1){

@@ -1,61 +1,57 @@
-/***
- * Copyright (C) Rodolfo Herrera Hernandez. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root
- * for full license information.
- *
- * =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
- *
- * For related information - https://github.com/rodyherrera/Quantum/
- *
- * All your applications, just in one place. 
- *
- * =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-****/
-
-import React, { useEffect } from 'react';
-import { BsArrowRight } from 'react-icons/bs';
+import { useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { Github } from 'lucide-react';
 import { authenticate } from '@services/github/operations';
 import { useDocumentTitle } from '@hooks/common';
-import Loader from '@components/atoms/Loader';
-import Button from '@components/atoms/Button';
-import AnimatedMain from '@components/atoms/AnimatedMain';
-import './NeedAuthenticate.css';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 const NeedAuthenticate = () => {
-    const { isLoading } = useSelector(state => state.github);
-    const { user } = useSelector(state => state.auth);
+    const { isLoading } = useSelector((state) => state.github);
+    const { user } = useSelector((state) => state.auth);
     const navigate = useNavigate();
     useDocumentTitle('Github Authentication');
 
     useEffect(() => {
-        if(user?.github?._id)
-            navigate('/');
-    }, [user]);
+        if(user?.github?._id) navigate('/dashboard');
+    }, [user?.github?._id, navigate]);
 
-    return (isLoading) ? (
-        <AnimatedMain id='Github-Need-Authenticate-Loading-Main'>
-            <Loader scale='0.7' />
-            <p>Connecting to your Github account...</p>
-        </AnimatedMain>
-    ) : (
-        <AnimatedMain id='Github-Need-Authenticate-Main'>
-            <section id='Github-Need-Authenticate-Body'>
-                <article id='Github-Need-Authenticate-Title-Container'>
-                    <h1 id='Github-Need-Authenticate-Title'>We are almost ready...</h1>
-                    <p id='Github-Need-Authenticate-Subtitle'>You must link your Github account to be able to, among other things, deploy your repositories.</p>
-                </article>
-        
-                <article id='Github-Need-Authenticate-Body'>
-                    <Button 
-                        onClick={() => authenticate(user._id)}
-                        title='Proceed to Github' 
-                        variant='Contained Big-Border-Radius' 
-                        icon={<BsArrowRight />} />
-                </article>
-            </section>
-        </AnimatedMain>
+    return (
+        <div className='max-w-xl'>
+            <Card>
+                <CardContent className='p-8'>
+                    <div className='mb-6'>
+                        <div className='mb-4 grid place-items-center h-12 w-12 rounded-xl bg-primary/10 text-primary'>
+                            <Github className='h-6 w-6' />
+                        </div>
+                        <h1 className='text-xl font-semibold text-foreground'>
+                            Connect your GitHub account
+                        </h1>
+                        <p className='mt-2 text-sm text-muted-foreground'>
+                            Link your GitHub account to deploy your repositories and unlock the
+                            full Quantum experience. This step is optional, you can connect later.
+                        </p>
+                    </div>
+
+                    {isLoading ? (
+                        <div className='flex items-center gap-3 text-muted-foreground'>
+                            <span className='h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent' />
+                            <span className='text-sm'>Connecting to your GitHub account…</span>
+                        </div>
+                    ) : (
+                        <div className='flex flex-col gap-4 items-start'>
+                            <Button onClick={() => authenticate(user._id)}>
+                                <Github className='h-4 w-4' /> Connect GitHub
+                            </Button>
+                            <Link to='/dashboard' className='font-medium text-primary hover:underline'>
+                                Skip for now
+                            </Link>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        </div>
     );
 };
 

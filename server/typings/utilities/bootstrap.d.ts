@@ -5,5 +5,4 @@ export interface ConfigureAppParams{
     routes: string[];
     suffix: string;
     middlewares: RequestHandler[];
-    settings: {};
 };

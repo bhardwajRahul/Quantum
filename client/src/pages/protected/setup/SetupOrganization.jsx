@@ -1,20 +1,3 @@
-/***
- * Copyright (C) Rodolfo Herrera Hernandez. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root
- * for full license information.
- *
- * SetupOrganization — the mandatory first-run gate. Under the explicit-org-setup
- * model the backend no longer auto-creates a "personal organization" at signup,
- * so a freshly registered user (or anyone who deleted their last org) has zero
- * organizations. The OrgGate renders this fullscreen screen (no AppShell chrome)
- * until they create their first org. Creating it provisions, on the server side,
- * the org's default project/environment AND the personal web-shell container, so
- * once it exists the whole app becomes usable.
- *
- * Reuses the org-creation flow from OrganizationSettings (organizations.create);
- * on success it re-bootstraps tenancy so the gate re-renders with the new org.
-****/
-
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { Building2, ArrowRight, Loader2 } from 'lucide-react';
@@ -40,8 +23,7 @@ const SetupOrganization = () => {
         setError(null);
         try{
             await organizations.create({ body: { name: name.trim() } });
-            // Re-bootstrap tenancy: loads the new org (the only one), selects it,
-            // persists qt-org, and flips organizations.length to 1 so OrgGate opens.
+
             await dispatch(bootstrapTenancy({}));
         }catch(err){
             setError(errText(err, 'Failed to create organization.'));

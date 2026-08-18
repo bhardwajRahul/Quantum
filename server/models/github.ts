@@ -1,17 +1,3 @@
-/***
- * Copyright (C) Rodolfo Herrera Hernandez. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root
- * for full license information.
- *
- * =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
- *
- * For related information - https://github.com/rodyherrera/Quantum/
- *
- * All your applications, just in one place. 
- *
- * =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-****/
-
 import mongoose from 'mongoose';
 import { IGithub } from '@typings/models/github';
 import { encrypt, decrypt } from '@utilities/encryption';
@@ -54,7 +40,7 @@ GithubSchema.pre('save', async function(next){
         try{
             this.accessToken = encrypt(this.accessToken) as string;
         }catch(e){
-            console.log(e);
+            return next(e as Error);
         }
     }
     next();
@@ -63,7 +49,7 @@ GithubSchema.pre('save', async function(next){
 GithubSchema.post('save', async function(this: IGithub){
     const { user, _id } = this;
     await mongoose.model('User').findByIdAndUpdate(user, { github: _id });
-}); 
+});
 
 GithubSchema.post('findOneAndDelete', async function (this: IGithub){
     await cascadeDeleteHandler(this);

@@ -1,26 +1,20 @@
-/***
- * Copyright (C) Rodolfo Herrera Hernandez. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root
- * for full license information.
-****/
-
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { templates } from '@services/platform/service';
 import { Button } from '@components/atoms/kit';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { useAsyncAction } from '@hooks/common';
 import { truncate } from '@utilities/common/truncate';
 
 const InstallModal = ({ template, projectId, onClose, onInstalled }) => {
-    const schema = useMemo(() => (Array.isArray(template?.inputsSchema) ? template.inputsSchema : []), [template]);
+    const schema = Array.isArray(template?.inputsSchema) ? template.inputsSchema : [];
 
     const [name, setName] = useState('');
     const [inputs, setInputs] = useState({});
-    const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
 
-    // Seed inputs with schema defaults whenever a template is opened.
+    const submit = useAsyncAction({ fallback: 'Failed to queue the install. Please try again.' });
+
     useEffect(() => {
         const seeded = {};
         schema.forEach((field) => {
@@ -28,35 +22,22 @@ const InstallModal = ({ template, projectId, onClose, onInstalled }) => {
         });
         setInputs(seeded);
         setName('');
-        setError('');
         setSuccess(false);
-    }, [template, schema]);
+        submit.clearError();
+    }, [template]);
 
     const setField = (key, value) => setInputs((prev) => ({ ...prev, [key]: value }));
 
     const handleSubmit = async () => {
-        setError('');
-        if(!projectId){
-            setError('Select a project to install.');
-            return;
-        }
-        if(!name.trim()){
-            setError('A name for this install is required.');
-            return;
-        }
+        if(!projectId || !name.trim()) return;
         const id = template?._id || template?.id;
-        try{
-            setSubmitting(true);
-            await templates.installInProject({
-                query: { params: { projectId } },
-                body: { templateId: id, name: name.trim(), inputs }
-            });
+        const ok = await submit.run(() => templates.installInProject({
+            query: { params: { projectId } },
+            body: { template: id, name: name.trim(), inputs }
+        }));
+        if(ok){
             setSuccess(true);
             onInstalled?.();
-        }catch(err){
-            setError(typeof err === 'string' ? err : 'Failed to queue the install. Please try again.');
-        }finally{
-            setSubmitting(false);
         }
     };
 
@@ -76,24 +57,12 @@ const InstallModal = ({ template, projectId, onClose, onInstalled }) => {
                 </label>
             );
         }
-        if(field.type === 'secret'){
-            return (
-                <div key={field.key} className='space-y-1.5'>
-                    <label className='text-sm font-medium'>{label}</label>
-                    <Input
-                        type='password'
-                        value={value ?? ''}
-                        placeholder={field.default != null ? String(field.default) : ''}
-                        onChange={(e) => setField(field.key, e.target.value)}
-                    />
-                </div>
-            );
-        }
+        const inputType = field.type === 'secret' ? 'password' : field.type === 'number' ? 'number' : 'text';
         return (
             <div key={field.key} className='space-y-1.5'>
                 <label className='text-sm font-medium'>{label}</label>
                 <Input
-                    type={field.type === 'number' ? 'number' : 'text'}
+                    type={inputType}
                     value={value ?? ''}
                     placeholder={field.default != null ? String(field.default) : ''}
                     onChange={(e) => setField(field.key, e.target.value)}
@@ -132,8 +101,8 @@ const InstallModal = ({ template, projectId, onClose, onInstalled }) => {
                                 />
                             </div>
                             {schema.map(renderField)}
-                            {error && (
-                                <p className='text-sm text-destructive'>{error}</p>
+                            {submit.error && (
+                                <p className='text-sm text-destructive'>{submit.error}</p>
                             )}
                         </>
                     )}
@@ -144,9 +113,9 @@ const InstallModal = ({ template, projectId, onClose, onInstalled }) => {
                     )}
                     <Button
                         onClick={success ? onClose : handleSubmit}
-                        disabled={submitting || (!success && !projectId)}
+                        disabled={submit.pending || (!success && (!projectId || !name.trim()))}
                     >
-                        {success ? 'Done' : (submitting ? 'Deploying…' : 'Deploy')}
+                        {success ? 'Done' : (submit.pending ? 'Deploying…' : 'Deploy')}
                     </Button>
                 </DialogFooter>
             </DialogContent>

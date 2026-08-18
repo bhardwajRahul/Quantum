@@ -3,9 +3,10 @@ import { IDockerContainer } from './docker/container';
 
 export interface IPortBinding{
     internalPort: number,
-    protocol: string;
+    protocol: 'tcp' | 'udp';
     _id: mongoose.Schema.Types.ObjectId,
     externalPort?: number;
     user: mongoose.Schema.Types.ObjectId,
+    organization: mongoose.Types.ObjectId,
     container: mongoose.Schema.Types.ObjectId | IDockerContainer
 }

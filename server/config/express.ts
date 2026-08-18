@@ -1,20 +1,7 @@
-/***
- * Copyright (C) Rodolfo Herrera Hernandez. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root
- * for full license information.
- *
- * =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
- *
- * For related information - https://github.com/rodyherrera/Quantum/
- *
- * All your applications, just in one place. 
- *
- * =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-****/
-
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import http from 'http';
+import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import bodyParser from 'body-parser';
 import session from 'express-session';
@@ -22,6 +9,7 @@ import { Server } from 'socket.io';
 
 import passport from '@config/passport';
 import * as bootstrap from '@utilities/bootstrap';
+import { httpActivity } from '@middlewares/activity';
 import globalErrorHandler from '@controllers/common/globalErrorHandler';
 
 const app = express();
@@ -39,35 +27,58 @@ bootstrap.configureApp({
         'docker/container',
         'github',
         'auth',
+        'organization',
+        'project',
+        'environment',
+        'membership',
         'repository',
+        'domain',
+        'database',
+        'metric',
+        'healthCheck',
+        'template',
+        'templateInstall',
         'webhook',
         'portBinding',
         'deployment',
-        'server'
+        'server',
+        'analytics',
+        'usage',
+        'codespace',
+        'activity'
     ],
     middlewares: [
+        helmet({
+
+            crossOriginResourcePolicy: { policy: 'cross-origin' },
+            crossOriginEmbedderPolicy: false,
+            contentSecurityPolicy: false
+        }),
         cookieParser(),
         session({
             secret: process.env.SESSION_SECRET!,
             resave: false,
-            saveUninitialized: true
+            saveUninitialized: false,
+            cookie: {
+                httpOnly: true,
+                sameSite: 'lax',
+
+                secure: (process.env.DOMAIN || '').startsWith('https://')
+            }
         }),
         cors({
-            origin: process.env.NODE_ENV === 'production' ? 
+            origin: process.env.NODE_ENV === 'production' ?
                     [process.env.CLIENT_HOST as string] : [process.env.CLIENT_DEV_HOST as string],
             credentials: true
         }),
-        bodyParser.json(),
+        bodyParser.json({ verify: (req, _res, buf) => { (req as any).rawBody = buf; } }),
         bodyParser.urlencoded({ extended: true }),
         passport.initialize(),
         passport.session(),
+
+        httpActivity,
         express.static('public')
-    ],
-    settings: {
-        deactivated: [
-            'x-powered-by'
-        ]
-    }
+    ]
 });
 
 app.all('*', (req: Request, res: Response) => {

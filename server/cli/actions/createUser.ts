@@ -4,32 +4,32 @@ import validator from 'validator';
 
 const createUser = async (): Promise<any> => {
     const data = await prompts([
-        { 
-            type: 'text', 
-            name: 'username', 
-            message: 'Username (8-16 characters)', 
+        {
+            type: 'text',
+            name: 'username',
+            message: 'Username (8-16 characters)',
             validate: value => value.length >= 8 && value.length <= 16 ? true : 'Username must be between 8 and 16 characters'
         },
-        { 
-            type: 'text', 
-            name: 'fullname', 
-            message: 'Your fullname (8-32 characters)', 
+        {
+            type: 'text',
+            name: 'fullname',
+            message: 'Your fullname (8-32 characters)',
             validate: value => value.length >= 8 && value.length <= 32 ? true : 'Fullname must be between 8 and 32 characters'
         },
-        { 
-            type: 'text', 
-            name: 'email', 
-            message: 'Email address', 
+        {
+            type: 'text',
+            name: 'email',
+            message: 'Email address',
             validate: value => validator.isEmail(value) ? true : 'Invalid email address'
         },
-        { 
-            type: 'password', 
-            name: 'password', 
+        {
+            type: 'password',
+            name: 'password',
             message: 'Password (8-16 characters)'
         },
-        { 
-            type: 'password', 
-            name: 'passwordConfirm', 
+        {
+            type: 'password',
+            name: 'passwordConfirm',
             message: 'Confirm password (must match password)'
         },
         {

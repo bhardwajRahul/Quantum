@@ -55,16 +55,11 @@ export const removeNetworks = async (networks: any[]): Promise<void> => {
     }
 };
 
-/**
- * Shared "list → confirm → bulk-remove" CLI flow used by removeContainers and
- * removeCreatedNetworks. Caller supplies how to fetch, how to label each item, the
- * `quantum-*-${environment}` prefix, and the actual removal call.
- */
 export const promptAndRemoveByEnvironment = async (config: {
     fetch: () => Promise<any[]>;
     nameOf: (item: any) => string;
-    prefix: string;            // e.g. '/quantum-container-' or 'quantum-network-'
-    label: string;             // 'containers' | 'networks'
+    prefix: string;
+    label: string;
     remove: (items: any[]) => Promise<void>;
 }): Promise<void> => {
     const items = await config.fetch();

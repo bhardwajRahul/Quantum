@@ -1,5 +1,7 @@
 import mongoose, { Document } from 'mongoose';
 
+export type ContainerStatus = 'created' | 'running' | 'stopped' | 'reloading' | 'restarting' | 'building' | 'error';
+
 export interface IDockerContainerEnvironment{
     isEncrypted: boolean;
     variables: Map<string, string>;
@@ -8,12 +10,12 @@ export interface IDockerContainerEnvironment{
 export interface IDockerContainerPortBindings{
     internalPort: number;
     externalPort: number;
-    protocol: string;
+    protocol: 'tcp' | 'udp';
 }
 
 export interface IDockerContainerVolume{
     containerPath: string;
-    mode: string;
+    mode: 'rw' | 'ro';
 }
 
 export interface FileInfo{
@@ -30,6 +32,7 @@ export interface ExecResult{
 export interface IDockerContainer extends Document{
     _id: mongoose.Schema.Types.ObjectId,
     user: mongoose.Schema.Types.ObjectId,
+    organization: mongoose.Types.ObjectId,
     repository: mongoose.Schema.Types.ObjectId,
     isRepositoryContainer: boolean;
     portBindings: IDockerContainerPortBindings[];
@@ -42,7 +45,8 @@ export interface IDockerContainer extends Document{
     storagePath: string,
     isUserContainer: boolean;
     environment: IDockerContainerEnvironment;
-    status: string,
+    status: ContainerStatus,
+    desiredState: 'running' | 'stopped',
     startedAt?: Date,
     stoppedAt?: Date,
     name: string,

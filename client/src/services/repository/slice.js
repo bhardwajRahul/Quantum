@@ -1,17 +1,3 @@
-/***
- * Copyright (C) Rodolfo Herrera Hernandez. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root
- * for full license information.
- *
- * =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
- *
- * For related information - https://github.com/rodyherrera/Quantum/
- *
- * All your applications, just in one place. 
- *
- * =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-****/
-
 import { createSlice } from '@reduxjs/toolkit';
 import * as reduxUtils from '@utilities/common/reduxUtils';
 
@@ -21,10 +7,8 @@ const state = {
     isOperationLoading: false,
     stats: {},
     repositories: [],
-    repositoryFiles: [],
     githubRepositories: [],
     selectedRepository: null,
-    selectedRepositoryFile: null,
     detectedPreset: null
 };
 
@@ -36,6 +20,8 @@ const repositorySlice = createSlice({
             const { repository, status } = action.payload;
             const repositories = state.repositories.map((stateRepo) => {
                 if(stateRepo._id === repository._id){
+
+                    if(!stateRepo.activeDeployment) stateRepo.activeDeployment = {};
                     stateRepo.activeDeployment.status = status;
                 }
                 return stateRepo;

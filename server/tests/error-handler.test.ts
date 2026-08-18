@@ -2,10 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import errorHandler from '@controllers/common/globalErrorHandler';
 import RuntimeError from '@utilities/runtimeError';
 
-// Regression net: a Mongoose ValidationError (missing/invalid field) used to map to
-// HTTP 401, which the frontend treats as an auth failure (logout / redirect to login)
-// — so a routine "field required" error logged the user out. It must be 400.
-
 const mockRes = () => {
     const res: any = {};
     res.status = vi.fn().mockReturnValue(res);

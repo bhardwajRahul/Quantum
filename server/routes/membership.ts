@@ -1,17 +1,3 @@
-/***
- * Copyright (C) Rodolfo Herrera Hernandez. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root
- * for full license information.
- *
- * =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
- *
- * For related information - https://github.com/rodyherrera/Quantum/
- *
- * All your applications, just in one place.
- *
- * =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-****/
-
 import express from 'express';
 import * as membershipController from '@controllers/membership';
 import * as authMiddleware from '@middlewares/authentication';
@@ -23,7 +9,6 @@ const router = express.Router();
 
 router.use(authMiddleware.protect);
 
-// Org-scoped roster: /api/v1/membership/organization/:orgId/members
 router.get('/organization/:orgId/members', validate(OrgIdParamsSchema, 'params'), resolveTenant, membershipController.getMembers);
 router.post('/organization/:orgId/members', validate(OrgIdParamsSchema, 'params'), resolveTenant, requirePermission('member:manage'), membershipController.inviteMember);
 router.patch('/organization/:orgId/members/:id', validate(OrgMemberParamsSchema, 'params'), resolveTenant, requirePermission('member:manage'), membershipController.updateMember);

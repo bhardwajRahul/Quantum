@@ -1,25 +1,15 @@
-/***
- * Copyright (C) Rodolfo Herrera Hernandez. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root
- * for full license information.
- *
- * Shared UI kit — reuse-first building blocks composed on the shadcn/ui
- * primitives (Creative Tim UI). Centralizes page headers, KPI/stat cards,
- * status badges, the data table, empty states and copy-to-clipboard so every
- * page is consistent and the status→tone mapping lives in ONE place.
- ****/
-
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Check, Copy, Loader2 } from 'lucide-react';
+import {
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
+} from '@/components/ui/dialog';
+import {
+    DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator
+} from '@/components/ui/dropdown-menu';
+import { Check, Copy, Loader2, MoreVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-/* ------------------------------------------------------------------ */
-/* PageHeader — title + subtitle + optional actions                    */
-/* ------------------------------------------------------------------ */
 export const PageHeader = ({ title, subtitle, actions }) => (
     <div className='flex flex-wrap items-start justify-between gap-4 mb-8'>
         <div className='space-y-1'>
@@ -30,69 +20,53 @@ export const PageHeader = ({ title, subtitle, actions }) => (
     </div>
 );
 
-/* ------------------------------------------------------------------ */
-/* Status → tone. Single source of truth for the whole platform.       */
-/* Vercel-style: a small colored dot + colored text. No pill, no       */
-/* background, no border — one coherent cue, not four.                 */
-/* ------------------------------------------------------------------ */
-const TONES = {
-    green: 'text-success',
-    amber: 'text-warning',
-    red: 'text-destructive',
-    violet: 'text-primary',
-    gray: 'text-muted-foreground'
+const TONE = {
+    green:  { text: 'text-success',          dot: 'bg-success' },
+    amber:  { text: 'text-warning',          dot: 'bg-warning' },
+    red:    { text: 'text-destructive',      dot: 'bg-destructive' },
+    violet: { text: 'text-primary',          dot: 'bg-primary' },
+    gray:   { text: 'text-muted-foreground', dot: 'bg-muted-foreground' }
 };
-const DOTS = {
-    green: 'bg-success', amber: 'bg-warning', red: 'bg-destructive', violet: 'bg-primary', gray: 'bg-muted-foreground'
-};
+const toneOf = (t) => TONE[t] || TONE.gray;
 
+const STATUS_GROUPS = [
+    ['green', ['running', 'success', 'active', 'healthy', 'succeeded', 'up', 'online', 'ready', 'enabled', 'completed']],
+    ['amber', ['building', 'queued', 'provisioning', 'pending', 'deploying', 'reloading', 'creating', 'installing', 'restarting', 'backing-up', 'restoring', 'issuing']],
+    ['red',   ['failure', 'error', 'failed', 'crash', 'exited', 'unhealthy']],
+    ['gray',  ['stopped', 'removed', 'rolledback', 'revoked', 'disabled', 'paused']]
+];
 const statusTone = (status) => {
     const s = String(status || '').toLowerCase();
-    if(['running', 'success', 'active', 'healthy', 'succeeded', 'up', 'online', 'ready', 'enabled', 'completed'].some((x) => s.includes(x))) return 'green';
-    if(['building', 'queued', 'provisioning', 'pending', 'deploying', 'reloading', 'creating', 'installing', 'restarting', 'backing-up', 'restoring', 'issuing'].some((x) => s.includes(x))) return 'amber';
-    if(['failure', 'error', 'failed', 'crash', 'exited', 'unhealthy'].some((x) => s.includes(x))) return 'red';
-    if(['stopped', 'removed', 'rolledback', 'revoked', 'disabled', 'paused'].some((x) => s.includes(x))) return 'gray';
-    return 'gray';
+    const match = STATUS_GROUPS.find(([, words]) => words.some((w) => s.includes(w)));
+    return match ? match[0] : 'gray';
 };
 
 export const StatusBadge = ({ status, tone }) => {
-    const t = tone || statusTone(status);
+    const t = toneOf(tone || statusTone(status));
     return (
-        <span className={cn('inline-flex items-center gap-2 text-sm', TONES[t])}>
-            <span className={cn('h-1.5 w-1.5 rounded-full', DOTS[t])} />
+        <span className={cn('inline-flex items-center gap-2 text-sm', t.text)}>
+            <span className={cn('h-1.5 w-1.5 rounded-full', t.dot)} />
             {status || 'unknown'}
         </span>
     );
 };
 
-/* A quiet text label for non-status tags (engine, type, count). */
-export const Pill = ({ children }) => (
-    <span className='inline-flex items-center text-xs text-muted-foreground'>
+export const Pill = ({ children, tone = 'gray' }) => (
+    <span className={cn('inline-flex items-center text-xs', toneOf(tone).text)}>
         {children}
     </span>
 );
 
-/* ------------------------------------------------------------------ */
-/* StatCard — flat KPI: label + big value. No box, no icon chip.       */
-/* ------------------------------------------------------------------ */
-export const StatCard = ({ label, value, hint, trend }) => (
+export const StatCard = ({ label, value, hint }) => (
     <div className='py-1'>
         <p className='text-sm text-muted-foreground'>{label}</p>
         <div className='mt-1 flex items-end gap-2'>
             <span className='text-3xl font-semibold tracking-tight text-foreground tabular-nums'>{value}</span>
-            {trend && (
-                <span className={cn('mb-1.5 text-xs font-medium', trend.startsWith('-') ? 'text-destructive' : 'text-success')}>
-                    {trend}
-                </span>
-            )}
         </div>
         {hint && <p className='mt-0.5 text-xs text-muted-foreground'>{hint}</p>}
     </div>
 );
 
-/* ------------------------------------------------------------------ */
-/* EmptyState — plain centered icon + title + body + action. No box.   */
-/* ------------------------------------------------------------------ */
 export const EmptyState = ({ icon: Icon, title, body, action }) => (
     <div className='flex flex-col items-center text-center py-20 px-6'>
         {Icon && <Icon className='mb-4 h-7 w-7 text-muted-foreground' strokeWidth={1.5} />}
@@ -102,11 +76,6 @@ export const EmptyState = ({ icon: Icon, title, body, action }) => (
     </div>
 );
 
-/* ------------------------------------------------------------------ */
-/* DataTable — flat table; hairline row dividers only, no outer box.   */
-/* columns: [{ key, header, align?, render?(row) }]                    */
-/* rows: [{ id, ... }]; actions?(row); onRowClick?(row)                */
-/* ------------------------------------------------------------------ */
 export const DataTable = ({ columns, rows, actions, onRowClick, getRowKey, emptyText = 'No records.' }) => (
     <div className='w-full overflow-x-auto'>
         <table className='w-full caption-bottom text-sm'>
@@ -159,9 +128,6 @@ export const DataTable = ({ columns, rows, actions, onRowClick, getRowKey, empty
     </div>
 );
 
-/* ------------------------------------------------------------------ */
-/* CopyInline — monospace value + copy button                          */
-/* ------------------------------------------------------------------ */
 export const CopyInline = ({ value }) => {
     const [copied, setCopied] = useState(false);
     if(!value || value === '—') return <span className='text-muted-foreground'>—</span>;
@@ -170,7 +136,7 @@ export const CopyInline = ({ value }) => {
             navigator.clipboard.writeText(String(value));
             setCopied(true);
             setTimeout(() => setCopied(false), 1200);
-        }catch{ /* clipboard unavailable */ }
+        }catch{   }
     };
     return (
         <span className='inline-flex items-center gap-1.5 max-w-full'>
@@ -182,7 +148,6 @@ export const CopyInline = ({ value }) => {
     );
 };
 
-/* Loading helpers. */
 export const LoadingBlock = ({ label = 'Loading' }) => (
     <div className='grid place-items-center py-20 text-sm text-muted-foreground'>{label}…</div>
 );
@@ -193,16 +158,74 @@ export const LoadingScreen = ({ minHeight = '100vh' }) => (
     </div>
 );
 
-export const TableSkeleton = ({ rows = 5, cols = 4 }) => (
-    <Card className='p-4 space-y-3'>
-        {Array.from({ length: rows }).map((_, r) => (
-            <div key={r} className='flex gap-4'>
-                {Array.from({ length: cols }).map((_, c) => (
-                    <Skeleton key={c} className='h-6 flex-1' />
-                ))}
+export const BusyOverlay = ({ show, message }) => {
+    if(!show) return null;
+    return (
+        <div className='fixed inset-0 z-[9999] grid place-items-center bg-background/60 backdrop-blur-sm'>
+            <div className='flex items-center gap-3 rounded-xl border border-border bg-card px-6 py-4 shadow-xl'>
+                <Loader2 className='h-5 w-5 animate-spin text-primary' />
+                <span className='text-sm text-foreground'>{message}</span>
             </div>
-        ))}
-    </Card>
+        </div>
+    );
+};
+
+export const RowActionsMenu = ({ items }) => (
+    <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+            <Button variant='ghost' size='icon' aria-label='Actions'>
+                <MoreVertical className='h-4 w-4' />
+            </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align='end'>
+            {items.map((item, i) => {
+                const Icon = item.icon;
+                return (
+                    <Fragment key={item.label || i}>
+                        {item.separatorBefore && i > 0 && <DropdownMenuSeparator />}
+                        <DropdownMenuItem
+                            className={cn(item.danger && 'text-destructive')}
+                            disabled={item.disabled}
+                            onClick={item.onClick}
+                        >
+                            {Icon && <Icon className='h-4 w-4' />} {item.label}
+                        </DropdownMenuItem>
+                    </Fragment>
+                );
+            })}
+        </DropdownMenuContent>
+    </DropdownMenu>
 );
 
-export { Button, Badge, Card, CardContent };
+export const ConfirmDialog = ({
+    open,
+    onCancel,
+    onConfirm,
+    title,
+    description,
+    confirmLabel,
+    pendingLabel,
+    pending = false,
+    destructive = false
+}) => (
+    <Dialog open={open} onOpenChange={(o) => { if(!o && !pending) onCancel(); }}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>{title}</DialogTitle>
+                {description && <DialogDescription>{description}</DialogDescription>}
+            </DialogHeader>
+            <DialogFooter>
+                <Button variant='outline' onClick={() => !pending && onCancel()}>Cancel</Button>
+                <Button
+                    variant={destructive ? 'destructive' : 'default'}
+                    onClick={onConfirm}
+                    disabled={pending}
+                >
+                    {pending ? pendingLabel : confirmLabel}
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
+);
+
+export { Button, Card, CardContent };

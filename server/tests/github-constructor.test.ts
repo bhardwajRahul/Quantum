@@ -1,18 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 
-// Regression net: GET /repository/me/ returned HTTP 500 when a repository belonged
-// to a user with NO linked GitHub account. getMyRepositories builds `new Github(user, repo)`
-// per repo, and the constructor did `user.github.getDecryptedAccessToken()` — which
-// throws on undefined `user.github`, crashing the whole dashboard list (the crash was
-// in the constructor, before getRepositoryInfo's graceful-degrade catch). The
-// constructor must tolerate a GitHub-less user.
-
 vi.mock('@octokit/rest', () => ({
     Octokit: class { constructor(public opts: any){} }
 }));
 
-// github.ts pulls in models/services at import; stub the ones the constructor path
-// doesn't need so the unit stays focused on the constructor's null-safety.
 vi.mock('@utilities/logger', () => ({ default: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
 
 import Github from '@services/github';

@@ -1,0 +1,143 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+
+        --background: 0 0% 96%;
+        --foreground: 0 0% 9%;
+
+        --card: 0 0% 100%;
+        --card-foreground: 0 0% 9%;
+
+        --popover: 0 0% 100%;
+        --popover-foreground: 0 0% 9%;
+
+        --primary: 0 0% 9%;
+        --primary-foreground: 0 0% 98%;
+
+        --secondary: 0 0% 94%;
+        --secondary-foreground: 0 0% 9%;
+
+        --muted: 0 0% 94%;
+        --muted-foreground: 0 0% 45%;
+
+        --accent: 0 0% 94%;
+        --accent-foreground: 0 0% 9%;
+
+        --destructive: 0 72% 51%;
+        --destructive-foreground: 0 0% 98%;
+
+        --success: 142 64% 38%;
+        --success-foreground: 0 0% 98%;
+
+        --warning: 35 92% 48%;
+        --warning-foreground: 0 0% 98%;
+
+        --border: 0 0% 90%;
+        --input: 0 0% 90%;
+        --ring: 0 0% 9%;
+
+        --radius: 0.6rem;
+
+        --sidebar-background: 0 0% 96%;
+        --sidebar-foreground: 0 0% 32%;
+        --sidebar-primary: 0 0% 9%;
+        --sidebar-primary-foreground: 0 0% 98%;
+        --sidebar-accent: 0 0% 92%;
+        --sidebar-accent-foreground: 0 0% 9%;
+        --sidebar-border: 0 0% 90%;
+        --sidebar-ring: 0 0% 9%;
+
+        color-scheme: light;
+    }
+
+    .dark {
+
+        --background: 0 0% 3.5%;
+        --foreground: 0 0% 92%;
+
+        --card: 0 0% 6.5%;
+        --card-foreground: 0 0% 92%;
+
+        --popover: 0 0% 8%;
+        --popover-foreground: 0 0% 92%;
+
+        --primary: 0 0% 97%;
+        --primary-foreground: 0 0% 9%;
+
+        --secondary: 0 0% 12%;
+        --secondary-foreground: 0 0% 92%;
+
+        --muted: 0 0% 12%;
+        --muted-foreground: 0 0% 60%;
+
+        --accent: 0 0% 14%;
+        --accent-foreground: 0 0% 97%;
+
+        --destructive: 0 72% 56%;
+        --destructive-foreground: 0 0% 98%;
+
+        --success: 142 60% 50%;
+        --success-foreground: 0 0% 9%;
+
+        --warning: 38 92% 58%;
+        --warning-foreground: 0 0% 9%;
+
+        --border: 0 0% 14%;
+        --input: 0 0% 16%;
+        --ring: 0 0% 80%;
+
+        --sidebar-background: 0 0% 3.5%;
+        --sidebar-foreground: 0 0% 65%;
+        --sidebar-primary: 0 0% 97%;
+        --sidebar-primary-foreground: 0 0% 9%;
+        --sidebar-accent: 0 0% 12%;
+        --sidebar-accent-foreground: 0 0% 97%;
+        --sidebar-border: 0 0% 13%;
+        --sidebar-ring: 0 0% 80%;
+
+        color-scheme: dark;
+    }
+
+    * {
+        border-color: hsl(var(--border));
+    }
+
+    html, body, #QuantumCloud-ROOT {
+        height: 100%;
+        margin: 0;
+    }
+
+    body {
+        @apply bg-background text-foreground antialiased;
+        font-family: theme('fontFamily.sans');
+    }
+
+    #QuantumCloud-ROOT {
+        min-height: 100vh;
+    }
+}
+
+@layer utilities {
+    .qt-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+    .qt-scroll::-webkit-scrollbar-thumb {
+        background-color: hsl(var(--border));
+        border-radius: 9999px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+    }
+    .qt-scroll::-webkit-scrollbar-track { background: transparent; }
+
+    @keyframes qt-enter {
+        from { opacity: 0; transform: translateY(6px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .qt-page-enter {
+        animation: qt-enter 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .qt-page-enter { animation: none; }
+    }
+}

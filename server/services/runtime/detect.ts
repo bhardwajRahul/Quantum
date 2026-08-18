@@ -38,3 +38,9 @@ export const detectPreset = (files: string[], packageJson?: any): Preset => {
 
     return { framework: 'Node', runtime: 'node', installCommand: 'npm install', buildCommand: '', startCommand: 'npm start', outputDirectory: '', port: 3000 };
 };
+
+export const detectBuildStrategy = (files: string[]): string => {
+    if(files.includes('Dockerfile')) return 'dockerfile';
+
+    return 'exec';
+};

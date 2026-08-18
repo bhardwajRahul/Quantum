@@ -1,10 +1,6 @@
 import mongoose from 'mongoose';
 import logger from '@utilities/logger';
 
-/**
- * Establishes a connection to the appropriate MongoDB database based on the environment.
- * Logs errors to the console for troubleshooting.
- */
 const mongoConnector = async (): Promise<void> => {
     const {
         NODE_ENV,

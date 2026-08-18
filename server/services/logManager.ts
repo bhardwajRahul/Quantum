@@ -10,40 +10,22 @@ import { Exec } from 'dockerode';
 const stat = util.promisify(fs.stat);
 const truncate = util.promisify(fs.truncate);
 
-/** Map to store active log write streams */
 export const logs: Map<string, fs.WriteStream> = new Map();
-/** Map to store active socket connections */
+
 export const sockets: Map<string, Socket> = new Map();
-/** Map to store active shell connections */
+
 export const shells: Map<string, Duplex> = new Map();
 
-/**
- * Generates the log directory path for a given container ID
- * @param id - The container ID
- * @returns The full path to the log directory
-*/
 const getLogDir = (id: string): string => {
     return path.join('/var/lib/quantum', process.env.NODE_ENV as string, 'containers', id, 'logs');
 };
 
-/**
- * Generates the full path for a log file
- * @param logName - The name of the log file
- * @param id - The container ID
- * @returns The full path to the log file
-*/
 const getLogFile = async (logName: string, logDir: string): Promise<string> => {
     await ensureDirectoryExists(logDir);
     const logFile = path.join(logDir, `${logName}.log`);
     return logFile;
 }
 
-/**
- * Creates a new log stream for a given container
- * @param logName - The name of the log file
- * @param id - The container ID
- * @returns A Promise that resolves to the created WriteStream, or null if an error occurs
-*/
 export const createLogStream = async (userId: string, logId: string): Promise<fs.WriteStream | null> => {
     try{
         removeLogStream(logId);
@@ -58,11 +40,7 @@ export const createLogStream = async (userId: string, logId: string): Promise<fs
     }
 }
 
-/**
- * Removes an existing log stream for a given container
- * @param id - The container ID
-*/
-const removeLogStream = (logId: string): void => {
+export const removeLogStream = (logId: string): void => {
     const stream = logs.get(logId);
     if(stream){
         stream.end();
@@ -70,13 +48,6 @@ const removeLogStream = (logId: string): void => {
     }
 };
 
-/**
- * Sets up socket events for a container
- * @param socket - The socket instance
- * @param logName - The name of the log file
- * @param id - The container ID
- * @param exec - The Dockerode exec instance
-*/
 export const setupSocketEvents = async (socket: Socket, userId: string, logId: string, exec: Exec): Promise<void> => {
     try{
         const logHistory = await getLog(userId, logId);
@@ -108,6 +79,38 @@ const handleDisconnect = (id: string, socket: Socket, shell: Duplex | undefined,
     sockets.delete(id);
     removeLogStream(id);
 }
+
+export const streamReadable = async (
+    socket: Socket,
+    userId: string,
+    logId: string,
+    source: NodeJS.ReadableStream,
+    options: { persist?: boolean; demux?: boolean } = {}
+): Promise<void> => {
+    const { persist = false, demux = false } = options;
+    try{
+        const history = await getLog(userId, logId);
+        socket.emit('history', history);
+        const onData = (chunk: Buffer) => {
+
+            const data = (demux ? chunk.slice(8) : chunk).toString('utf8');
+            if(persist) appendLog(userId, logId, data);
+            socket.emit('response', data);
+        };
+        const cleanup = () => {
+            source.removeListener('data', onData);
+            try{ (source as any).destroy?.(); }catch{   }
+            sockets.delete(logId);
+        };
+        sockets.set(logId, socket);
+        socket.on('disconnect', () => { socket.disconnect(true); cleanup(); });
+        source.on('data', onData);
+        source.on('end', cleanup);
+        source.on('error', cleanup);
+    }catch(error){
+        criticalErrorHandler('streamReadable', error);
+    }
+};
 
 export const appendLog = async (userId: string, id: string, data: string): Promise<void> => {
     await checkLogFileStatus(userId, id);

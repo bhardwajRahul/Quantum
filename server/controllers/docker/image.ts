@@ -4,6 +4,7 @@ import { IRequest } from '@typings/controllers/common';
 
 const DockerImageFactory = new HandlerFactory({
     model: DockerImage,
+    scope: { field: 'organization' },
     fields: [
         'name',
         'tag',

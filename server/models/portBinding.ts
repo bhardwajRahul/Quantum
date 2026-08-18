@@ -1,7 +1,5 @@
 import mongoose, { Schema, Model } from 'mongoose';
 import { IPortBinding } from '@typings/models/portBinding';
-import DockerContainer from '@models/docker/container';
-import DockerContainerService from '@services/docker/container';
 
 const PortBindingSchema: Schema<IPortBinding> = new Schema({
     container: {
@@ -13,6 +11,12 @@ const PortBindingSchema: Schema<IPortBinding> = new Schema({
         type: mongoose.Schema.Types.ObjectId,
         required: [true, 'PortBinding::User::Required'],
         ref: 'User'
+    },
+    organization: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Organization',
+        required: [true, 'PortBinding::Organization::Required'],
+        index: true
     },
     internalPort: {
         type: Number,
@@ -42,10 +46,8 @@ const cascadeDeleteHandler = async (document: IPortBinding, options: { [key: str
     const update = { $pull: { portBindings: document._id } };
     await mongoose.model('User').updateOne({ _id: document.user }, update);
     if(options && options?.isContainerDeletion) return;
-    const container = await mongoose.model('DockerContainer').findOneAndUpdate({ _id: document.container }, update);
-    if(!container) return;
-    const containerService = new DockerContainerService(container);
-    await containerService.reloadContainer();
+
+    await mongoose.model('DockerContainer').updateOne({ _id: document.container }, update);
 };
 
 PortBindingSchema.post('findOneAndDelete', async function(deletedDoc: IPortBinding){
@@ -61,14 +63,6 @@ PortBindingSchema.pre('deleteMany', async function(){
     }));
 });
 
-PortBindingSchema.post('save', async function(){
-    const container = await DockerContainer.findById(this.container);
-    if(container?.ipAddress && this.externalPort){
-        const containerService = new DockerContainerService(container);
-        await containerService.reloadContainer();
-    }
-});
-
 PortBindingSchema.pre('save', async function(next){
     try{
         if(this.isNew){
@@ -76,6 +70,7 @@ PortBindingSchema.pre('save', async function(next){
             await mongoose.model('User').updateOne({ _id: this.user }, update);
             await mongoose.model('DockerContainer').updateOne({ _id: this.container }, update);
         }
+
         next();
     }catch(error: any){
         next(error);

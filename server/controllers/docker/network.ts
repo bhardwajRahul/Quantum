@@ -4,6 +4,7 @@ import { IRequest } from '@typings/controllers/common';
 
 const DockerNetworkFactory = new HandlerFactory({
     model: DockerNetwork,
+    scope: { field: 'organization' },
     fields: [
         'name',
         'driver',

@@ -1,14 +1,8 @@
-/***
- * Copyright (C) Rodolfo Herrera Hernandez. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root
- * for full license information.
-****/
-
-import { useState, useEffect, useCallback } from 'react';
-import { Plus, Users, MoreVertical } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Plus, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-    PageHeader, EmptyState, DataTable, LoadingBlock, Pill, Button
+    PageHeader, EmptyState, DataTable, LoadingBlock, Pill, Button, RowActionsMenu, ConfirmDialog
 } from '@components/atoms/kit';
 import { Input } from '@/components/ui/input';
 import {
@@ -17,13 +11,12 @@ import {
 import {
     Select, SelectTrigger, SelectValue, SelectContent, SelectItem
 } from '@/components/ui/select';
-import {
-    DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem
-} from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { memberships } from '@services/platform/service';
-import useTenancy from '@hooks/common/useTenancy';
+import { useTenancy, useAsyncAction } from '@hooks/common';
 import { errText } from '@utilities/common/errText';
+import { userName, userEmail } from '@utilities/common/userDisplay';
+import { unwrapList } from '@utilities/api/unwrap';
 
 const ROLES = [
     { value: 'owner', label: 'Owner' },
@@ -32,19 +25,9 @@ const ROLES = [
     { value: 'viewer', label: 'Viewer' }
 ];
 
-const roleTone = (role) => {
-    const r = String(role || '').toLowerCase();
-    if(r === 'owner') return 'violet';
-    if(r === 'admin') return 'violet';
-    if(r === 'viewer') return 'gray';
-    return 'green';
-};
+const ROLE_TONES = { owner: 'violet', admin: 'violet', viewer: 'gray' };
+const roleTone = (role) => ROLE_TONES[String(role || '').toLowerCase()] || 'green';
 
-/**
- * Team / Members — organization roster. Lists every membership for the selected
- * org and lets an admin invite an existing Quantum user by id, change a member's
- * role, or remove them. Org-scoped: requires an organization to be selected.
- */
 const Team = () => {
     const { organizationId, organization } = useTenancy();
 
@@ -52,22 +35,18 @@ const Team = () => {
     const [error, setError] = useState(null);
     const [items, setItems] = useState([]);
 
-    // Invite modal.
     const [inviteOpen, setInviteOpen] = useState(false);
     const [inviteUser, setInviteUser] = useState('');
     const [inviteRole, setInviteRole] = useState('member');
-    const [inviting, setInviting] = useState(false);
-    const [inviteError, setInviteError] = useState(null);
 
-    // Change-role modal.
     const [roleTarget, setRoleTarget] = useState(null);
     const [roleValue, setRoleValue] = useState('member');
-    const [savingRole, setSavingRole] = useState(false);
-    const [roleError, setRoleError] = useState(null);
 
-    // Remove-confirm modal.
     const [removeTarget, setRemoveTarget] = useState(null);
-    const [removing, setRemoving] = useState(false);
+
+    const invite = useAsyncAction({ fallback: 'Failed to add member. Check the user id is valid and not already a member.' });
+    const changeRole = useAsyncAction({ fallback: 'Failed to update role.' });
+    const remove = useAsyncAction({ onError: (msg) => toast.error(msg), fallback: 'Failed to remove member.' });
 
     const load = useCallback(async () => {
         if(!organizationId) return;
@@ -75,7 +54,7 @@ const Team = () => {
         setError(null);
         try{
             const res = await memberships.listByOrg({ query: { params: { orgId: organizationId } } });
-            setItems(res?.data || []);
+            setItems(unwrapList(res));
         }catch(err){
             setError(errText(err, 'Failed to load team members.'));
         }finally{
@@ -87,62 +66,47 @@ const Team = () => {
 
     const handleInvite = async () => {
         if(!inviteUser.trim()) return;
-        setInviting(true);
-        setInviteError(null);
-        try{
-            await memberships.invite({
-                query: { params: { orgId: organizationId } },
-                body: { user: inviteUser.trim(), role: inviteRole }
-            });
+        const ok = await invite.run(() => memberships.invite({
+            query: { params: { orgId: organizationId } },
+            body: { user: inviteUser.trim(), role: inviteRole }
+        }));
+        if(ok){
             setInviteOpen(false);
             setInviteUser('');
             setInviteRole('member');
             toast.success('Member added to the organization.');
             await load();
-        }catch(err){
-            setInviteError(errText(err, 'Failed to add member. Check the user id is valid and not already a member.'));
-        }finally{
-            setInviting(false);
         }
     };
 
     const openChangeRole = (m) => {
         setRoleTarget(m);
         setRoleValue(String(m.role || 'member').toLowerCase());
-        setRoleError(null);
+        changeRole.clearError();
     };
 
     const handleChangeRole = async () => {
         if(!roleTarget) return;
-        setSavingRole(true);
-        setRoleError(null);
-        try{
-            await memberships.updateRole({
-                query: { params: { orgId: organizationId, id: roleTarget._id } },
-                body: { role: roleValue }
-            });
+        const ok = await changeRole.run(() => memberships.updateRole({
+            query: { params: { orgId: organizationId, id: roleTarget._id } },
+            body: { role: roleValue }
+        }));
+        if(ok){
             setRoleTarget(null);
             toast.success('Member role updated.');
             await load();
-        }catch(err){
-            setRoleError(errText(err, 'Failed to update role.'));
-        }finally{
-            setSavingRole(false);
         }
     };
 
     const handleRemove = async () => {
         if(!removeTarget) return;
-        setRemoving(true);
-        try{
-            await memberships.remove({ query: { params: { orgId: organizationId, id: removeTarget._id } } });
+        const ok = await remove.run(() => memberships.remove({
+            query: { params: { orgId: organizationId, id: removeTarget._id } }
+        }));
+        if(ok){
             setRemoveTarget(null);
             toast.success('Member removed from the organization.');
             await load();
-        }catch(err){
-            toast.error(errText(err, 'Failed to remove member.'));
-        }finally{
-            setRemoving(false);
         }
     };
 
@@ -158,7 +122,7 @@ const Team = () => {
         );
     }
 
-    const memberName = (m) => m.user?.username || m.user?.email || (typeof m.user === 'string' ? m.user : m.user?._id) || '—';
+    const memberName = (m) => userName(m.user);
 
     const initials = (label) => {
         const s = String(label || '').trim();
@@ -166,14 +130,14 @@ const Team = () => {
         return s.slice(0, 2).toUpperCase();
     };
 
-    const rows = items.map((m) => ({
+    const rows = useMemo(() => items.map((m) => ({
         id: String(m._id),
         member: memberName(m),
-        email: m.user?.email || '—',
+        email: userEmail(m.user),
         role: m.role || 'member',
         scope: m.project ? 'Project' : 'Organization',
         _m: m
-    }));
+    })), [items]);
 
     const columns = [
         {
@@ -198,17 +162,10 @@ const Team = () => {
     ];
 
     const rowActions = (row) => (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button variant='ghost' size='icon'>
-                    <MoreVertical className='h-4 w-4' />
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align='end'>
-                <DropdownMenuItem onClick={() => openChangeRole(row._m)}>Change role</DropdownMenuItem>
-                <DropdownMenuItem className='text-destructive' onClick={() => setRemoveTarget(row._m)}>Remove</DropdownMenuItem>
-            </DropdownMenuContent>
-        </DropdownMenu>
+        <RowActionsMenu items={[
+            { label: 'Change role', onClick: () => openChangeRole(row._m) },
+            { label: 'Remove', danger: true, onClick: () => setRemoveTarget(row._m) }
+        ]} />
     );
 
     return (
@@ -217,14 +174,13 @@ const Team = () => {
                 title='Team'
                 subtitle={organization?.name ? `Members of ${organization.name}.` : 'Manage who can access this organization.'}
                 actions={(
-                    <Button onClick={() => { setInviteError(null); setInviteOpen(true); }}>
+                    <Button onClick={() => { invite.clearError(); setInviteOpen(true); }}>
                         <Plus className='h-4 w-4' /> Invite member
                     </Button>
                 )}
             />
 
-            {/* Invite modal. */}
-            <Dialog open={inviteOpen} onOpenChange={(o) => { if(!o && !inviting) setInviteOpen(false); }}>
+            <Dialog open={inviteOpen} onOpenChange={(o) => { if(!o && !invite.pending) setInviteOpen(false); }}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Invite member</DialogTitle>
@@ -243,7 +199,7 @@ const Team = () => {
                         </div>
                         <div className='space-y-1.5'>
                             <label className='text-sm font-medium'>Role</label>
-                            <Select value={inviteRole} onValueChange={(v) => setInviteRole(v)}>
+                            <Select value={inviteRole} onValueChange={setInviteRole}>
                                 <SelectTrigger>
                                     <SelectValue placeholder='Select a role' />
                                 </SelectTrigger>
@@ -252,21 +208,20 @@ const Team = () => {
                                 </SelectContent>
                             </Select>
                         </div>
-                        {inviteError && <p className='text-sm text-destructive'>{inviteError}</p>}
+                        {invite.error && <p className='text-sm text-destructive'>{invite.error}</p>}
                     </div>
                     <DialogFooter>
-                        <Button variant='outline' onClick={() => !inviting && setInviteOpen(false)}>
+                        <Button variant='outline' onClick={() => !invite.pending && setInviteOpen(false)}>
                             Cancel
                         </Button>
-                        <Button disabled={inviting || !inviteUser.trim()} onClick={handleInvite}>
-                            {inviting ? 'Adding…' : 'Add member'}
+                        <Button disabled={invite.pending || !inviteUser.trim()} onClick={handleInvite}>
+                            {invite.pending ? 'Adding…' : 'Add member'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            {/* Change-role modal. */}
-            <Dialog open={!!roleTarget} onOpenChange={(o) => { if(!o && !savingRole) setRoleTarget(null); }}>
+            <Dialog open={!!roleTarget} onOpenChange={(o) => { if(!o && !changeRole.pending) setRoleTarget(null); }}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Change role</DialogTitle>
@@ -277,7 +232,7 @@ const Team = () => {
                     <div className='flex flex-col gap-5'>
                         <div className='space-y-1.5'>
                             <label className='text-sm font-medium'>Role</label>
-                            <Select value={roleValue} onValueChange={(v) => setRoleValue(v)}>
+                            <Select value={roleValue} onValueChange={setRoleValue}>
                                 <SelectTrigger>
                                     <SelectValue placeholder='Select a role' />
                                 </SelectTrigger>
@@ -286,39 +241,30 @@ const Team = () => {
                                 </SelectContent>
                             </Select>
                         </div>
-                        {roleError && <p className='text-sm text-destructive'>{roleError}</p>}
+                        {changeRole.error && <p className='text-sm text-destructive'>{changeRole.error}</p>}
                     </div>
                     <DialogFooter>
-                        <Button variant='outline' onClick={() => !savingRole && setRoleTarget(null)}>
+                        <Button variant='outline' onClick={() => !changeRole.pending && setRoleTarget(null)}>
                             Cancel
                         </Button>
-                        <Button disabled={savingRole} onClick={handleChangeRole}>
-                            {savingRole ? 'Saving…' : 'Save'}
+                        <Button disabled={changeRole.pending} onClick={handleChangeRole}>
+                            {changeRole.pending ? 'Saving…' : 'Save'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            {/* Remove-confirm modal. */}
-            <Dialog open={!!removeTarget} onOpenChange={(o) => { if(!o && !removing) setRemoveTarget(null); }}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Remove member</DialogTitle>
-                        <DialogDescription>
-                            This removes <strong className='text-foreground'>{removeTarget ? memberName(removeTarget) : ''}</strong> from the organization.
-                            They will lose access to its projects.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button variant='outline' onClick={() => !removing && setRemoveTarget(null)}>
-                            Cancel
-                        </Button>
-                        <Button variant='destructive' disabled={removing} onClick={handleRemove}>
-                            {removing ? 'Removing…' : 'Remove'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <ConfirmDialog
+                open={!!removeTarget}
+                onCancel={() => setRemoveTarget(null)}
+                onConfirm={handleRemove}
+                title='Remove member'
+                description={removeTarget ? `This removes ${memberName(removeTarget)} from the organization. They will lose access to its projects.` : ''}
+                pending={remove.pending}
+                destructive
+                confirmLabel='Remove'
+                pendingLabel='Removing…'
+            />
 
             {loading ? (
                 <LoadingBlock label='Loading team members' />
@@ -330,7 +276,7 @@ const Team = () => {
                     title='No members yet'
                     body='Invite an existing Quantum user to collaborate in this organization.'
                     action={(
-                        <Button onClick={() => { setInviteError(null); setInviteOpen(true); }}>
+                        <Button onClick={() => { invite.clearError(); setInviteOpen(true); }}>
                             <Plus className='h-4 w-4' /> Invite member
                         </Button>
                     )}

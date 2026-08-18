@@ -1,8 +1,7 @@
 import mongoose, { Schema, Model, UpdateQuery } from 'mongoose';
 import { IDockerContainer } from '@typings/models/docker/container';
-import DockerContainerService, { getContainerStoragePath, getSystemDockerName } from '@services/docker/container';
-import { encrypt, decrypt } from '@utilities/encryption';
-import logger from '@utilities/logger';
+import { getContainerStoragePath, getSystemDockerName, teardownContainer } from '@services/docker/container';
+import { encryptEnvMap, decryptEnvMap } from '@utilities/encryption';
 
 const DockerContainerSchema: Schema<IDockerContainer> = new Schema({
     isUserContainer: {
@@ -25,6 +24,12 @@ const DockerContainerSchema: Schema<IDockerContainer> = new Schema({
         ref: 'User',
         required: [true, 'DockerContainer::User::Required']
     },
+    organization: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Organization',
+        required: [true, 'DockerContainer::Organization::Required'],
+        index: true
+    },
     network: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'DockerNetwork',
@@ -42,6 +47,12 @@ const DockerContainerSchema: Schema<IDockerContainer> = new Schema({
         type: String,
         enum: ['created', 'running', 'stopped', 'reloading', 'restarting', 'building', 'error'],
         default: 'created'
+    },
+
+    desiredState: {
+        type: String,
+        enum: ['running', 'stopped'],
+        default: 'running'
     },
     command: {
         type: String
@@ -79,7 +90,7 @@ const DockerContainerSchema: Schema<IDockerContainer> = new Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'PortBinding'
     }],
-    // can't change later
+
     name: {
         type: String,
         required: [true, 'DockerContainer::Name::Required']
@@ -88,7 +99,7 @@ const DockerContainerSchema: Schema<IDockerContainer> = new Schema({
     timestamps: true
 });
 
-DockerContainerSchema.index({ user: 1, name: 1 }, { unique: true });
+DockerContainerSchema.index({ organization: 1, name: 1 }, { unique: true });
 
 const cascadeDeleteHandler = async (document: IDockerContainer): Promise<void> => {
     if(!document) return;
@@ -107,8 +118,8 @@ const cascadeDeleteHandler = async (document: IDockerContainer): Promise<void> =
     }
     await mongoose.model('DockerImage').updateOne({ _id: image }, update);
     await mongoose.model('PortBinding').deleteMany({ container: _id }, { isContainerDeletion: true });
-    const containerService = new DockerContainerService(document);
-    await containerService.removeContainer();
+
+    await teardownContainer(document);
 };
 
 DockerContainerSchema.pre('findOneAndDelete', async function (){
@@ -131,32 +142,15 @@ DockerContainerSchema.pre('findOneAndUpdate', async function (next){
     }
     const modifiedPaths = Object.keys(update);
 
-    if(modifiedPaths.includes('environment') || modifiedPaths.includes('command')){
-        const doc = await this.model.findOne(this.getQuery());
-        logger.info(`@models/docker/container.ts (findOneAndUpdate): Recreating container (${doc.dockerContainerName}) with new environment variables...`);
-        if(!doc) return next();
-        const typedUpdate = update as UpdateQuery<IDockerContainer>;
-        if(typedUpdate.environment){
-            Object.assign(doc.environment, typedUpdate.environment);
-        }
-        const containerService = new DockerContainerService(doc);
-        containerService.reloadContainer();
-    }
-
-    // If we're updating environment variables, handle encryption
     if(modifiedPaths.includes('environment')){
         const typedUpdate = update as UpdateQuery<IDockerContainer>;
         if(typedUpdate.environment && typedUpdate.environment.variables){
             const doc = await this.model.findOne(this.getQuery());
             if(!doc) return next();
-            
-            const updatedVariables = typedUpdate.environment.variables;
-            const encryptedVariables = new Map<string, string>();
-            for(const [key, value] of Object.entries(updatedVariables)){
-                encryptedVariables.set(key, encrypt(value));
-            }
 
-            typedUpdate.environment.variables = encryptedVariables;
+            typedUpdate.environment.variables = encryptEnvMap(
+                Object.entries(typedUpdate.environment.variables)
+            );
             typedUpdate.environment.isEncrypted = true;
         }
     }
@@ -166,12 +160,7 @@ DockerContainerSchema.post('find', function(docs){
     if(!docs) return docs;
     for(const doc of docs){
         if(doc.environment && doc.environment.isEncrypted){
-            const encryptedVars = new Map(doc.environment.variables);
-            const decryptedVars = new Map<string, string>();
-            for(const [key, value] of encryptedVars.entries()){
-                decryptedVars.set(key, decrypt(value));
-            }
-            doc.environment.variables = decryptedVars;
+            doc.environment.variables = decryptEnvMap(new Map(doc.environment.variables));
         }
     }
     return docs;
@@ -179,12 +168,7 @@ DockerContainerSchema.post('find', function(docs){
 
 DockerContainerSchema.post('findOne', function(doc){
     if(!doc || !doc.environment || !doc.environment.isEncrypted) return doc;
-    const encryptedVars = new Map(doc.environment.variables);
-    const decryptedVars = new Map<string, string>();
-    for(const [key, value] of encryptedVars.entries()){
-        decryptedVars.set(key, decrypt(value));
-    }
-    doc.environment.variables = decryptedVars;
+    doc.environment.variables = decryptEnvMap(new Map(doc.environment.variables));
     return doc;
 });
 
@@ -192,7 +176,8 @@ DockerContainerSchema.pre('save', async function (next){
     try{
         if(this.isNew){
             const containerId = this._id.toString();
-            const userId = this.user.toString();
+
+            const userId = ((this.user as any)?._id ?? this.user).toString();
             const paths = getContainerStoragePath(userId, containerId, userId);
             this.dockerContainerName = getSystemDockerName(containerId);
             if(this.isUserContainer){
@@ -202,25 +187,10 @@ DockerContainerSchema.pre('save', async function (next){
             }else{
                 this.storagePath = paths.containerStoragePath;
             }
-            const containerService = new DockerContainerService(this);
-            await containerService.createAndStartContainer();
-            const ipAddress = await containerService.getIpAddress();
-            if(ipAddress){
-                this.ipAddress = ipAddress;
-            }
-            const update = { $push: { containers: this._id } };
-            await mongoose.model('User').updateOne({ _id: this.user }, update);
-            await mongoose.model('DockerImage').updateOne({ _id: this.image }, update);
-            // TODO: Implement logic to be able to deploy the container with 
-            // a different network, that is, one that can be changed.
-            await mongoose.model('DockerNetwork').updateOne({ _id: this.network }, update);
+
         }
         if(!this.environment.isEncrypted && this.environment.variables.size > 0){
-            const encryptedVariables = new Map<string, string>();
-            for(const [key, value] of this.environment.variables.entries()){
-                encryptedVariables.set(key, encrypt(value));
-            }
-            this.environment.variables = encryptedVariables;
+            this.environment.variables = encryptEnvMap(this.environment.variables);
             this.environment.isEncrypted = true;
         }
         next();

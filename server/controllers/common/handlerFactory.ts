@@ -2,22 +2,42 @@ import { Response, NextFunction, RequestHandler } from 'express';
 import { IRequest } from '@typings/controllers/common';
 import { Model } from 'mongoose';
 import { catchAsync, filterObject, checkIfSlugOrId } from '@utilities/helpers';
-import { IUser } from '@typings/models/user';
 import type {
-    HandlerFactoryOptions, 
-    MiddlewareFunction, 
-    HandlerFactoryMethodConfig 
+    HandlerFactoryOptions,
+    MiddlewareFunction,
+    HandlerFactoryMethodConfig,
+    ScopeConfig
 } from '@typings/controllers/handlerFactory';
+import { resolveScopeFilter, resolveCreateScope } from '@middlewares/tenancy';
 import APIFeatures from '@utilities/apiFeatures';
 import RuntimeError from '@utilities/runtimeError';
 
 class HandlerFactory{
     private model: Model<any>
     private fields: string[];
+    private scope: ScopeConfig | false;
 
-    constructor({ model, fields = [] }: HandlerFactoryOptions){
+    constructor({ model, fields = [], scope }: HandlerFactoryOptions){
+
+        if(scope === undefined){
+            throw new Error(
+                `HandlerFactory(${model.modelName}): a 'scope' is required. ` +
+                `Pass { field } to tenant-scope, or scope:false to mark the collection public.`
+            );
+        }
         this.model = model;
         this.fields = fields;
+        this.scope = scope;
+    }
+
+    private buildScopeFilter(req: IRequest, override?: ScopeConfig | false): Record<string, any>{
+        const scope = override !== undefined ? override : this.scope;
+        if(scope === false) return {};
+        return resolveScopeFilter(req, scope.field);
+    }
+
+    private recordFilter(req: IRequest, config: HandlerFactoryMethodConfig): Record<string, any>{
+        return { ...checkIfSlugOrId(req.params.id), ...this.buildScopeFilter(req, config.scope), ...req.handlerData };
     }
 
     private async applyMiddlewares(
@@ -26,9 +46,7 @@ class HandlerFactory{
         data: any
     ): Promise<any>{
         if(middlewares.length === 0) return data;
-        // Run middlewares in parallel if they are independent
-        // If it depends on order, keep sequential execution
-        // Here we assume that they are independent :)!
+
         const results = await Promise.all(middlewares.map((middleware) => middleware(req, data)));
         return results.reduce((acc, curr) => ({ ...acc, ...curr }), data);
     }
@@ -48,7 +66,7 @@ class HandlerFactory{
             }
         });
     }
-    
+
     private createBody(res: Response, status: string, value: any){
         res.locals.data = value;
         const body = { status, data: value };
@@ -57,7 +75,7 @@ class HandlerFactory{
 
     deleteOne(config: HandlerFactoryMethodConfig = {}): RequestHandler{
         return this.createHandler(async (req, res, next) => {
-            const query = { ...checkIfSlugOrId(req.params.id), ...req.handlerData };
+            const query = this.recordFilter(req, config);
             const record = await this.model.findOneAndDelete(query).lean();
             if(!record){
                 return next(new RuntimeError('Core::DeleteOne::RecordNotFound', 404));
@@ -69,10 +87,12 @@ class HandlerFactory{
 
     updateOne(config: HandlerFactoryMethodConfig = {}): RequestHandler{
         return this.createHandler(async (req, res, next) => {
-            const query = this.createQuery(req);
+
+            const filter = this.recordFilter(req, config);
+            const update = this.createQuery(req);
             const record = await this.model.findOneAndUpdate(
-                checkIfSlugOrId(req.params.id),
-                query,
+                filter,
+                update,
                 { new: true, runValidators: true, lean: true }
             );
             if(!record){
@@ -85,20 +105,18 @@ class HandlerFactory{
 
     private createQuery(req: IRequest): object{
         const query: any = { ...filterObject(req.body, ...this.fields), ...req.handlerData };
-        if(this.fields.includes('user') && req.user){
-            const authenticatedUser = req.user as IUser;
-            query['user'] = (authenticatedUser.role === 'admin' && req.body.user)
-                ? req.body.user
-                : authenticatedUser._id;
+
+        if(this.scope){
+            Object.assign(query, resolveCreateScope(req, this.scope.field));
         }
         return query;
     }
 
     private async sendResponse(
-        status: number, 
-        body: any, 
-        req: IRequest, 
-        res: Response, 
+        status: number,
+        body: any,
+        req: IRequest,
+        res: Response,
         config: HandlerFactoryMethodConfig
     ): Promise<void>{
         if(config.responseInterceptor){
@@ -134,7 +152,7 @@ class HandlerFactory{
     getOne(config: HandlerFactoryMethodConfig = {}): RequestHandler{
         return this.createHandler(async (req, res, next) => {
             const populate = this.getPopulateFromRequest(req.query);
-            let query = { ...checkIfSlugOrId(req.params.id), ...req.handlerData };
+            let query = this.recordFilter(req, config);
             let queryObj = this.model.findOne(query).lean();
             if(populate) queryObj = queryObj.populate(populate);
             let record = await queryObj.exec();
@@ -149,12 +167,13 @@ class HandlerFactory{
     getAll(config: HandlerFactoryMethodConfig = {}): RequestHandler{
         return this.createHandler(async (req, res) => {
             const populate = this.getPopulateFromRequest(req.query);
+            const scopeFilter = { ...this.buildScopeFilter(req, config.scope), ...req.handlerData };
             const operations = new APIFeatures({
                 requestQueryString: req.query,
                 model: this.model,
                 fields: this.fields,
                 populate: populate
-            }).filter(req.handlerData).sort().limitFields().search();
+            }).filter(scopeFilter).sort().limitFields().search();
             await operations.paginate();
             const { records, skippedResults, totalResults, page, limit, totalPages } = await operations.perform();
             res.locals.data = records;

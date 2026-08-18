@@ -7,7 +7,7 @@ import RuntimeError from '@utilities/runtimeError';
 export const verifyOwnership = (model: Model<any>) => {
     return catchAsync(async (req: Request, _: Response, next: NextFunction) => {
         const user = req.user as IUser;
-        // If the user's role is administrator, we will not verify ownership.
+
         if(user.role === 'admin') return next();
         const { id } = req.params;
         const document = await model.findOne({ _id: id, user: user._id });

@@ -1,8 +1,3 @@
-/**
- * Takes a date object or timestamp and returns a human-readable representation
- * of the time elapsed since that date.
- *
-*/
 export const formatDate = (date, useLocale) => {
     if(useLocale){
         return new Date(date).toLocaleString(navigator.language.split('-')[0], {
@@ -24,9 +19,21 @@ export const formatDate = (date, useLocale) => {
     for(const { label, seconds } of intervals){
         const intervalValue = Math.floor(secondsElapsed / seconds);
         if(intervalValue > 0){
-            return `${intervalValue} ${label}${intervalValue > 1 ? 's' : ''} ago`; 
+            return `${intervalValue} ${label}${intervalValue > 1 ? 's' : ''} ago`;
         }
     }
-    // In case the date is very recent.
+
     return 'Just now';
 };
+
+const toAbsolute = (value, fallback, fmt) => {
+    if(!value) return fallback;
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? fallback : fmt(d);
+};
+
+export const formatAbsoluteDate = (value, fallback = '-') =>
+    toAbsolute(value, fallback, (d) => d.toLocaleDateString());
+
+export const formatAbsoluteDateTime = (value, fallback = '-') =>
+    toAbsolute(value, fallback, (d) => d.toLocaleString());

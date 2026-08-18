@@ -1,28 +1,17 @@
-/***
- * Copyright (C) Rodolfo Herrera Hernandez. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root
- * for full license information.
- *
- * =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
- *
- * For related information - https://github.com/rodyherrera/Quantum/
- *
- * All your applications, just in one place. 
- *
- * =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-****/
-
-import { catchAsync } from '@utilities/helpers';
+import { catchAsync, filterObject } from '@utilities/helpers';
 import Github from '@models/github';
 import HandlerFactory from '@controllers/common/handlerFactory';
-import { Request, Response } from 'express';
+import { resolveCreateScope } from '@middlewares/tenancy';
+import RuntimeError from '@utilities/runtimeError';
+import { IRequest } from '@typings/controllers/common';
+import { Request, Response, NextFunction } from 'express';
 
 const GithubFactory = new HandlerFactory({
     model: Github,
+    scope: { field: 'user' },
     fields: [
         'user',
         'githubId',
-        'accessToken',
         'username',
         'avatarUrl'
     ]
@@ -30,7 +19,20 @@ const GithubFactory = new HandlerFactory({
 
 export const getAccounts = GithubFactory.getAll();
 export const getAccount = GithubFactory.getOne();
-export const createAccount = GithubFactory.createOne();
+
+export const createAccount = catchAsync(async (req: IRequest, res: Response, next: NextFunction): Promise<void> => {
+    const accessToken = req.body.accessToken;
+    if(!accessToken){
+        return next(new RuntimeError('Github::AccessToken::Required', 400));
+    }
+    const record = await Github.create({
+        ...filterObject(req.body, 'githubId', 'username', 'avatarUrl'),
+        ...resolveCreateScope(req, 'user'),
+        accessToken
+    });
+    res.status(201).json({ status: 'success', data: record });
+});
+
 export const updateAccount = GithubFactory.updateOne();
 export const deleteAccount = GithubFactory.deleteOne();
 
@@ -39,7 +41,7 @@ export const authCallback = catchAsync(async (req: Request, res: Response) => {
     const { id, username, _json } = profile;
     const { avatar_url } = _json;
     const data = { id, username, avatar_url };
-    // res.redirect just dont work... ???
+
     res.writeHead(302, {
         'Location': `${process.env.CLIENT_HOST}/github/authenticate/?accessToken=${accessToken}&data=${JSON.stringify(data)}`
     });

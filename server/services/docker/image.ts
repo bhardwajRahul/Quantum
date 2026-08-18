@@ -1,7 +1,10 @@
 import logger from '@utilities/logger';
-import Dockerode from 'dockerode';
+import mongoose from 'mongoose';
+import DockerImageModel from '@models/docker/image';
+import { getDockerHost } from '@services/docker/host';
+import { IDockerImage } from '@typings/models/docker/image';
 
-const docker = new Dockerode();
+const docker = getDockerHost().client();
 
 export const isImageAvailable = async (imageName: string, tag: string = 'latest'): Promise<boolean> => {
     const fullImageName = `${imageName}:${tag}`;
@@ -10,18 +13,6 @@ export const isImageAvailable = async (imageName: string, tag: string = 'latest'
         return images.some((image) => image.RepoTags?.includes(fullImageName));
     }catch(error: any){
         logger.error('@services/docker/image.ts (isImageAvailable): ' + error);
-        throw error;
-    }
-}
-
-export const getImageSize = async (imageName: string, tag: string) => {
-    const fullImageName = `${imageName}:${tag}`;
-    try{
-        const image = docker.getImage(fullImageName);
-        const details = await image.inspect();
-        return details.Size;
-    }catch(error: any){
-        logger.error(`@services/docker/image.ts (getImageSize): ${error.message}`);
         throw error;
     }
 }
@@ -43,3 +34,14 @@ export const pullImage = async (imageName: string, tag: string = 'latest'): Prom
         throw error;
     }
 }
+
+export const materializeImage = async (doc: IDockerImage): Promise<void> => {
+    await pullImage(doc.name, doc.tag);
+    await mongoose.model('User').updateOne({ _id: doc.user }, { $push: { images: doc._id } });
+};
+
+export const createAndMaterializeImage = async (attrs: Record<string, any>) => {
+    const image = await DockerImageModel.create(attrs);
+    await materializeImage(image as unknown as IDockerImage);
+    return image;
+};

@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { Card, ListBox, ListBoxItem, Select, Table } from '@heroui/react';
+import { Inbox } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
 import LoadingState from '@/shared/components/LoadingState';
 import ErrorState from '@/shared/components/ErrorState';
+import EmptyState from '@/shared/components/EmptyState';
+import CenterState from '@/shared/components/CenterState';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { usePolledQuery } from '@/shared/hooks/api/use-polled-query';
 import { analyticsApi } from '@/modules/analytics/api/api';
@@ -70,20 +73,30 @@ const TopTable = ({ title, keyLabel, entries }: TopTableProps) => (
             <Card.Title>{title}</Card.Title>
         </Card.Header>
         <Card.Content>
-            <Table aria-label={title}>
-                <Table.Header>
-                    <Table.Column isRowHeader>{keyLabel}</Table.Column>
-                    <Table.Column>Count</Table.Column>
-                </Table.Header>
-                <Table.Body>
-                    {entries.map((entry) => (
-                        <Table.Row key={entry.key}>
-                            <Table.Cell>{entry.key}</Table.Cell>
-                            <Table.Cell>{entry.value}</Table.Cell>
-                        </Table.Row>
-                    ))}
-                </Table.Body>
-            </Table>
+            {entries.length === 0 ? (
+                <CenterState>
+                    <EmptyState icon={Inbox} title='No data yet' compact />
+                </CenterState>
+            ) : (
+                <Table>
+                    <Table.ScrollContainer>
+                        <Table.Content aria-label={title}>
+                            <Table.Header>
+                                <Table.Column isRowHeader>{keyLabel}</Table.Column>
+                                <Table.Column>Count</Table.Column>
+                            </Table.Header>
+                            <Table.Body>
+                                {entries.map((entry) => (
+                                    <Table.Row key={entry.key}>
+                                        <Table.Cell>{entry.key}</Table.Cell>
+                                        <Table.Cell>{entry.value}</Table.Cell>
+                                    </Table.Row>
+                                ))}
+                            </Table.Body>
+                        </Table.Content>
+                    </Table.ScrollContainer>
+                </Table>
+            )}
         </Card.Content>
     </Card>
 );
@@ -107,22 +120,32 @@ const UtmTable = ({ source, medium, campaign }: UtmTableProps) => {
                 <Card.Title>UTM</Card.Title>
             </Card.Header>
             <Card.Content>
-                <Table aria-label='UTM'>
-                    <Table.Header>
-                        <Table.Column isRowHeader>Type</Table.Column>
-                        <Table.Column>Value</Table.Column>
-                        <Table.Column>Count</Table.Column>
-                    </Table.Header>
-                    <Table.Body>
-                        {rows.map((row, index) => (
-                            <Table.Row key={`${row.type}-${row.key}-${index}`}>
-                                <Table.Cell>{row.type}</Table.Cell>
-                                <Table.Cell>{row.key}</Table.Cell>
-                                <Table.Cell>{row.value}</Table.Cell>
-                            </Table.Row>
-                        ))}
-                    </Table.Body>
-                </Table>
+                {rows.length === 0 ? (
+                    <CenterState>
+                    <EmptyState icon={Inbox} title='No data yet' compact />
+                </CenterState>
+                ) : (
+                    <Table>
+                        <Table.ScrollContainer>
+                            <Table.Content aria-label='UTM'>
+                                <Table.Header>
+                                    <Table.Column isRowHeader>Type</Table.Column>
+                                    <Table.Column>Value</Table.Column>
+                                    <Table.Column>Count</Table.Column>
+                                </Table.Header>
+                                <Table.Body>
+                                    {rows.map((row, index) => (
+                                        <Table.Row key={`${row.type}-${row.key}-${index}`}>
+                                            <Table.Cell>{row.type}</Table.Cell>
+                                            <Table.Cell>{row.key}</Table.Cell>
+                                            <Table.Cell>{row.value}</Table.Cell>
+                                        </Table.Row>
+                                    ))}
+                                </Table.Body>
+                            </Table.Content>
+                        </Table.ScrollContainer>
+                    </Table>
+                )}
             </Card.Content>
         </Card>
     );
@@ -138,20 +161,30 @@ const DomainsTable = ({ domains }: DomainsTableProps) => (
             <Card.Title>Domains</Card.Title>
         </Card.Header>
         <Card.Content>
-            <Table aria-label='Domains'>
-                <Table.Header>
-                    <Table.Column isRowHeader>Host</Table.Column>
-                    <Table.Column>Pageviews</Table.Column>
-                </Table.Header>
-                <Table.Body>
-                    {domains.map((domain) => (
-                        <Table.Row key={domain.host}>
-                            <Table.Cell>{domain.host}</Table.Cell>
-                            <Table.Cell>{domain.pageviews}</Table.Cell>
-                        </Table.Row>
-                    ))}
-                </Table.Body>
-            </Table>
+            {domains.length === 0 ? (
+                <CenterState>
+                    <EmptyState icon={Inbox} title='No data yet' compact />
+                </CenterState>
+            ) : (
+                <Table>
+                    <Table.ScrollContainer>
+                        <Table.Content aria-label='Domains'>
+                            <Table.Header>
+                                <Table.Column isRowHeader>Host</Table.Column>
+                                <Table.Column>Pageviews</Table.Column>
+                            </Table.Header>
+                            <Table.Body>
+                                {domains.map((domain) => (
+                                    <Table.Row key={domain.host}>
+                                        <Table.Cell>{domain.host}</Table.Cell>
+                                        <Table.Cell>{domain.pageviews}</Table.Cell>
+                                    </Table.Row>
+                                ))}
+                            </Table.Body>
+                        </Table.Content>
+                    </Table.ScrollContainer>
+                </Table>
+            )}
         </Card.Content>
     </Card>
 );

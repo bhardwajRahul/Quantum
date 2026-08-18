@@ -5,6 +5,7 @@ import PageBody from '@/shared/components/layout/PageBody';
 import LoadingState from '@/shared/components/LoadingState';
 import ErrorState from '@/shared/components/ErrorState';
 import EmptyState from '@/shared/components/EmptyState';
+import CenterState from '@/shared/components/CenterState';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { dockerApi } from '@/modules/docker/api/api';
 import { formatBytes } from '@/modules/docker/utils/format';
@@ -161,16 +162,20 @@ const Usage = () => {
     const network = useQuery(dockerApi.networkUsage, [{ minutes }]);
     const resources = useQuery(dockerApi.resourceUsage, [{ minutes }]);
 
-    if(network.loading || resources.loading) return <LoadingState title='Loading usage' compact />;
+    if(network.loading || resources.loading){
+        return <CenterState className='h-full'><LoadingState title='Loading usage' compact /></CenterState>;
+    }
 
     const error = network.error ?? resources.error;
     if(error !== undefined){
         return (
-            <ErrorState
-                title='Could not load usage'
-                description='Something went wrong loading usage data. Please try again.'
-                onRetry={() => { network.reload(); resources.reload(); }}
-            />
+            <CenterState className='h-full'>
+                <ErrorState
+                    title='Could not load usage'
+                    description='Something went wrong loading usage data. Please try again.'
+                    onRetry={() => { network.reload(); resources.reload(); }}
+                />
+            </CenterState>
         );
     }
 
@@ -178,16 +183,18 @@ const Usage = () => {
     const resourceStats = resources.data ?? [];
 
     return (
-        <PageBody width='wide'>
+        <PageBody width='wide' height='full'>
             <UsageHeader minutes={minutes} onChangeWindow={setMinutes} />
 
-            <div className='mt-6'>
+            <div className='mt-6 flex flex-1 flex-col'>
                 {networkStats.length === 0 && resourceStats.length === 0 ? (
-                    <EmptyState
-                        icon={Activity}
-                        title='No usage yet'
-                        description='Usage data will appear here once your projects have running containers.'
-                    />
+                    <CenterState>
+                        <EmptyState
+                            icon={Activity}
+                            title='No usage yet'
+                            description='Usage data will appear here once your projects have running containers.'
+                        />
+                    </CenterState>
                 ) : (
                     <div className='flex flex-col gap-6'>
                         {networkStats.length > 0 && <NetworkUsageSection stats={networkStats} />}

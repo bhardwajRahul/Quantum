@@ -5,6 +5,7 @@ import PageBody from '@/shared/components/layout/PageBody';
 import LoadingState from '@/shared/components/LoadingState';
 import ErrorState from '@/shared/components/ErrorState';
 import EmptyState from '@/shared/components/EmptyState';
+import CenterState from '@/shared/components/CenterState';
 import ConfirmDialog from '@/shared/components/ConfirmDialog';
 import ProjectCard from '@/modules/project/components/ProjectCard';
 import CreateProjectDialog from '@/modules/project/components/CreateProjectDialog';
@@ -81,30 +82,36 @@ const Projects = () => {
     const [environmentsTarget, setEnvironmentsTarget] = useState<Project | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
 
-    if(organizationId === null) return <LoadingState title='Loading projects' compact />;
-    if(projects.loading) return <LoadingState title='Loading projects' compact />;
+    if(organizationId === null) return <CenterState className='h-full'><LoadingState title='Loading projects' compact /></CenterState>;
+    if(projects.loading) return <CenterState className='h-full'><LoadingState title='Loading projects' compact /></CenterState>;
     if(projects.error !== undefined){
-        return <ErrorState title='Could not load projects' description={copy(projects.error)} onRetry={projects.reload} />;
+        return (
+            <CenterState className='h-full'>
+                <ErrorState title='Could not load projects' description={copy(projects.error)} onRetry={projects.reload} />
+            </CenterState>
+        );
     }
 
     const items = projects.data ?? [];
 
     return (
-        <PageBody width='wide'>
+        <PageBody width='wide' height='full'>
             <ProjectsHeader onCreate={() => setCreateOpen(true)} />
 
-            <div className='mt-6'>
+            <div className='mt-6 flex flex-1 flex-col'>
                 {items.length === 0 ? (
-                    <EmptyState
-                        icon={FolderKanban}
-                        title='No projects yet'
-                        description='Projects group related deployments. Create your first one to get started.'
-                    >
-                        <Button onPress={() => setCreateOpen(true)}>
-                            <Plus aria-hidden='true' className='size-4' />
-                            New project
-                        </Button>
-                    </EmptyState>
+                    <CenterState>
+                        <EmptyState
+                            icon={FolderKanban}
+                            title='No projects yet'
+                            description='Projects group related deployments. Create your first one to get started.'
+                        >
+                            <Button onPress={() => setCreateOpen(true)}>
+                                <Plus aria-hidden='true' className='size-4' />
+                                New project
+                            </Button>
+                        </EmptyState>
+                    </CenterState>
                 ) : (
                     <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'>
                         {items.map((project) => (

@@ -5,6 +5,7 @@ import PageBody from '@/shared/components/layout/PageBody';
 import LoadingState from '@/shared/components/LoadingState';
 import ErrorState from '@/shared/components/ErrorState';
 import EmptyState from '@/shared/components/EmptyState';
+import CenterState from '@/shared/components/CenterState';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { useChannel } from '@/shared/hooks/socket/use-channel';
 import { activityApi } from '@/modules/activity/api/api';
@@ -47,7 +48,7 @@ const Events = () => {
     const [events, setEvents] = useState<ActivityEvent[]>([]);
 
     useEffect(() => {
-        if(history.data) setEvents(history.data);
+        if(history.data) setEvents(history.data.items);
     }, [history.data]);
 
     const channel = useChannel('/activity/stream', {
@@ -58,31 +59,35 @@ const Events = () => {
         channel.send('subscribe', {});
     }, [channel.send]);
 
-    if(history.loading) return <LoadingState title='Loading events' compact />;
+    if(history.loading) return <CenterState className='h-full'><LoadingState title='Loading events' compact /></CenterState>;
     if(history.error !== undefined){
         return (
-            <ErrorState
-                title='Could not load events'
-                description={copy(history.error)}
-                onRetry={history.reload}
-            />
+            <CenterState className='h-full'>
+                <ErrorState
+                    title='Could not load events'
+                    description={copy(history.error)}
+                    onRetry={history.reload}
+                />
+            </CenterState>
         );
     }
 
     return (
-        <PageBody width='wide'>
+        <PageBody width='wide' height='full'>
             <div>
                 <h1 className='text-lg font-medium text-foreground'>Events</h1>
                 <p className='mt-1.5 text-sm text-muted'>Live activity across your organization, updated in real time.</p>
             </div>
 
-            <div className='mt-6'>
+            <div className='mt-6 flex flex-1 flex-col'>
                 {events.length === 0 ? (
-                    <EmptyState
-                        icon={Activity}
-                        title='No events yet'
-                        description='Activity from your organization will show up here as it happens.'
-                    />
+                    <CenterState>
+                        <EmptyState
+                            icon={Activity}
+                            title='No events yet'
+                            description='Activity from your organization will show up here as it happens.'
+                        />
+                    </CenterState>
                 ) : (
                     <ul className='flex flex-col'>
                         {events.map((event) => <EventRow key={event.id} event={event} />)}

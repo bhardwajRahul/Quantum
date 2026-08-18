@@ -6,6 +6,7 @@ import PageBody from '@/shared/components/layout/PageBody';
 import LoadingState from '@/shared/components/LoadingState';
 import ErrorState from '@/shared/components/ErrorState';
 import EmptyState from '@/shared/components/EmptyState';
+import CenterState from '@/shared/components/CenterState';
 import InlineError from '@/shared/components/InlineError';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { useMutation } from '@/shared/hooks/api/use-mutation';
@@ -122,18 +123,20 @@ const EnvironmentVariablesEditor = ({ deploymentId, environmentVariables, onSave
                 onSave={() => { void handleSave(); }}
             />
 
-            <div className='mt-6 flex flex-col gap-4'>
+            <div className='mt-6 flex flex-1 flex-col gap-4'>
                 {rows.length === 0 ? (
-                    <EmptyState
-                        icon={KeyRound}
-                        title='No environment variables'
-                        description='Add a variable to make it available to your app at build and run time.'
-                    >
-                        <Button onPress={() => setRows((current) => addEnvVarRow(current))}>
-                            <Plus aria-hidden='true' className='size-4' />
-                            Add variable
-                        </Button>
-                    </EmptyState>
+                    <CenterState>
+                        <EmptyState
+                            icon={KeyRound}
+                            title='No environment variables'
+                            description='Add a variable to make it available to your app at build and run time.'
+                        >
+                            <Button onPress={() => setRows((current) => addEnvVarRow(current))}>
+                                <Plus aria-hidden='true' className='size-4' />
+                                Add variable
+                            </Button>
+                        </EmptyState>
+                    </CenterState>
                 ) : (
                     rows.map((row, index) => (
                         <EnvironmentVariableRow
@@ -153,11 +156,13 @@ const EnvironmentVariablesEditor = ({ deploymentId, environmentVariables, onSave
 };
 
 const NoDeploymentYet = () => (
-    <EmptyState
-        icon={Rocket}
-        title='No deployment yet'
-        description='Environment variables become available after your first deploy.'
-    />
+    <CenterState className='h-full'>
+        <EmptyState
+            icon={Rocket}
+            title='No deployment yet'
+            description='Environment variables become available after your first deploy.'
+        />
+    </CenterState>
 );
 
 const EnvironmentVariables = () => {
@@ -165,17 +170,21 @@ const EnvironmentVariables = () => {
     const id = repositoryId !== undefined ? Number(repositoryId) : undefined;
     const environment = useQuery(deploymentApi.environment, [id]);
 
-    if(id === undefined || environment.loading) return <LoadingState title='Loading environment variables' compact />;
+    if(id === undefined || environment.loading){
+        return <CenterState className='h-full'><LoadingState title='Loading environment variables' compact /></CenterState>;
+    }
 
     if(environment.error !== undefined){
         if(isNotFound(environment.error)) return <NoDeploymentYet />;
 
         return (
-            <ErrorState
-                title='Could not load environment variables'
-                description={copy(environment.error)}
-                onRetry={environment.reload}
-            />
+            <CenterState className='h-full'>
+                <ErrorState
+                    title='Could not load environment variables'
+                    description={copy(environment.error)}
+                    onRetry={environment.reload}
+                />
+            </CenterState>
         );
     }
 
@@ -183,7 +192,7 @@ const EnvironmentVariables = () => {
     if(data === null) return <NoDeploymentYet />;
 
     return (
-        <PageBody>
+        <PageBody height='full'>
             <EnvironmentVariablesEditor
                 key={data.deploymentId}
                 deploymentId={data.deploymentId}

@@ -16,6 +16,7 @@ import PageBody from '@/shared/components/layout/PageBody';
 import LoadingState from '@/shared/components/LoadingState';
 import ErrorState from '@/shared/components/ErrorState';
 import EmptyState from '@/shared/components/EmptyState';
+import CenterState from '@/shared/components/CenterState';
 import ConfirmDialog from '@/shared/components/ConfirmDialog';
 import Modal from '@/shared/components/Modal';
 import InlineError from '@/shared/components/InlineError';
@@ -173,70 +174,74 @@ interface ApplicationsTableProps extends RowActionHandlers{
 }
 
 const ApplicationsTable = ({ rows, ...handlers }: ApplicationsTableProps) => (
-    <Table aria-label='Applications'>
-        <Table.Header>
-            <Table.Column isRowHeader>Name</Table.Column>
-            <Table.Column>Status</Table.Column>
-            <Table.Column>Created</Table.Column>
-            <Table.Column><span className='sr-only'>Actions</span></Table.Column>
-        </Table.Header>
+    <Table>
+        <Table.ScrollContainer>
+            <Table.Content aria-label='Applications'>
+                <Table.Header>
+                    <Table.Column isRowHeader>Name</Table.Column>
+                    <Table.Column>Status</Table.Column>
+                    <Table.Column>Created</Table.Column>
+                    <Table.Column><span className='sr-only'>Actions</span></Table.Column>
+                </Table.Header>
 
-        <Table.Body>
-            {rows.map((row) => {
-                const RowIcon = ROW_ICON[row.kind];
+                <Table.Body>
+                    {rows.map((row) => {
+                        const RowIcon = ROW_ICON[row.kind];
 
-                return (
-                    <Table.Row key={row.key}>
-                        <Table.Cell>
-                            <div className='flex items-center gap-3'>
-                                <span className='flex size-8 shrink-0 items-center justify-center rounded-md bg-foreground/[0.06]'>
-                                    <RowIcon aria-hidden='true' className='size-4 text-muted' />
-                                </span>
-                                <div className='flex flex-col'>
-                                    <span className='font-medium text-foreground'>{row.name}</span>
-                                    <span className='text-[0.8125rem] text-muted'>{row.subtitle}</span>
-                                </div>
-                            </div>
-                        </Table.Cell>
+                        return (
+                            <Table.Row key={row.key}>
+                                <Table.Cell>
+                                    <div className='flex items-center gap-3'>
+                                        <span className='flex size-8 shrink-0 items-center justify-center rounded-md bg-foreground/[0.06]'>
+                                            <RowIcon aria-hidden='true' className='size-4 text-muted' />
+                                        </span>
+                                        <div className='flex flex-col'>
+                                            <span className='font-medium text-foreground'>{row.name}</span>
+                                            <span className='text-[0.8125rem] text-muted'>{row.subtitle}</span>
+                                        </div>
+                                    </div>
+                                </Table.Cell>
 
-                        <Table.Cell>
-                            {row.kind === 'app' && (
-                                <Chip size='sm' variant='soft' color={row.repository.containerId !== null ? 'success' : 'default'}>
-                                    {row.repository.containerId !== null ? 'Running' : 'Stopped'}
-                                </Chip>
-                            )}
-                            {row.kind === 'database' && (
-                                <Chip size='sm' variant='soft' color={databaseStatusColor(row.database.status)}>
-                                    {databaseStatusLabel(row.database.status)}
-                                </Chip>
-                            )}
-                            {row.kind === 'install' && <Chip size='sm' variant='soft' color='success'>Installed</Chip>}
-                        </Table.Cell>
+                                <Table.Cell>
+                                    {row.kind === 'app' && (
+                                        <Chip size='sm' variant='soft' color={row.repository.containerId !== null ? 'success' : 'default'}>
+                                            {row.repository.containerId !== null ? 'Running' : 'Stopped'}
+                                        </Chip>
+                                    )}
+                                    {row.kind === 'database' && (
+                                        <Chip size='sm' variant='soft' color={databaseStatusColor(row.database.status)}>
+                                            {databaseStatusLabel(row.database.status)}
+                                        </Chip>
+                                    )}
+                                    {row.kind === 'install' && <Chip size='sm' variant='soft' color='success'>Installed</Chip>}
+                                </Table.Cell>
 
-                        <Table.Cell>{formatDate(row.date)}</Table.Cell>
+                                <Table.Cell>{formatDate(row.date)}</Table.Cell>
 
-                        <Table.Cell>
-                            <div className='flex justify-end'>
-                                <Dropdown>
-                                    <Dropdown.Trigger
-                                        aria-label={`Actions for ${row.name}`}
-                                        className='rounded-md p-1.5 text-muted transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground'
-                                    >
-                                        <MoreVertical aria-hidden='true' className='size-4' />
-                                    </Dropdown.Trigger>
+                                <Table.Cell>
+                                    <div className='flex justify-end'>
+                                        <Dropdown>
+                                            <Dropdown.Trigger
+                                                aria-label={`Actions for ${row.name}`}
+                                                className='rounded-md p-1.5 text-muted transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground'
+                                            >
+                                                <MoreVertical aria-hidden='true' className='size-4' />
+                                            </Dropdown.Trigger>
 
-                                    <Dropdown.Popover placement='bottom end'>
-                                        <Dropdown.Menu aria-label={`Actions for ${row.name}`}>
-                                            {rowActions(row, handlers)}
-                                        </Dropdown.Menu>
-                                    </Dropdown.Popover>
-                                </Dropdown>
-                            </div>
-                        </Table.Cell>
-                    </Table.Row>
-                );
-            })}
-        </Table.Body>
+                                            <Dropdown.Popover placement='bottom end'>
+                                                <Dropdown.Menu aria-label={`Actions for ${row.name}`}>
+                                                    {rowActions(row, handlers)}
+                                                </Dropdown.Menu>
+                                            </Dropdown.Popover>
+                                        </Dropdown>
+                                    </div>
+                                </Table.Cell>
+                            </Table.Row>
+                        );
+                    })}
+                </Table.Body>
+            </Table.Content>
+        </Table.ScrollContainer>
     </Table>
 );
 
@@ -617,20 +622,26 @@ const Applications = () => {
     };
 
     if(organizationId === null || projects.loading || repositoriesQuery.loading){
-        return <LoadingState title='Loading applications' compact />;
+        return <CenterState className='h-full'><LoadingState title='Loading applications' compact /></CenterState>;
     }
 
     if(projects.error !== undefined){
-        return <ErrorState title='Could not load projects' description={copy(projects.error)} onRetry={projects.reload} />;
+        return (
+            <CenterState className='h-full'>
+                <ErrorState title='Could not load projects' description={copy(projects.error)} onRetry={projects.reload} />
+            </CenterState>
+        );
     }
 
     if(repositoriesQuery.error !== undefined){
         return (
-            <ErrorState
-                title='Could not load applications'
-                description={copy(repositoriesQuery.error)}
-                onRetry={repositoriesQuery.reload}
-            />
+            <CenterState className='h-full'>
+                <ErrorState
+                    title='Could not load applications'
+                    description={copy(repositoriesQuery.error)}
+                    onRetry={repositoriesQuery.reload}
+                />
+            </CenterState>
         );
     }
 
@@ -647,7 +658,7 @@ const Applications = () => {
     const scopedError = databases.error ?? installsQuery.error;
 
     return (
-        <PageBody width='wide'>
+        <PageBody width='wide' height='full'>
             <ApplicationsHeader
                 canAddDatabase={projectId !== null}
                 onAddApplication={() => navigate('/repositories/create')}
@@ -668,24 +679,26 @@ const Applications = () => {
             {backup.error !== undefined && <InlineError className='mt-4'>{copy(backup.error)}</InlineError>}
             {scopedError !== undefined && <InlineError className='mt-4'>{copy(scopedError)}</InlineError>}
 
-            <div className='mt-6'>
+            <div className='mt-6 flex flex-1 flex-col'>
                 {scopedLoading ? (
-                    <LoadingState title='Loading applications' compact />
+                    <CenterState><LoadingState title='Loading applications' compact /></CenterState>
                 ) : filtered.length === 0 ? (
-                    <EmptyState
-                        icon={AppWindow}
-                        title={query !== '' ? 'No matches' : 'No applications yet'}
-                        description={query !== ''
-                            ? 'Try a different search term.'
-                            : 'Create an application, or pick a project above to see its databases and template installs.'}
-                    >
-                        {query === '' && (
-                            <Button onPress={() => navigate('/repositories/create')}>
-                                <Plus aria-hidden='true' className='size-4' />
-                                New application
-                            </Button>
-                        )}
-                    </EmptyState>
+                    <CenterState>
+                        <EmptyState
+                            icon={AppWindow}
+                            title={query !== '' ? 'No matches' : 'No applications yet'}
+                            description={query !== ''
+                                ? 'Try a different search term.'
+                                : 'Create an application, or pick a project above to see its databases and template installs.'}
+                        >
+                            {query === '' && (
+                                <Button onPress={() => navigate('/repositories/create')}>
+                                    <Plus aria-hidden='true' className='size-4' />
+                                    New application
+                                </Button>
+                            )}
+                        </EmptyState>
+                    </CenterState>
                 ) : (
                     <ApplicationsTable
                         rows={filtered}

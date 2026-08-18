@@ -6,6 +6,7 @@ import PageBody from '@/shared/components/layout/PageBody';
 import LoadingState from '@/shared/components/LoadingState';
 import ErrorState from '@/shared/components/ErrorState';
 import EmptyState from '@/shared/components/EmptyState';
+import CenterState from '@/shared/components/CenterState';
 import Form from '@/shared/components/forms/Form';
 import Field from '@/shared/components/forms/Field';
 import ProjectSelect from '@/modules/repository/components/ProjectSelect';
@@ -85,11 +86,13 @@ const RepositoryPicker = ({ repositories, onSelect }: RepositoryPickerProps) => 
 
     if(repositories.length === 0){
         return (
-            <EmptyState
-                icon={FolderGit2}
-                title='No repositories found'
-                description='Push a repository to your GitHub account to import it here.'
-            />
+            <CenterState className='h-full'>
+                <EmptyState
+                    icon={FolderGit2}
+                    title='No repositories found'
+                    description='Push a repository to your GitHub account to import it here.'
+                />
+            </CenterState>
         );
     }
 
@@ -291,15 +294,19 @@ const RepositoryConfigForm = ({ repository, onBack }: RepositoryConfigFormProps)
     const projects = useQuery(projectApi.listByOrganization, [organizationId ?? undefined]);
     const detection = useQuery(githubApi.detect, [repository.owner, repository.name]);
 
-    if(projects.loading || detection.loading) return <LoadingState title='Preparing repository setup' compact />;
+    if(projects.loading || detection.loading){
+        return <CenterState className='h-full'><LoadingState title='Preparing repository setup' compact /></CenterState>;
+    }
 
     if(projects.error !== undefined){
         return (
-            <ErrorState
-                title='Could not load projects'
-                description={repositoryCopy(projects.error)}
-                onRetry={projects.reload}
-            />
+            <CenterState className='h-full'>
+                <ErrorState
+                    title='Could not load projects'
+                    description={repositoryCopy(projects.error)}
+                    onRetry={projects.reload}
+                />
+            </CenterState>
         );
     }
 
@@ -318,15 +325,19 @@ const RepositoryCreateFlow = () => {
     const repositories = useQuery(githubApi.repositories);
     const [selected, setSelected] = useState<GithubRepository | null>(null);
 
-    if(repositories.loading) return <LoadingState title='Loading GitHub repositories' compact />;
+    if(repositories.loading){
+        return <CenterState className='h-full'><LoadingState title='Loading GitHub repositories' compact /></CenterState>;
+    }
 
     if(repositories.error !== undefined){
         return (
-            <ErrorState
-                title='Could not load GitHub repositories'
-                description={githubCopy(repositories.error)}
-                onRetry={repositories.reload}
-            />
+            <CenterState className='h-full'>
+                <ErrorState
+                    title='Could not load GitHub repositories'
+                    description={githubCopy(repositories.error)}
+                    onRetry={repositories.reload}
+                />
+            </CenterState>
         );
     }
 
@@ -341,17 +352,17 @@ const CreateRepository = () => {
     const account = useQuery(githubApi.account);
 
     return (
-        <PageBody>
+        <PageBody height='full'>
             <h1 className='text-lg font-medium text-foreground'>New repository</h1>
             <p className='mt-1.5 text-sm text-muted'>
                 Import a GitHub repository and configure how it is built and run.
             </p>
 
-            <div className='mt-6'>
+            <div className='mt-6 flex flex-1 flex-col'>
                 {account.loading ? (
-                    <LoadingState title='Checking GitHub connection' compact />
+                    <CenterState><LoadingState title='Checking GitHub connection' compact /></CenterState>
                 ) : account.error !== undefined ? (
-                    <ConnectGithubPrompt />
+                    <CenterState><ConnectGithubPrompt /></CenterState>
                 ) : (
                     <RepositoryCreateFlow />
                 )}

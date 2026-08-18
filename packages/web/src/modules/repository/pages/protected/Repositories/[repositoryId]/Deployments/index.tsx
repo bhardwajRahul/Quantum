@@ -16,6 +16,7 @@ import PageBody from '@/shared/components/layout/PageBody';
 import LoadingState from '@/shared/components/LoadingState';
 import ErrorState from '@/shared/components/ErrorState';
 import EmptyState from '@/shared/components/EmptyState';
+import CenterState from '@/shared/components/CenterState';
 import InlineError from '@/shared/components/InlineError';
 import ConfirmDialog from '@/shared/components/ConfirmDialog';
 import { useQuery } from '@/shared/hooks/api/use-query';
@@ -88,56 +89,60 @@ interface DeploymentsTableProps{
 }
 
 const DeploymentsTable = ({ deployments, onRollback, onDelete }: DeploymentsTableProps) => (
-    <Table aria-label='Deployments'>
-        <Table.Header>
-            <Table.Column isRowHeader>Commit</Table.Column>
-            <Table.Column>Status</Table.Column>
-            <Table.Column>Date</Table.Column>
-            <Table.Column>URL</Table.Column>
-            <Table.Column><span className='sr-only'>Actions</span></Table.Column>
-        </Table.Header>
+    <Table>
+        <Table.ScrollContainer>
+            <Table.Content aria-label='Deployments'>
+                <Table.Header>
+                    <Table.Column isRowHeader>Commit</Table.Column>
+                    <Table.Column>Status</Table.Column>
+                    <Table.Column>Date</Table.Column>
+                    <Table.Column>URL</Table.Column>
+                    <Table.Column><span className='sr-only'>Actions</span></Table.Column>
+                </Table.Header>
 
-        <Table.Body>
-            {deployments.map((deployment) => (
-                <Table.Row key={deployment.id}>
-                    <Table.Cell>
-                        <span className='font-medium text-foreground'>{deployment.commit?.message ?? '—'}</span>
-                    </Table.Cell>
-                    <Table.Cell>
-                        <Chip size='sm' variant='soft' className={deploymentStatusColor(deployment.status)}>
-                            {deploymentStatusLabel(deployment.status)}
-                        </Chip>
-                    </Table.Cell>
-                    <Table.Cell>{formatDate(deployment.createdAt)}</Table.Cell>
-                    <Table.Cell>
-                        {deployment.url ? (
-                            <a
-                                href={deployment.url}
-                                target='_blank'
-                                rel='noreferrer'
-                                className='inline-flex items-center gap-1 text-[var(--accent)] hover:underline'
-                            >
-                                <span className='max-w-[220px] truncate'>{deployment.url}</span>
-                                <ExternalLink aria-hidden='true' className='size-3.5 shrink-0' />
-                            </a>
-                        ) : '—'}
-                    </Table.Cell>
-                    <Table.Cell>
-                        <div className='flex justify-end gap-2'>
-                            <Button
-                                size='sm'
-                                variant='secondary'
-                                isDisabled={deployment.artifact === null}
-                                onPress={() => onRollback(deployment)}
-                            >
-                                Rollback
-                            </Button>
-                            <Button size='sm' variant='danger-soft' onPress={() => onDelete(deployment)}>Delete</Button>
-                        </div>
-                    </Table.Cell>
-                </Table.Row>
-            ))}
-        </Table.Body>
+                <Table.Body>
+                    {deployments.map((deployment) => (
+                        <Table.Row key={deployment.id}>
+                            <Table.Cell>
+                                <span className='font-medium text-foreground'>{deployment.commit?.message ?? '—'}</span>
+                            </Table.Cell>
+                            <Table.Cell>
+                                <Chip size='sm' variant='soft' className={deploymentStatusColor(deployment.status)}>
+                                    {deploymentStatusLabel(deployment.status)}
+                                </Chip>
+                            </Table.Cell>
+                            <Table.Cell>{formatDate(deployment.createdAt)}</Table.Cell>
+                            <Table.Cell>
+                                {deployment.url ? (
+                                    <a
+                                        href={deployment.url}
+                                        target='_blank'
+                                        rel='noreferrer'
+                                        className='inline-flex items-center gap-1 text-[var(--accent)] hover:underline'
+                                    >
+                                        <span className='max-w-[220px] truncate'>{deployment.url}</span>
+                                        <ExternalLink aria-hidden='true' className='size-3.5 shrink-0' />
+                                    </a>
+                                ) : '—'}
+                            </Table.Cell>
+                            <Table.Cell>
+                                <div className='flex justify-end gap-2'>
+                                    <Button
+                                        size='sm'
+                                        variant='secondary'
+                                        isDisabled={deployment.artifact === null}
+                                        onPress={() => onRollback(deployment)}
+                                    >
+                                        Rollback
+                                    </Button>
+                                    <Button size='sm' variant='danger-soft' onPress={() => onDelete(deployment)}>Delete</Button>
+                                </div>
+                            </Table.Cell>
+                        </Table.Row>
+                    ))}
+                </Table.Body>
+            </Table.Content>
+        </Table.ScrollContainer>
     </Table>
 );
 
@@ -375,7 +380,7 @@ const Deployments = () => {
     }, [activeJobId]);
 
     useEffect(() => {
-        if(stepsQuery.data) setSteps(stepsQuery.data);
+        if(stepsQuery.data) setSteps(stepsQuery.data.items);
     }, [stepsQuery.data]);
 
     const activityChannel = useChannel('/activity/stream', {
@@ -399,19 +404,25 @@ const Deployments = () => {
     };
 
     if(id === undefined || repository.loading || deploymentsQuery.loading){
-        return <LoadingState title='Loading deployments' compact />;
+        return <CenterState className='h-full'><LoadingState title='Loading deployments' compact /></CenterState>;
     }
 
     if(repository.error !== undefined){
-        return <ErrorState title='Could not load repository' description={copy(repository.error)} onRetry={repository.reload} />;
+        return (
+            <CenterState className='h-full'>
+                <ErrorState title='Could not load repository' description={copy(repository.error)} onRetry={repository.reload} />
+            </CenterState>
+        );
     }
     if(deploymentsQuery.error !== undefined){
         return (
-            <ErrorState
-                title='Could not load deployments'
-                description={copy(deploymentsQuery.error)}
-                onRetry={deploymentsQuery.reload}
-            />
+            <CenterState className='h-full'>
+                <ErrorState
+                    title='Could not load deployments'
+                    description={copy(deploymentsQuery.error)}
+                    onRetry={deploymentsQuery.reload}
+                />
+            </CenterState>
         );
     }
     if(repository.data === null) return null;
@@ -419,7 +430,7 @@ const Deployments = () => {
     const deployments = deploymentsQuery.data ?? [];
 
     return (
-        <PageBody width='wide'>
+        <PageBody width='wide' height='full'>
             <DeploymentsHeader
                 repository={repository.data}
                 isOperating={operate.loading}
@@ -432,14 +443,16 @@ const Deployments = () => {
                 <DeploymentPipelinePanel steps={steps} logs={logs} done={pipelineDone} onDismiss={handleDismiss} />
             )}
 
-            <div className='mt-6'>
+            <div className='mt-6 flex flex-1 flex-col'>
                 {deployments.length === 0 ? (
                     !activeJobId && (
-                        <EmptyState
-                            icon={Rocket}
-                            title='No deployments yet'
-                            description='Start this application to create its first deployment.'
-                        />
+                        <CenterState>
+                            <EmptyState
+                                icon={Rocket}
+                                title='No deployments yet'
+                                description='Start this application to create its first deployment.'
+                            />
+                        </CenterState>
                     )
                 ) : (
                     <DeploymentsTable deployments={deployments} onRollback={setRollbackTarget} onDelete={setDeleteTarget} />

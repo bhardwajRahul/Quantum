@@ -5,6 +5,7 @@ import PageBody from '@/shared/components/layout/PageBody';
 import LoadingState from '@/shared/components/LoadingState';
 import ErrorState from '@/shared/components/ErrorState';
 import EmptyState from '@/shared/components/EmptyState';
+import CenterState from '@/shared/components/CenterState';
 import InlineError from '@/shared/components/InlineError';
 import ConfirmDialog from '@/shared/components/ConfirmDialog';
 import DomainStatusChip from '@/modules/domain/components/DomainStatus';
@@ -143,26 +144,30 @@ const DomainsTable = ({ domains, onChanged }: DomainsTableProps) => {
 
     return (
         <div className='flex flex-col gap-3'>
-            <Table aria-label='Domains'>
-                <Table.Header>
-                    <Table.Column isRowHeader>Host</Table.Column>
-                    <Table.Column>Kind</Table.Column>
-                    <Table.Column>Status</Table.Column>
-                    <Table.Column>TLS</Table.Column>
-                    <Table.Column><span className='sr-only'>Actions</span></Table.Column>
-                </Table.Header>
+            <Table>
+                <Table.ScrollContainer>
+                    <Table.Content aria-label='Domains'>
+                        <Table.Header>
+                            <Table.Column isRowHeader>Host</Table.Column>
+                            <Table.Column>Kind</Table.Column>
+                            <Table.Column>Status</Table.Column>
+                            <Table.Column>TLS</Table.Column>
+                            <Table.Column><span className='sr-only'>Actions</span></Table.Column>
+                        </Table.Header>
 
-                <Table.Body>
-                    {domains.map((domain) => (
-                        <DomainRow
-                            key={domain.id}
-                            domain={domain}
-                            isBusy={updateDomain.loading}
-                            onUpdate={(body) => applyUpdate(domain, body)}
-                            onRemove={() => setDeleteTarget(domain)}
-                        />
-                    ))}
-                </Table.Body>
+                        <Table.Body>
+                            {domains.map((domain) => (
+                                <DomainRow
+                                    key={domain.id}
+                                    domain={domain}
+                                    isBusy={updateDomain.loading}
+                                    onUpdate={(body) => applyUpdate(domain, body)}
+                                    onRemove={() => setDeleteTarget(domain)}
+                                />
+                            ))}
+                        </Table.Body>
+                    </Table.Content>
+                </Table.ScrollContainer>
             </Table>
 
             {updateDomain.error !== undefined && <InlineError>{copy(updateDomain.error)}</InlineError>}
@@ -205,7 +210,7 @@ const Domains = () => {
     const openCreate = () => setCreateOpen(true);
 
     return (
-        <PageBody width='wide'>
+        <PageBody width='wide' height='full'>
             <DomainsHeader
                 canRefresh={repositoryId !== null && !domains.loading}
                 canAdd={items.length > 0}
@@ -222,32 +227,38 @@ const Domains = () => {
                 />
             </div>
 
-            <div className='mt-6'>
+            <div className='mt-6 flex flex-1 flex-col'>
                 {repositoryId === null ? (
-                    <EmptyState
-                        icon={Globe}
-                        title='Select a repository'
-                        description='Choose one of your repositories above to view and manage its custom domains.'
-                    />
+                    <CenterState>
+                        <EmptyState
+                            icon={Globe}
+                            title='Select a repository'
+                            description='Choose one of your repositories above to view and manage its custom domains.'
+                        />
+                    </CenterState>
                 ) : domains.loading ? (
-                    <LoadingState title='Loading domains' compact />
+                    <CenterState><LoadingState title='Loading domains' compact /></CenterState>
                 ) : domains.error !== undefined ? (
-                    <ErrorState
-                        title='Could not load domains'
-                        description={copy(domains.error)}
-                        onRetry={domains.reload}
-                    />
+                    <CenterState>
+                        <ErrorState
+                            title='Could not load domains'
+                            description={copy(domains.error)}
+                            onRetry={domains.reload}
+                        />
+                    </CenterState>
                 ) : (domains.data ?? []).length === 0 ? (
-                    <EmptyState
-                        icon={Globe}
-                        title='No domains yet'
-                        description='This repository has no custom domains. Add one to route traffic and provision TLS.'
-                    >
-                        <Button onPress={openCreate}>
-                            <Plus aria-hidden='true' className='size-4' />
-                            Add domain
-                        </Button>
-                    </EmptyState>
+                    <CenterState>
+                        <EmptyState
+                            icon={Globe}
+                            title='No domains yet'
+                            description='This repository has no custom domains. Add one to route traffic and provision TLS.'
+                        >
+                            <Button onPress={openCreate}>
+                                <Plus aria-hidden='true' className='size-4' />
+                                Add domain
+                            </Button>
+                        </EmptyState>
+                    </CenterState>
                 ) : (
                     <DomainsTable domains={domains.data ?? []} onChanged={domains.reload} />
                 )}

@@ -2,6 +2,7 @@ import { Building2 } from 'lucide-react';
 import LoadingState from '@/shared/components/LoadingState';
 import ErrorState from '@/shared/components/ErrorState';
 import EmptyState from '@/shared/components/EmptyState';
+import CenterState from '@/shared/components/CenterState';
 import CreateOrganizationForm from '@/modules/organization/components/CreateOrganizationForm';
 import { useTenancy } from '@/modules/organization/hooks/use-tenancy';
 import { tenancyErrorMessages } from '@/modules/organization/utils/error-messages';
@@ -18,28 +19,36 @@ const OrgGate = ({ children }: OrgGateProps) => {
     const { organizations, loading, error, reload } = useTenancy();
 
     if(loading){
-        return <LoadingState title='Preparing your workspace' description='Loading your organizations.' />;
+        return (
+            <CenterState className='h-full'>
+                <LoadingState title='Preparing your workspace' description='Loading your organizations.' />
+            </CenterState>
+        );
     }
 
     if(error !== undefined){
         return (
-            <ErrorState
-                title='Could not load organizations'
-                description={copy(error)}
-                onRetry={reload}
-            />
+            <CenterState className='h-full'>
+                <ErrorState
+                    title='Could not load organizations'
+                    description={copy(error)}
+                    onRetry={reload}
+                />
+            </CenterState>
         );
     }
 
     if(organizations.length === 0){
         return (
-            <EmptyState
-                icon={Building2}
-                title='Create an organization'
-                description='Organizations hold your applications, projects and teammates. Create one to get started.'
-            >
-                <CreateOrganizationForm onCreated={reload} />
-            </EmptyState>
+            <CenterState className='h-full'>
+                <EmptyState
+                    icon={Building2}
+                    title='Create an organization'
+                    description='Organizations hold your applications, projects and teammates. Create one to get started.'
+                >
+                    <CreateOrganizationForm onCreated={reload} />
+                </EmptyState>
+            </CenterState>
         );
     }
 

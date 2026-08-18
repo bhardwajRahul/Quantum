@@ -5,6 +5,7 @@ import PageBody from '@/shared/components/layout/PageBody';
 import LoadingState from '@/shared/components/LoadingState';
 import ErrorState from '@/shared/components/ErrorState';
 import EmptyState from '@/shared/components/EmptyState';
+import CenterState from '@/shared/components/CenterState';
 import InstallTemplateDialog from '@/modules/template/components/InstallTemplateDialog';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { templateApi } from '@/modules/template/api/api';
@@ -84,34 +85,38 @@ const Templates = () => {
     const templates = useQuery(templateApi.list, []);
     const [installTarget, setInstallTarget] = useState<Template | null>(null);
 
-    if(templates.loading) return <LoadingState title='Loading templates' compact />;
+    if(templates.loading) return <CenterState className='h-full'><LoadingState title='Loading templates' compact /></CenterState>;
     if(templates.error !== undefined){
         return (
-            <ErrorState
-                title='Could not load templates'
-                description={copy(templates.error)}
-                onRetry={templates.reload}
-            />
+            <CenterState className='h-full'>
+                <ErrorState
+                    title='Could not load templates'
+                    description={copy(templates.error)}
+                    onRetry={templates.reload}
+                />
+            </CenterState>
         );
     }
 
     const items = (templates.data ?? []).filter((template) => category === null || template.category === category);
 
     return (
-        <PageBody width='wide'>
+        <PageBody width='wide' height='full'>
             <TemplatesHeader
                 categories={categories.data ?? []}
                 category={category}
                 onCategoryChange={setCategory}
             />
 
-            <div className='mt-6'>
+            <div className='mt-6 flex flex-1 flex-col'>
                 {items.length === 0 ? (
-                    <EmptyState
-                        icon={Boxes}
-                        title='No templates yet'
-                        description='There are no templates available for this filter.'
-                    />
+                    <CenterState>
+                        <EmptyState
+                            icon={Boxes}
+                            title='No templates yet'
+                            description='There are no templates available for this filter.'
+                        />
+                    </CenterState>
                 ) : (
                     <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'>
                         {items.map((template) => (

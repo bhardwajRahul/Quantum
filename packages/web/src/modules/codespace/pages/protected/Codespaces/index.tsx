@@ -5,6 +5,7 @@ import PageBody from '@/shared/components/layout/PageBody';
 import LoadingState from '@/shared/components/LoadingState';
 import ErrorState from '@/shared/components/ErrorState';
 import EmptyState from '@/shared/components/EmptyState';
+import CenterState from '@/shared/components/CenterState';
 import ConfirmDialog from '@/shared/components/ConfirmDialog';
 import ProjectSelect from '@/modules/codespace/components/ProjectSelect';
 import CodespaceStatusChip from '@/modules/codespace/components/CodespaceStatus';
@@ -84,34 +85,38 @@ interface CodespacesTableProps{
 }
 
 const CodespacesTable = ({ codespaces, onAccess, onDelete }: CodespacesTableProps) => (
-    <Table aria-label='Codespaces'>
-        <Table.Header>
-            <Table.Column isRowHeader>Name</Table.Column>
-            <Table.Column>Status</Table.Column>
-            <Table.Column><span className='sr-only'>Actions</span></Table.Column>
-        </Table.Header>
+    <Table>
+        <Table.ScrollContainer>
+            <Table.Content aria-label='Codespaces'>
+                <Table.Header>
+                    <Table.Column isRowHeader>Name</Table.Column>
+                    <Table.Column>Status</Table.Column>
+                    <Table.Column><span className='sr-only'>Actions</span></Table.Column>
+                </Table.Header>
 
-        <Table.Body>
-            {codespaces.map((codespace) => (
-                <Table.Row key={codespace.id}>
-                    <Table.Cell><span className='font-medium text-foreground'>{codespace.name}</span></Table.Cell>
-                    <Table.Cell><CodespaceStatusChip status={codespace.status} /></Table.Cell>
-                    <Table.Cell>
-                        <div className='flex justify-end gap-2'>
-                            <Button
-                                size='sm'
-                                variant='secondary'
-                                isDisabled={isCodespaceTransient(codespace.status)}
-                                onPress={() => onAccess(codespace)}
-                            >
-                                Access
-                            </Button>
-                            <Button size='sm' variant='danger-soft' onPress={() => onDelete(codespace)}>Delete</Button>
-                        </div>
-                    </Table.Cell>
-                </Table.Row>
-            ))}
-        </Table.Body>
+                <Table.Body>
+                    {codespaces.map((codespace) => (
+                        <Table.Row key={codespace.id}>
+                            <Table.Cell><span className='font-medium text-foreground'>{codespace.name}</span></Table.Cell>
+                            <Table.Cell><CodespaceStatusChip status={codespace.status} /></Table.Cell>
+                            <Table.Cell>
+                                <div className='flex justify-end gap-2'>
+                                    <Button
+                                        size='sm'
+                                        variant='secondary'
+                                        isDisabled={isCodespaceTransient(codespace.status)}
+                                        onPress={() => onAccess(codespace)}
+                                    >
+                                        Access
+                                    </Button>
+                                    <Button size='sm' variant='danger-soft' onPress={() => onDelete(codespace)}>Delete</Button>
+                                </div>
+                            </Table.Cell>
+                        </Table.Row>
+                    ))}
+                </Table.Body>
+            </Table.Content>
+        </Table.ScrollContainer>
     </Table>
 );
 
@@ -143,7 +148,7 @@ const Codespaces = () => {
     const projectItems = projects.data ?? [];
 
     return (
-        <PageBody width='wide'>
+        <PageBody width='wide' height='full'>
             <CodespacesHeader canAdd={projectId !== null} onAdd={() => setCreateOpen(true)} />
 
             <div className='mt-6 max-w-sm'>
@@ -154,32 +159,38 @@ const Codespaces = () => {
                 />
             </div>
 
-            <div className='mt-6'>
+            <div className='mt-6 flex flex-1 flex-col'>
                 {projectId === null ? (
-                    <EmptyState
-                        icon={Terminal}
-                        title='Select a project'
-                        description='Choose one of your projects above to view and manage its codespaces.'
-                    />
+                    <CenterState>
+                        <EmptyState
+                            icon={Terminal}
+                            title='Select a project'
+                            description='Choose one of your projects above to view and manage its codespaces.'
+                        />
+                    </CenterState>
                 ) : codespaces.loading ? (
-                    <LoadingState title='Loading codespaces' compact />
+                    <CenterState><LoadingState title='Loading codespaces' compact /></CenterState>
                 ) : codespaces.error !== undefined ? (
-                    <ErrorState
-                        title='Could not load codespaces'
-                        description={copy(codespaces.error)}
-                        onRetry={codespaces.reload}
-                    />
+                    <CenterState>
+                        <ErrorState
+                            title='Could not load codespaces'
+                            description={copy(codespaces.error)}
+                            onRetry={codespaces.reload}
+                        />
+                    </CenterState>
                 ) : (codespaces.data ?? []).length === 0 ? (
-                    <EmptyState
-                        icon={Terminal}
-                        title='No codespaces yet'
-                        description='This project has no codespaces. Create one to get a cloud dev environment.'
-                    >
-                        <Button onPress={() => setCreateOpen(true)}>
-                            <Plus aria-hidden='true' className='size-4' />
-                            New codespace
-                        </Button>
-                    </EmptyState>
+                    <CenterState>
+                        <EmptyState
+                            icon={Terminal}
+                            title='No codespaces yet'
+                            description='This project has no codespaces. Create one to get a cloud dev environment.'
+                        >
+                            <Button onPress={() => setCreateOpen(true)}>
+                                <Plus aria-hidden='true' className='size-4' />
+                                New codespace
+                            </Button>
+                        </EmptyState>
+                    </CenterState>
                 ) : (
                     <CodespacesTable
                         codespaces={codespaces.data ?? []}

@@ -6,6 +6,7 @@ import PageBody from '@/shared/components/layout/PageBody';
 import LoadingState from '@/shared/components/LoadingState';
 import ErrorState from '@/shared/components/ErrorState';
 import EmptyState from '@/shared/components/EmptyState';
+import CenterState from '@/shared/components/CenterState';
 import InlineError from '@/shared/components/InlineError';
 import ConfirmDialog from '@/shared/components/ConfirmDialog';
 import Modal from '@/shared/components/Modal';
@@ -192,25 +193,29 @@ const TeamTable = ({ organizationId, members, onChanged }: TeamTableProps) => {
 
     return (
         <div className='flex flex-col gap-3'>
-            <Table aria-label='Team members'>
-                <Table.Header>
-                    <Table.Column isRowHeader>Member</Table.Column>
-                    <Table.Column>Email</Table.Column>
-                    <Table.Column>Role</Table.Column>
-                    <Table.Column><span className='sr-only'>Actions</span></Table.Column>
-                </Table.Header>
+            <Table>
+                <Table.ScrollContainer>
+                    <Table.Content aria-label='Team members'>
+                        <Table.Header>
+                            <Table.Column isRowHeader>Member</Table.Column>
+                            <Table.Column>Email</Table.Column>
+                            <Table.Column>Role</Table.Column>
+                            <Table.Column><span className='sr-only'>Actions</span></Table.Column>
+                        </Table.Header>
 
-                <Table.Body>
-                    {members.map((member) => (
-                        <TeamRow
-                            key={member.id}
-                            member={member}
-                            isBusy={updateRole.loading}
-                            onRoleChange={(role) => changeRole(member, role)}
-                            onRemove={() => setRemoveTarget(member)}
-                        />
-                    ))}
-                </Table.Body>
+                        <Table.Body>
+                            {members.map((member) => (
+                                <TeamRow
+                                    key={member.id}
+                                    member={member}
+                                    isBusy={updateRole.loading}
+                                    onRoleChange={(role) => changeRole(member, role)}
+                                    onRemove={() => setRemoveTarget(member)}
+                                />
+                            ))}
+                        </Table.Body>
+                    </Table.Content>
+                </Table.ScrollContainer>
             </Table>
 
             {updateRole.error !== undefined && <InlineError>{copy(updateRole.error)}</InlineError>}
@@ -231,21 +236,27 @@ const Team = () => {
     const members = useQuery(organizationApi.members, [organizationId ?? undefined]);
     const [inviteOpen, setInviteOpen] = useState(false);
 
-    if(organizationId === null) return <LoadingState title='Loading team' compact />;
-    if(members.loading) return <LoadingState title='Loading team members' compact />;
+    if(organizationId === null) return <CenterState className='h-full'><LoadingState title='Loading team' compact /></CenterState>;
+    if(members.loading){
+        return <CenterState className='h-full'><LoadingState title='Loading team members' compact /></CenterState>;
+    }
     if(members.error !== undefined){
-        return <ErrorState title='Could not load team members' description={copy(members.error)} onRetry={members.reload} />;
+        return (
+            <CenterState className='h-full'>
+                <ErrorState title='Could not load team members' description={copy(members.error)} onRetry={members.reload} />
+            </CenterState>
+        );
     }
 
     const items = members.data ?? [];
 
     return (
-        <PageBody width='wide'>
+        <PageBody width='wide' height='full'>
             <TeamHeader organizationName={current?.name ?? null} onInvite={() => setInviteOpen(true)} />
 
-            <div className='mt-6'>
+            <div className='mt-6 flex flex-1 flex-col'>
                 {items.length === 0 ? (
-                    <MembersEmpty onInvite={() => setInviteOpen(true)} />
+                    <CenterState><MembersEmpty onInvite={() => setInviteOpen(true)} /></CenterState>
                 ) : (
                     <TeamTable organizationId={organizationId} members={items} onChanged={members.reload} />
                 )}

@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { Button } from '@heroui/react';
-import { Loader2, TriangleAlert } from 'lucide-react';
+import { Button, Spinner } from '@heroui/react';
+import { TriangleAlert } from 'lucide-react';
 import '@xterm/xterm/css/xterm.css';
 import PageBody from '@/shared/components/layout/PageBody';
 import { useChannel } from '@/shared/hooks/socket/use-channel';
@@ -107,7 +107,7 @@ const Shell = () => {
 
             {channel.status !== 'open' && (
                 <div className='mt-4 flex items-center gap-2 text-[0.8125rem] text-muted'>
-                    <Loader2 className='size-4 animate-spin motion-reduce:animate-none' aria-hidden='true' />
+                    <Spinner size='sm' color='current' />
                     {CONNECTION_LABEL[channel.status]}
                 </div>
             )}

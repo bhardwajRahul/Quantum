@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Button, Chip, Table } from '@heroui/react';
+import { Button, Chip, Spinner, Table } from '@heroui/react';
 import {
     CheckCircle2,
     CircleDashed,
     ExternalLink,
-    Loader2,
     Play,
     Rocket,
     RotateCw,
@@ -218,7 +217,7 @@ const DeleteDeploymentDialog = ({ deployment, onClose, onDeleted }: DeleteDeploy
 const stepIcon = (level: ActivityLevel) => {
     switch(level){
         case ActivityLevel.Progress:
-            return <Loader2 aria-hidden='true' className='size-4 shrink-0 animate-spin text-warning motion-reduce:animate-none' />;
+            return <Spinner size='sm' color='warning' />;
         case ActivityLevel.Success:
             return <CheckCircle2 aria-hidden='true' className='size-4 shrink-0 text-success' />;
         case ActivityLevel.Error:
@@ -294,7 +293,7 @@ const DeploymentPipelinePanel = ({ steps, logs, done, onDismiss }: DeploymentPip
         <div className='mt-6 rounded-xl border border-border'>
             <div className='flex items-center gap-3 border-b border-border px-5 py-3.5'>
                 {!done ? (
-                    <Loader2 aria-hidden='true' className='size-4 shrink-0 animate-spin text-warning motion-reduce:animate-none' />
+                    <Spinner size='sm' color='warning' />
                 ) : hasError ? (
                     <XCircle aria-hidden='true' className='size-4 shrink-0 text-danger' />
                 ) : (
@@ -311,7 +310,7 @@ const DeploymentPipelinePanel = ({ steps, logs, done, onDismiss }: DeploymentPip
             <ol>
                 {ordered.length === 0 ? (
                     <li className='flex items-center gap-3 px-5 py-3 text-[0.875rem] text-muted'>
-                        <Loader2 aria-hidden='true' className='size-4 shrink-0 animate-spin text-warning motion-reduce:animate-none' />
+                        <Spinner size='sm' color='warning' />
                         Queued — waiting for the build to start…
                     </li>
                 ) : (

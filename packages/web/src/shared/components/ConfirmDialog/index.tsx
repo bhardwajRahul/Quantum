@@ -1,6 +1,5 @@
-import { Button } from '@heroui/react';
+import { AlertDialog, Button } from '@heroui/react';
 import InlineError from '@/shared/components/InlineError';
-import Modal from '@/shared/components/Modal';
 
 interface ConfirmDialogProps{
     isOpen: boolean;
@@ -23,20 +22,28 @@ const ConfirmDialog = ({
     error,
     onConfirm
 }: ConfirmDialogProps) => (
-    <Modal isOpen={isOpen} onOpenChange={onOpenChange} title={title}>
-        <div className='flex flex-col gap-4'>
-            <p className='text-[0.875rem] text-muted'>{description}</p>
+    <AlertDialog.Backdrop isOpen={isOpen} onOpenChange={onOpenChange}>
+        <AlertDialog.Container>
+            <AlertDialog.Dialog>
+                <AlertDialog.CloseTrigger />
 
-            {error ? (
-                <InlineError>{error}</InlineError>
-            ) : null}
+                <AlertDialog.Header>
+                    <AlertDialog.Icon status='danger' />
+                    <AlertDialog.Heading>{title}</AlertDialog.Heading>
+                </AlertDialog.Header>
 
-            <div className='flex justify-end gap-2'>
-                <Button variant='secondary' onPress={() => onOpenChange(false)}>Cancel</Button>
-                <Button variant='danger' isPending={isPending} onPress={onConfirm}>{confirmLabel}</Button>
-            </div>
-        </div>
-    </Modal>
+                <AlertDialog.Body>
+                    <p className='text-[0.875rem] text-muted'>{description}</p>
+                    {error ? <InlineError className='mt-4'>{error}</InlineError> : null}
+                </AlertDialog.Body>
+
+                <AlertDialog.Footer>
+                    <Button slot='close' variant='secondary'>Cancel</Button>
+                    <Button variant='danger' isPending={isPending} onPress={onConfirm}>{confirmLabel}</Button>
+                </AlertDialog.Footer>
+            </AlertDialog.Dialog>
+        </AlertDialog.Container>
+    </AlertDialog.Backdrop>
 );
 
 export default ConfirmDialog;

@@ -7,6 +7,7 @@ import Field from '@/shared/components/forms/Field';
 import { useForm } from '@/shared/hooks/forms/use-form';
 import { authApi } from '@/modules/auth/api/api';
 import { authErrorMessages } from '@/modules/auth/utils/error-messages';
+import { useSessionStore } from '@/shared/store/session';
 import type { AuthSubmitErrorCode } from '@/modules/auth/utils/error-messages';
 import type { UpdatePasswordInput } from '@quantum/contracts/modules/auth/http';
 
@@ -16,6 +17,7 @@ const changePasswordErrorFields: Partial<Record<AuthSubmitErrorCode, keyof Updat
 
 const ChangePassword = () => {
     const [saved, setSaved] = useState(false);
+    const setToken = useSessionStore((state) => state.setToken);
 
     const form = useForm<UpdatePasswordInput>({
         validate: typia.createValidate<UpdatePasswordInput>(),
@@ -23,7 +25,8 @@ const ChangePassword = () => {
         submitErrorFields: changePasswordErrorFields,
         initialValues: { passwordCurrent: '', password: '', passwordConfirm: '' },
         onSubmit: async (values) => {
-            await authApi.updatePassword(values);
+            const session = await authApi.updatePassword(values);
+            setToken(session.token);
             form.reset();
             setSaved(true);
             setTimeout(() => setSaved(false), 3000);

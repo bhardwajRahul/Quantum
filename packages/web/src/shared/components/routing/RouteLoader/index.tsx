@@ -1,8 +1,8 @@
-import { LoaderCircle } from 'lucide-react';
+import { Spinner } from '@heroui/react';
 
 const RouteLoader = () => (
     <div className='flex min-h-dvh items-center justify-center bg-background'>
-        <LoaderCircle className='size-6 animate-spin text-muted' aria-label='Loading' />
+        <Spinner color='current' className='text-muted' />
     </div>
 );
 

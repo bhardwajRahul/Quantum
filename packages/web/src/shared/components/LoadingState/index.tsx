@@ -1,5 +1,4 @@
-import { cn } from '@heroui/react';
-import { Loader2 } from 'lucide-react';
+import { cn, Spinner } from '@heroui/react';
 import type { ReactNode } from 'react';
 
 interface LoadingStateProps{
@@ -10,17 +9,14 @@ interface LoadingStateProps{
 }
 
 const LoadingState = ({ title, description, compact = false, children }: LoadingStateProps) => (
-    <div role='status' className={cn('flex flex-col items-center text-center', compact ? 'px-4 py-8' : 'px-6 py-16')}>
+    <div className={cn('flex flex-col items-center text-center', compact ? 'px-4 py-8' : 'px-6 py-16')}>
         <span
             className={cn(
                 'flex items-center justify-center rounded-full bg-foreground/[0.06]',
                 compact ? 'size-10' : 'size-12'
             )}
         >
-            <Loader2
-                aria-hidden='true'
-                className={cn('animate-spin motion-reduce:animate-none', compact ? 'size-5' : 'size-6')}
-            />
+            <Spinner color='current' size={compact ? 'sm' : 'md'} aria-label={title} />
         </span>
 
         <h2 className={cn('font-medium text-foreground', compact ? 'mt-4 text-[0.875rem]' : 'mt-5 text-[0.9375rem]')}>

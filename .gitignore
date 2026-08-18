@@ -2,18 +2,14 @@ __pycache__/
 *.py[cod]
 *.log
 
-client/node_modules/
-client/package-lock.json
-client/dist/
+.env
+.admin-credentials.txt
 client/.env
-
-server/node_modules/
-server/package-lock.json
 server/.env
 
-setup-utility/client/node_modules/
-setup-utility/client/package-lock.json
-setup-utility/client/dist/
-setup-utility/server/venv/
-setup-utility/server/__pycache__/
-setup-utility/server/.requirements_hash
+node_modules/
+
+client/dist/
+qa/artifacts/
+
+.cleanup-backup-*/

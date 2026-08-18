@@ -4,6 +4,8 @@ import type { SignInInput, SignUpInput, UpdatePasswordInput } from '@quantum/con
 import type { UpdateMyAccountInput } from '@quantum/contracts/modules/user/http';
 
 export const authApi = {
+    checkEmail: (email: string) => call(authRoutes.checkEmail, { query: { email } }),
+
     signIn: (body: SignInInput) => call(authRoutes.signIn, { body }),
 
     signUp: (body: SignUpInput) => call(authRoutes.signUp, { body }),

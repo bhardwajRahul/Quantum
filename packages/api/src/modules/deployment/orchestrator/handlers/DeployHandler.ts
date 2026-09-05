@@ -6,11 +6,10 @@ import ContainerOps from '../ContainerOps';
 import IngressService from '../IngressService';
 import ActivityStepContext from '@/modules/activity/services/ActivityStepContext';
 import { resolveStrategy, getBuilder } from '../build';
-import { emitBuildLog, type BuildContext } from '../build/BuildContext';
+import type { BuildContext } from '../build/BuildContext';
 import { emitStatusChanged, emitCompleted } from '../statusEvents';
 import { BuildStrategy } from '@quantum/contracts/modules/repository/domain';
 import { DeploymentStatus } from '@quantum/contracts/modules/deployment/domain';
-import { logger } from '@/shared/utils/Logger';
 import type Job from '../../models/Job';
 
 export default class DeployHandler{
@@ -62,8 +61,6 @@ export default class DeployHandler{
 
     async #forward(job: Job, repository: Repository, activity: ActivityStepContext): Promise<void>{
         const container = await activity.step('Provisioning infrastructure', () => this.#provision.ensureRepositoryInfra(repository));
-        await new ContainerOps(container).stop().catch((error) =>
-            logger.warn(`stop before redeploy failed (continuing): ${(error as Error).message}`, { scope: 'orchestrator.handler.deploy' }));
 
         const deployment = await this.#createDeployment(job, repository);
         emitStatusChanged(deployment.id, repository.id, DeploymentStatus.Building);
@@ -100,10 +97,6 @@ export default class DeployHandler{
 
     async #buildAndLaunch(job: Job, repository: Repository, container: DockerContainer, deployment: Deployment): Promise<void>{
         const strategy = resolveStrategy(repository, []);
-        if(strategy === BuildStrategy.Exec){
-            emitBuildLog(deployment, '[build] Exec strategy: in-container build deferred to runtime\n');
-            return;
-        }
         const ctx: BuildContext = {
             repository,
             deployment,
@@ -116,6 +109,20 @@ export default class DeployHandler{
         await deployment.save();
 
         await this.#ingress.ensureSubdomain(repository).catch(() => undefined);
+
+        /*
+         * An exec build already ran inside the live container and started the app there,
+         * so replacing the container now would throw that away. Only the strategies that
+         * produce an image have something new to run.
+         */
+        if(strategy === BuildStrategy.Exec) return;
+
+        /*
+         * No stop first: `removeContainer` force-removes, so stopping was redundant here
+         * and actively wrong for an exec build, which has to run inside the container
+         * that is still up. Stopping it before the build was what made every exec deploy
+         * fail with "container is not running".
+         */
         const ops = new ContainerOps(container);
         await ops.removeContainer();
         await ops.createAndStartContainer({ imageOverride: artifact.tag, extraLabels: await this.#labels(repository) });

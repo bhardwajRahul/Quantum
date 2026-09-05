@@ -1,9 +1,16 @@
-import { useState } from 'react';
+import { useMemo } from 'react';
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useRememberedSelection } from '@/shared/hooks/use-remembered-selection';
 import { Activity } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
 import PageHeader from '@/shared/components/layout/PageHeader';
 import ListPageShell from '@/shared/components/ListPageShell';
 import StatTile from '@/shared/components/StatTile';
+import Sparkline from '@/shared/components/charts/Sparkline';
+import ChartPanel from '@/shared/components/charts/ChartPanel';
+import ChartLegend from '@/shared/components/charts/ChartLegend';
+import ChartTooltip from '@/shared/components/charts/ChartTooltip';
+import { AXIS, CURSOR, GRID_STROKE } from '@/shared/components/charts/axes';
 import EntitySelect from '@/shared/components/EntitySelect';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { usePolledQuery } from '@/shared/hooks/api/use-polled-query';
@@ -11,55 +18,97 @@ import { metricApi } from '@/modules/metric/api/api';
 import { repositoryApi } from '@/modules/repository/api/api';
 import { metricErrorMessages } from '@/modules/metric/utils/error-messages';
 import { errorCopy } from '@/shared/utils/error-copy';
+import { formatBytes } from '@/shared/utils/format-bytes';
+import { formatDate } from '@/shared/utils/format-date';
+import { count, rate } from '@/shared/utils/format-metrics';
 import type { Metric } from '@quantum/contracts/modules/metric/domain';
 
 const copy = errorCopy(metricErrorMessages);
 
-const BYTE_UNITS = ['KB', 'MB', 'GB', 'TB'];
-
-const clampPercent = (value: number): number => Math.min(100, Math.max(0, value));
-
-const formatPercent = (value: number): string => `${value.toFixed(1)}%`;
-
-const formatBytes = (value: number): string => {
-    if(value < 1024) return `${Math.round(value)} B`;
-
-    let scaled = value / 1024;
-    let index = 0;
-    while(scaled >= 1024 && index < BYTE_UNITS.length - 1){
-        scaled /= 1024;
-        index++;
-    }
-
-    return `${scaled.toFixed(1)} ${BYTE_UNITS[index]}`;
+/** Only the time of day: the axis spans minutes, so the date would be the same on every tick. */
+const clockLabel = (iso: string): string => {
+    const at = new Date(iso);
+    return Number.isNaN(at.getTime())
+        ? '—'
+        : at.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 };
 
 const sortByTs = (samples: Metric[]): Metric[] =>
     [...samples].sort((a, b) => new Date(a.ts).valueOf() - new Date(b.ts).valueOf());
 
-interface PercentBarChartProps{
-    label: string;
-    values: number[];
+interface MetricTooltipProps{
+    active?: boolean;
+    payload?: Array<{ payload: Metric }>;
 }
 
-const PercentBarChart = ({ label, values }: PercentBarChartProps) => (
-    <div>
-        <span className='text-[0.8125rem] text-muted'>{label}</span>
-        <div className='mt-2 flex h-32 items-end gap-1 rounded-xl bg-foreground/[0.04] p-3'>
-            {values.map((value, index) => (
-                <div
-                    key={index}
-                    className='flex-1 rounded-t bg-foreground/70'
-                    style={{ height: `${clampPercent(value)}%` }}
-                />
-            ))}
+const MetricTooltip = ({ active, payload }: MetricTooltipProps) => {
+    const point = payload?.[0]?.payload;
+    if(active !== true || point === undefined) return null;
+
+    return (
+        <ChartTooltip
+            title={formatDate(point.ts)}
+            rows={[
+                { label: 'CPU', value: `${rate(point.cpuPercent)}%` },
+                { label: 'Memory', value: `${rate(point.memPercent)}%` },
+                { label: 'Used', value: formatBytes(point.memUsage) }
+            ]}
+        />
+    );
+};
+
+interface UsageOverTimeProps{
+    samples: Metric[];
+}
+
+/**
+ * One chart for both series rather than two side by side: CPU and memory are read
+ * together — a spike in one is only interesting next to the other — and a shared time
+ * axis is what makes that comparison possible.
+ */
+const LEGEND = [
+    { label: 'CPU %', className: 'bg-foreground' },
+    { label: 'Memory %', className: 'bg-foreground/30' }
+];
+
+const UsageOverTime = ({ samples }: UsageOverTimeProps) => (
+    <ChartPanel title='Utilisation' meta={`${samples.length} ${samples.length === 1 ? 'sample' : 'samples'}`}>
+        <div className='h-64'>
+            <ResponsiveContainer width='100%' height='100%'>
+                <AreaChart data={samples} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+                    <CartesianGrid vertical={false} stroke={GRID_STROKE} />
+                    <XAxis dataKey='ts' tickFormatter={clockLabel} minTickGap={32} {...AXIS} />
+                    <YAxis domain={[0, 100]} unit='%' width={44} {...AXIS} />
+                    <Tooltip content={<MetricTooltip />} cursor={CURSOR} />
+                    <Area
+                        type='monotone'
+                        dataKey='cpuPercent'
+                        stroke='var(--foreground)'
+                        strokeWidth={1.5}
+                        fill='var(--foreground)'
+                        fillOpacity={0.1}
+                    />
+                    <Area
+                        type='monotone'
+                        dataKey='memPercent'
+                        stroke='var(--foreground)'
+                        strokeOpacity={0.35}
+                        strokeWidth={1.5}
+                        fill='var(--foreground)'
+                        fillOpacity={0.04}
+                    />
+                </AreaChart>
+            </ResponsiveContainer>
         </div>
-    </div>
+
+        <ChartLegend entries={LEGEND} />
+    </ChartPanel>
 );
 
 const Metrics = () => {
     const repositories = useQuery(repositoryApi.mine, []);
-    const [repositoryId, setRepositoryId] = useState<number | null>(null);
+    const itemsIds = useMemo(() => (repositories.data ?? []).map((entry) => entry.id), [repositories.data]);
+    const [repositoryId, setRepositoryId] = useRememberedSelection<number>('metrics.repository', itemsIds);
 
     const metrics = usePolledQuery(
         useQuery(
@@ -122,30 +171,42 @@ const Metrics = () => {
                         title: 'Select a repository',
                         description: 'Choose one of your repositories above to view its live resource usage.'
                     }}
-                    isEmpty={samples.length === 0 || latest === undefined}
+                    isEmpty={latest === undefined}
                     empty={{
                         icon: Activity,
                         title: 'No samples yet',
                         description: 'This repository has no metric samples yet. Samples appear once its container starts reporting usage.'
                     }}
                 >
-                    <div className='flex flex-col gap-6'>
-                        <div className='grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5'>
-                            <StatTile label='CPU' value={formatPercent(latest.cpuPercent)} />
-                            <StatTile
-                                label='Memory'
-                                value={`${formatPercent(latest.memPercent)} (${formatBytes(latest.memUsage)} / ${formatBytes(latest.memLimit)})`}
-                            />
-                            <StatTile label='Network RX' value={formatBytes(latest.netRx)} />
-                            <StatTile label='Network TX' value={formatBytes(latest.netTx)} />
-                            <StatTile label='PIDs' value={String(latest.pids)} />
-                        </div>
+                    {/*
+                      * Guarded here, not only through `isEmpty`: children are built eagerly, so
+                      * the shell picks a state long after this subtree has already been
+                      * evaluated. Reading `latest` unguarded is what crashed the page on mount,
+                      * before a repository is even selected.
+                      */}
+                    {latest !== undefined && (
+                        <div className='flex flex-col gap-4'>
+                            <section className='grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border lg:grid-cols-5 lg:divide-y-0'>
+                                <StatTile label='CPU' value={`${rate(latest.cpuPercent)}%`} hint='Current sample'>
+                                    <Sparkline values={samples.map((sample) => sample.cpuPercent)} />
+                                </StatTile>
 
-                        <div className='grid grid-cols-1 gap-4 lg:grid-cols-2'>
-                            <PercentBarChart label='CPU %' values={samples.map((sample) => sample.cpuPercent)} />
-                            <PercentBarChart label='Memory %' values={samples.map((sample) => sample.memPercent)} />
+                                <StatTile
+                                    label='Memory'
+                                    value={`${rate(latest.memPercent)}%`}
+                                    hint={`${formatBytes(latest.memUsage)} of ${formatBytes(latest.memLimit)}`}
+                                >
+                                    <Sparkline values={samples.map((sample) => sample.memPercent)} />
+                                </StatTile>
+
+                                <StatTile label='Network in' value={formatBytes(latest.netRx)} hint='Since start' />
+                                <StatTile label='Network out' value={formatBytes(latest.netTx)} hint='Since start' />
+                                <StatTile label='Processes' value={count(latest.pids)} hint='Running in the container' />
+                            </section>
+
+                            <UsageOverTime samples={samples} />
                         </div>
-                    </div>
+                    )}
                 </ListPageShell>
             </div>
         </PageBody>

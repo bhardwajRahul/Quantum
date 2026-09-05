@@ -12,9 +12,10 @@ import Field from '@/shared/components/forms/Field';
 import ProjectSelect from '@/modules/repository/components/ProjectSelect';
 import { useForm } from '@/shared/hooks/forms/use-form';
 import { useQuery } from '@/shared/hooks/api/use-query';
+import { useResource } from '@/shared/hooks/api/use-resource';
 import { githubApi } from '@/modules/github/api/api';
 import { repositoryApi } from '@/modules/repository/api/api';
-import { projectApi } from '@/modules/repository/api/projects';
+import { projectRoutes } from '@quantum/contracts/modules/project/routes';
 import { useCurrentOrganizationId } from '@/modules/organization/hooks/use-current-organization-id';
 import { githubErrorMessages } from '@/modules/github/utils/error-messages';
 import { repositoryErrorMessages } from '@/modules/repository/utils/error-messages';
@@ -142,7 +143,7 @@ const RepositoryConfigFields = ({ repository, detection, projects, onBack }: Rep
         submitErrorMessages: repositoryErrorMessages,
         initialValues: initialValuesFor(repository, detection),
         onSubmit: async (values) => {
-            const created = await repositoryApi.create(toCreateRepositoryInput(values));
+            const created = await repositoryApi.create({ body: toCreateRepositoryInput(values) });
             navigate(`/repositories/${created.id}/deployments`);
         }
     });
@@ -291,7 +292,10 @@ interface RepositoryConfigFormProps{
 
 const RepositoryConfigForm = ({ repository, onBack }: RepositoryConfigFormProps) => {
     const organizationId = useCurrentOrganizationId();
-    const projects = useQuery(projectApi.listByOrganization, [organizationId ?? undefined]);
+    const projects = useResource(projectRoutes, {
+        list: 'listByOrganization',
+        request: organizationId === null ? null : { path: { orgId: organizationId } }
+    });
     const detection = useQuery(githubApi.detect, [repository.owner, repository.name]);
 
     if(projects.loading || detection.loading){
@@ -304,7 +308,7 @@ const RepositoryConfigForm = ({ repository, onBack }: RepositoryConfigFormProps)
                 <ErrorState
                     title='Could not load projects'
                     description={repositoryCopy(projects.error)}
-                    onRetry={projects.reload}
+                    onRetry={projects.refresh}
                 />
             </CenterState>
         );

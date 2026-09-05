@@ -105,7 +105,7 @@ interface EnvironmentVariablesEditorProps{
 
 const EnvironmentVariablesEditor = ({ deploymentId, environmentVariables, onSaved }: EnvironmentVariablesEditorProps) => {
     const [rows, setRows] = useState<EnvVarRow[]>(() => envVarRowsFrom(environmentVariables));
-    const update = useMutation((body: UpdateDeploymentInput) => deploymentApi.update(deploymentId, body));
+    const update = useMutation((body: UpdateDeploymentInput) => deploymentApi.update({ path: { id: deploymentId }, body }));
 
     const handleSave = async () => {
         const saved = await update
@@ -168,7 +168,7 @@ const NoDeploymentYet = () => (
 const EnvironmentVariables = () => {
     const { repositoryId } = useParams<{ repositoryId: string }>();
     const id = repositoryId !== undefined ? Number(repositoryId) : undefined;
-    const environment = useQuery(deploymentApi.environment, [id]);
+    const environment = useQuery((repositoryId: number) => deploymentApi.environment({ path: { repositoryId } }), [id]);
 
     if(id === undefined || environment.loading){
         return <CenterState className='h-full'><LoadingState title='Loading environment variables' compact /></CenterState>;

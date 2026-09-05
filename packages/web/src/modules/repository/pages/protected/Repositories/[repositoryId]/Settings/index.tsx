@@ -128,7 +128,7 @@ const RepositorySettingsForm = ({ repository, onSaved }: RepositorySettingsFormP
         submitErrorMessages: repositoryErrorMessages,
         initialValues: toRepositorySettingsFormValues(repository),
         onSubmit: async (values) => {
-            await repositoryApi.update(repository.id, toUpdateRepositoryInput(values));
+            await repositoryApi.update({ path: { id: repository.id }, body: toUpdateRepositoryInput(values) });
             onSaved();
         }
     });
@@ -245,7 +245,7 @@ interface DeleteRepositoryDialogProps{
 
 const DeleteRepositoryDialog = ({ repository, isOpen, onClose }: DeleteRepositoryDialogProps) => {
     const navigate = useNavigate();
-    const remove = useMutation((repositoryId: number) => repositoryApi.remove(repositoryId));
+    const remove = useMutation((repositoryId: number) => repositoryApi.remove({ path: { id: repositoryId } }));
 
     const handleDelete = async () => {
         const deleted = await remove.run(repository.id).then(() => true, () => false);
@@ -296,7 +296,7 @@ const RepositorySettings = () => {
     const { repositoryId } = useParams<{ repositoryId: string }>();
     const id = repositoryId !== undefined ? Number(repositoryId) : undefined;
 
-    const repository = useQuery(repositoryApi.get, [id]);
+    const repository = useQuery((repositoryId: number) => repositoryApi.get({ path: { id: repositoryId } }), [id]);
 
     if(repository.loading) return <LoadingState title='Loading repository' compact />;
     if(repository.error !== undefined){

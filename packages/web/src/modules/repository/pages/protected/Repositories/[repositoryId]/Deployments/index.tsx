@@ -19,10 +19,12 @@ import CenterState from '@/shared/components/CenterState';
 import InlineError from '@/shared/components/InlineError';
 import ConfirmDialog from '@/shared/components/ConfirmDialog';
 import { useQuery } from '@/shared/hooks/api/use-query';
+import { useResource } from '@/shared/hooks/api/use-resource';
 import { useMutation } from '@/shared/hooks/api/use-mutation';
 import { useChannel } from '@/shared/hooks/socket/use-channel';
 import { repositoryApi } from '@/modules/repository/api/api';
 import { deploymentApi } from '@/modules/repository/api/deployment-api';
+import { deploymentRoutes } from '@quantum/contracts/modules/deployment/routes';
 import { activityApi } from '@/modules/activity/api/api';
 import { deploymentStatusColor, deploymentStatusLabel, isDeploymentInProgress } from '@/modules/repository/utils/deployment-status';
 import { formatDate } from '@/modules/repository/utils/format-date';
@@ -153,7 +155,7 @@ interface RollbackDeploymentDialogProps{
 
 const RollbackDeploymentDialog = ({ deployment, onClose, onRolledBack }: RollbackDeploymentDialogProps) => {
     const rollback = useMutation((repositoryId: number, deploymentId: number) =>
-        repositoryApi.rollback(repositoryId, deploymentId));
+        repositoryApi.rollback({ path: { id: repositoryId, deploymentId } }));
 
     const handleConfirm = async () => {
         if(deployment === null) return;
@@ -188,7 +190,7 @@ interface DeleteDeploymentDialogProps{
 }
 
 const DeleteDeploymentDialog = ({ deployment, onClose, onDeleted }: DeleteDeploymentDialogProps) => {
-    const remove = useMutation((id: number) => deploymentApi.remove(id));
+    const remove = useMutation((id: number) => deploymentApi.remove({ path: { id } }));
 
     const handleDelete = async () => {
         if(deployment === null) return;
@@ -328,8 +330,11 @@ const Deployments = () => {
     const id = repositoryId !== undefined ? Number(repositoryId) : undefined;
     const [searchParams, setSearchParams] = useSearchParams();
 
-    const repository = useQuery(repositoryApi.get, [id]);
-    const deploymentsQuery = useQuery(deploymentApi.listByRepository, [id]);
+    const repository = useQuery((repositoryId: number) => repositoryApi.get({ path: { id: repositoryId } }), [id]);
+    const deploymentsQuery = useResource(deploymentRoutes, {
+        list: 'listByRepository',
+        request: id === undefined ? null : { path: { repositoryId: id } }
+    });
 
     const [activeJobId, setActiveJobId] = useState<string | null>(() => searchParams.get('job'));
     const [pipelineDone, setPipelineDone] = useState(false);
@@ -339,7 +344,7 @@ const Deployments = () => {
     const [deleteTarget, setDeleteTarget] = useState<Deployment | null>(null);
 
     const operate = useMutation((repositoryOperationId: number, body: RepositoryOperationInput) =>
-        deploymentApi.operate(repositoryOperationId, body));
+        deploymentApi.operate({ path: { repositoryId: repositoryOperationId }, body }));
 
     const handleOperate = async (operation: RepositoryOperation) => {
         if(id === undefined) return;
@@ -353,7 +358,7 @@ const Deployments = () => {
     };
 
     const handleStatusFrame = (frame: DeploymentStatusFrame) => {
-        deploymentsQuery.reload();
+        deploymentsQuery.refresh();
         if(!isDeploymentInProgress(frame.status)) setPipelineDone(true);
     };
 
@@ -420,7 +425,7 @@ const Deployments = () => {
                 <ErrorState
                     title='Could not load deployments'
                     description={copy(deploymentsQuery.error)}
-                    onRetry={deploymentsQuery.reload}
+                    onRetry={deploymentsQuery.refresh}
                 />
             </CenterState>
         );
@@ -462,13 +467,13 @@ const Deployments = () => {
             <RollbackDeploymentDialog
                 deployment={rollbackTarget}
                 onClose={() => setRollbackTarget(null)}
-                onRolledBack={deploymentsQuery.reload}
+                onRolledBack={deploymentsQuery.refresh}
             />
 
             <DeleteDeploymentDialog
                 deployment={deleteTarget}
                 onClose={() => setDeleteTarget(null)}
-                onDeleted={deploymentsQuery.reload}
+                onDeleted={deploymentsQuery.refresh}
             />
         </PageBody>
     );

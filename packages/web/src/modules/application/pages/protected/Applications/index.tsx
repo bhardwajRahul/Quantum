@@ -252,7 +252,7 @@ interface DeleteApplicationDialogProps{
 }
 
 const DeleteApplicationDialog = ({ repository, onClose, onRemoved }: DeleteApplicationDialogProps) => {
-    const remove = useMutation((id: number) => repositoryApi.remove(id));
+    const remove = useMutation((id: number) => repositoryApi.remove({ path: { id } }));
 
     const handleRemove = async () => {
         if(repository === null) return;

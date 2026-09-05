@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { channelPool } from '@/shared/services/socket/ChannelPool';
 import type { ChannelApi, ChannelHandlers, ChannelStatus, HandlersFor } from '@/shared/contracts/channel';
 
@@ -39,5 +39,8 @@ export const useChannel = <P extends string>(
 
     const clearError = useCallback(() => setLastError(undefined), []);
 
-    return { send, status, lastError, clearError };
+    return useMemo(
+        () => ({ send, status, lastError, clearError }),
+        [send, status, lastError, clearError]
+    );
 };

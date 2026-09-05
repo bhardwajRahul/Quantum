@@ -56,8 +56,8 @@ const Events = () => {
     });
 
     useEffect(() => {
-        channel.send('subscribe', {});
-    }, [channel.send]);
+        if(channel.status === 'open') channel.send('subscribe', {});
+    }, [channel]);
 
     if(history.loading) return <CenterState className='h-full'><LoadingState title='Loading events' compact /></CenterState>;
     if(history.error !== undefined){

@@ -365,8 +365,9 @@ const Deployments = () => {
 
     useEffect(() => {
         if(id === undefined) return;
+        if(deploymentChannel.status !== 'open') return;
         deploymentChannel.send('subscribe', { repositoryId: id });
-    }, [id, deploymentChannel.send]);
+    }, [id, deploymentChannel]);
 
     const stepsQuery = useQuery(
         activityApi.list,
@@ -389,8 +390,8 @@ const Deployments = () => {
     });
 
     useEffect(() => {
-        activityChannel.send('subscribe', {});
-    }, [activityChannel.send]);
+        if(activityChannel.status === 'open') activityChannel.send('subscribe', {});
+    }, [activityChannel]);
 
     const handleDismiss = () => {
         setActiveJobId(null);

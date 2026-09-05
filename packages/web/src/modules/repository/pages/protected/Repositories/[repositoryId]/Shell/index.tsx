@@ -50,7 +50,7 @@ const Shell = () => {
 
         const term = terminalRef.current;
         if(term) channel.send('terminal.resize', { cols: term.cols, rows: term.rows });
-    }, [channel.status, channel.send]);
+    }, [channel]);
 
     useEffect(() => {
         if(!containerRef.current) return;

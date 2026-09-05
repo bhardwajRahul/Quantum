@@ -108,7 +108,21 @@ const DeploymentsTable = ({ deployments, onRollback, onDelete }: DeploymentsTabl
                     {deployments.map((deployment) => (
                         <Table.Row key={deployment.id}>
                             <Table.Cell>
-                                <span className='font-medium text-foreground'>{deployment.commit?.message ?? '—'}</span>
+                                <div className='flex max-w-[420px] flex-col gap-1'>
+                                    <span className='font-medium text-foreground'>
+                                        {deployment.commit?.message ?? 'No commit recorded'}
+                                    </span>
+
+                                    {/*
+                                      * A failed deployment is unreadable without this: the row used to say
+                                      * only "Failed", leaving the reason in the server log.
+                                      */}
+                                    {deployment.error !== null && (
+                                        <span className='text-[0.8125rem] break-words text-[var(--danger)]'>
+                                            {deployment.error}
+                                        </span>
+                                    )}
+                                </div>
                             </Table.Cell>
                             <Table.Cell>
                                 <Chip size='sm' variant='soft' className={deploymentStatusColor(deployment.status)}>

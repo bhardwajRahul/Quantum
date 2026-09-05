@@ -3,6 +3,7 @@ import DockerContainer from '@/modules/docker/models/DockerContainer';
 import Deployment from '../../models/Deployment';
 import ContainerOps from '../ContainerOps';
 import { emitStatusChanged, emitCompleted } from '../statusEvents';
+import { failureMessage } from '../failureMessage';
 import { ContainerDesiredState } from '@quantum/contracts/modules/docker/domain';
 import { DeploymentStatus } from '@quantum/contracts/modules/deployment/domain';
 import { DeploymentError } from '../../contracts/domain/errors';
@@ -30,7 +31,7 @@ export default class LifecycleHandler{
             emitStatusChangedFor(repository.id, deployment, finalStatus);
             if(deployment) emitCompleted(deployment.id, repository.id, finalStatus);
         }catch(error){
-            if(deployment) await this.#setStatus(deployment, DeploymentStatus.Failure);
+            if(deployment) await this.#setStatus(deployment, DeploymentStatus.Failure, failureMessage(error));
             emitStatusChangedFor(repository.id, deployment, DeploymentStatus.Failure);
             throw error;
         }
@@ -61,8 +62,10 @@ export default class LifecycleHandler{
         return Deployment.findOne({ where: { repositoryId }, order: { createdAt: 'DESC', id: 'DESC' } });
     }
 
-    async #setStatus(deployment: Deployment, status: DeploymentStatus): Promise<void>{
+    async #setStatus(deployment: Deployment, status: DeploymentStatus, error: string | null = null): Promise<void>{
         deployment.status = status;
+        // A successful start clears whatever the previous attempt left behind.
+        deployment.error = error;
         await deployment.save();
     }
 }

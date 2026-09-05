@@ -68,6 +68,8 @@ export interface Deployment extends BaseEntity{
     environmentId: number | null;
     githubDeploymentId: string | null;
     status: DeploymentStatus;
+    /** Why the deployment failed, as reported by the step that failed. */
+    error: string | null;
     commit: DeploymentCommit | null;
     artifact: DeploymentArtifact | null;
     url: string | null;

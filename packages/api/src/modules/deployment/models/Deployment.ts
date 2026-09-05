@@ -26,6 +26,9 @@ export default class Deployment extends BaseModel implements DeploymentFields{
     @Column({ type: 'simple-enum', enum: DeploymentStatus, default: DeploymentStatus.Pending })
     status!: DeploymentStatus;
 
+    @Column({ type: 'varchar', length: 500, nullable: true })
+    error!: string | null;
+
     @Column({ type: 'simple-json', nullable: true })
     commit!: DeploymentCommit | null;
 

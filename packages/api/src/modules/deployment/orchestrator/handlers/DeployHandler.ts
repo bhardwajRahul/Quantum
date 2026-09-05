@@ -8,6 +8,7 @@ import ActivityStepContext from '@/modules/activity/services/ActivityStepContext
 import { resolveStrategy, getBuilder } from '../build';
 import type { BuildContext } from '../build/BuildContext';
 import { emitStatusChanged, emitCompleted } from '../statusEvents';
+import { failureMessage } from '../failureMessage';
 import { BuildStrategy } from '@quantum/contracts/modules/repository/domain';
 import { DeploymentStatus } from '@quantum/contracts/modules/deployment/domain';
 import type Job from '../../models/Job';
@@ -59,20 +60,28 @@ export default class DeployHandler{
         }
     }
 
+    /**
+     * The deployment row is created before any work starts, not after provisioning. A
+     * failure while provisioning used to throw before there was a row to record it on,
+     * so the attempt left nothing behind for the reader except a job in the log — the
+     * repository simply showed a deployment that had failed for no stated reason.
+     */
     async #forward(job: Job, repository: Repository, activity: ActivityStepContext): Promise<void>{
-        const container = await activity.step('Provisioning infrastructure', () => this.#provision.ensureRepositoryInfra(repository));
-
         const deployment = await this.#createDeployment(job, repository);
         emitStatusChanged(deployment.id, repository.id, DeploymentStatus.Building);
 
         try{
+            const container = await activity.step('Provisioning infrastructure', () => this.#provision.ensureRepositoryInfra(repository));
+
             await activity.step('Building application', () => this.#buildAndLaunch(job, repository, container, deployment));
             deployment.status = DeploymentStatus.Success;
+            deployment.error = null;
             await deployment.save();
             emitStatusChanged(deployment.id, repository.id, DeploymentStatus.Success);
             emitCompleted(deployment.id, repository.id, DeploymentStatus.Success);
         }catch(error){
             deployment.status = DeploymentStatus.Failure;
+            deployment.error = failureMessage(error);
             await deployment.save();
             emitStatusChanged(deployment.id, repository.id, DeploymentStatus.Failure);
             emitCompleted(deployment.id, repository.id, DeploymentStatus.Failure);
@@ -88,6 +97,7 @@ export default class DeployHandler{
             environmentId: repository.environmentId,
             githubDeploymentId: null,
             status: DeploymentStatus.Building,
+            error: null,
             commit: null,
             artifact: null,
             url: null,

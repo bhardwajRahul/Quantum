@@ -3,13 +3,5 @@ __pycache__/
 *.log
 
 .env
-.admin-credentials.txt
-client/.env
-server/.env
 
 node_modules/
-
-client/dist/
-qa/artifacts/
-
-.cleanup-backup-*/

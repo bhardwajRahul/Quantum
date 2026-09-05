@@ -5,6 +5,7 @@ import { endSession } from '@/shared/services/end-session';
 import OrganizationSwitcher from '@/modules/organization/components/OrganizationSwitcher';
 import ThemeToggle from '@/shared/components/layout/ThemeToggle';
 import SessionAvatar from '@/modules/auth/components/SessionAvatar';
+import { useResourceStream } from '@/shared/hooks/api/use-resource-stream';
 
 const SETTINGS_PATHS = ['/settings', '/account', '/change-password'];
 
@@ -19,6 +20,10 @@ const navItemClass = (active: boolean): string =>
 const DashboardLayout = () => {
     const { pathname } = useLocation();
     const panel = panelFor(pathname);
+
+    // One socket for the whole dashboard: every list below reacts to it through the
+    // query cache, so no page has to subscribe for itself.
+    useResourceStream();
 
     const signOut = () => {
         void endSession();

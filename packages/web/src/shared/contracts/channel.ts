@@ -1,6 +1,7 @@
 import type SocketChannel from '@/shared/services/socket/SocketChannel';
 import type { ActivityServerFrames } from '@quantum/contracts/modules/activity/gateway';
 import type { DeploymentStatusFrame, DeploymentLogFrame } from '@quantum/contracts/modules/deployment/domain';
+import type { ResourceServerFrames } from '@quantum/contracts/modules/resource/gateway';
 import type { RuntimeLogServerFrames } from '@quantum/contracts/modules/repository/logs';
 import type { TerminalServerFrames } from '@quantum/contracts/modules/repository/gateway';
 
@@ -25,6 +26,7 @@ export interface ChannelMap{
         'deployment.completed': DeploymentStatusFrame;
         'deployment.log': DeploymentLogFrame;
     };
+    '/resource/stream': ResourceServerFrames;
     '/repository/:repositoryId/terminal': TerminalServerFrames;
     '/repository/:repositoryId/logs': RuntimeLogServerFrames;
 }

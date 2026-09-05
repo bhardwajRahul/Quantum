@@ -1,6 +1,6 @@
 export {};
 
-const databaseUrl = process.env.DATABASE_URL ?? 'postgres://quantum:quantum@localhost:5432/quantum';
+const databaseUrl = process.env.DATABASE_URL ?? 'postgres://quantum:quantum@localhost:5434/quantum';
 const schema = `test_${(process.env.VITEST_POOL_ID ?? '1').replace(/\W/g, '')}`;
 
 Object.assign(process.env, {

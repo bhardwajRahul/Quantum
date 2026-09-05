@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Card, Chip, Input, Label, ListBox, ListBoxItem, Select, TextField } from '@heroui/react';
+import { Button, Card, Chip, ComboBox, Input, Label, ListBox, ListBoxItem, Select } from '@heroui/react';
 import { FolderGit2, Search } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
 import ErrorState from '@/shared/components/ErrorState';
@@ -74,12 +74,13 @@ interface RepositoryPickerProps{
     onSelect: (repository: GithubRepository) => void;
 }
 
+/**
+ * Filtering is done here rather than handed to the ComboBox's `defaultFilter`, which
+ * would mean reaching for `useFilter` out of a transitive dependency of the design
+ * system. The list is already in memory, so matching on `fullName` is enough.
+ */
 const RepositoryPicker = ({ repositories, onSelect }: RepositoryPickerProps) => {
-    const [search, setSearch] = useState('');
-    const query = search.trim().toLowerCase();
-    const visible = query === ''
-        ? repositories
-        : repositories.filter((repository) => repository.fullName.toLowerCase().includes(query));
+    const [query, setQuery] = useState('');
 
     if(repositories.length === 0){
         return (
@@ -93,33 +94,59 @@ const RepositoryPicker = ({ repositories, onSelect }: RepositoryPickerProps) => 
         );
     }
 
-    return (
-        <div className='flex flex-col gap-4'>
-            <TextField value={search} onChange={setSearch} validationBehavior='aria' fullWidth>
-                <Label>Search repositories</Label>
-                <Input placeholder='owner/repository' autoComplete='off' />
-            </TextField>
+    const needle = query.trim().toLowerCase();
+    const visible = needle === ''
+        ? repositories
+        : repositories.filter((repository) => repository.fullName.toLowerCase().includes(needle));
 
-            {visible.length === 0 ? (
-                <EmptyState icon={Search} title='No matches' description='Try a different search term.' compact />
-            ) : (
-                <div className='flex flex-col gap-2'>
-                    {visible.map((repository) => (
-                        <Button
-                            key={repository.fullName}
-                            variant='secondary'
-                            fullWidth
-                            className='justify-between'
-                            onPress={() => onSelect(repository)}
-                        >
-                            <span className='truncate'>{repository.fullName}</span>
-                            <Chip size='sm' variant='soft' color={repository.private ? 'default' : 'success'}>
-                                {repository.private ? 'Private' : 'Public'}
-                            </Chip>
-                        </Button>
-                    ))}
-                </div>
-            )}
+    return (
+        <div className='flex w-full max-w-xl flex-col gap-1.5'>
+            <Label id='repository-picker-label'>Repository</Label>
+
+            <ComboBox
+                aria-labelledby='repository-picker-label'
+                inputValue={query}
+                onInputChange={setQuery}
+                onSelectionChange={(key) => {
+                    const repository = repositories.find((candidate) => candidate.fullName === key);
+                    if(repository !== undefined) onSelect(repository);
+                }}
+                allowsEmptyCollection
+                fullWidth
+            >
+                <ComboBox.InputGroup>
+                    <Input placeholder='Search your repositories…' autoComplete='off' />
+                    <ComboBox.Trigger />
+                </ComboBox.InputGroup>
+
+                <ComboBox.Popover>
+                    <ListBox
+                        aria-labelledby='repository-picker-label'
+                        renderEmptyState={() => (
+                            <EmptyState icon={Search} title='No matches' description='Try a different search term.' compact />
+                        )}
+                    >
+                        {visible.map((repository) => (
+                            <ListBoxItem
+                                key={repository.fullName}
+                                id={repository.fullName}
+                                textValue={repository.fullName}
+                            >
+                                <div className='flex w-full items-center justify-between gap-3'>
+                                    <span className='truncate'>{repository.fullName}</span>
+                                    <Chip size='sm' variant='soft' color={repository.private ? 'default' : 'success'}>
+                                        {repository.private ? 'Private' : 'Public'}
+                                    </Chip>
+                                </div>
+                            </ListBoxItem>
+                        ))}
+                    </ListBox>
+                </ComboBox.Popover>
+            </ComboBox>
+
+            <p className='text-[0.8125rem] text-muted'>
+                {repositories.length} {repositories.length === 1 ? 'repository' : 'repositories'} available. Type to narrow them down.
+            </p>
         </div>
     );
 };
@@ -212,11 +239,12 @@ const RepositoryConfigFields = ({ repository, detection, projects, onBack }: Rep
                                     <Label>Framework</Label>
                                     <Select
                                         aria-label='Framework'
+                                        placeholder='Select a framework'
                                         selectedKey={(binding.value as string) === '' ? null : (binding.value as string)}
                                         onSelectionChange={(key) => binding.onChange(String(key))}
                                     >
                                         <Select.Trigger>
-                                            <Select.Value>Select a framework</Select.Value>
+                                            <Select.Value />
                                             <Select.Indicator />
                                         </Select.Trigger>
 
@@ -240,11 +268,12 @@ const RepositoryConfigFields = ({ repository, detection, projects, onBack }: Rep
                                     <Label>Runtime</Label>
                                     <Select
                                         aria-label='Runtime'
+                                        placeholder='Select a runtime'
                                         selectedKey={(binding.value as string) === '' ? null : (binding.value as string)}
                                         onSelectionChange={(key) => binding.onChange(String(key))}
                                     >
                                         <Select.Trigger>
-                                            <Select.Value>Select a runtime</Select.Value>
+                                            <Select.Value />
                                             <Select.Indicator />
                                         </Select.Trigger>
 

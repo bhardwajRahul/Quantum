@@ -36,7 +36,7 @@ const Authenticate = () => {
         );
     }
 
-    return <Navigate to='/dashboard' replace />;
+    return <Navigate to='/applications' replace />;
 };
 
 export default Authenticate;

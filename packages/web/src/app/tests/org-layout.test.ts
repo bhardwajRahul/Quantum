@@ -12,7 +12,7 @@ const pathsOf = (routes: RouteObject[]): (string | undefined)[] => routes.map((r
 const orgLayout = (): RouteObject | undefined =>
     assembled().find((route) =>
         route.path === undefined
-        && (route.children ?? []).some((child) => child.path === 'dashboard')
+        && (route.children ?? []).some((child) => child.path === 'applications')
     );
 
 describe('the organization-gated layout routes', () => {
@@ -21,7 +21,7 @@ describe('the organization-gated layout routes', () => {
 
         expect(layout).toBeDefined();
         expect(pathsOf(layout?.children ?? [])).toEqual(expect.arrayContaining([
-            'dashboard',
+            'applications',
             'account',
             'settings/organization',
             'settings/team'

@@ -16,24 +16,24 @@ describe('the assembled route tree', () => {
     });
 
     it('registers the protected pages', () => {
-        expect(pathsOf(assembled())).toContain('dashboard');
+        expect(pathsOf(assembled())).toContain('applications');
         expect(pathsOf(assembled())).toContain('account');
     });
 
     it('wraps every protected page in one shared layout', () => {
         const layout = assembled().find((route) =>
             route.path === undefined
-            && (route.children ?? []).some((child) => child.path === 'dashboard')
+            && (route.children ?? []).some((child) => child.path === 'applications')
         );
 
         expect(layout).toBeDefined();
-        expect(pathsOf(layout?.children ?? [])).toEqual(expect.arrayContaining(['dashboard', 'account']));
+        expect(pathsOf(layout?.children ?? [])).toEqual(expect.arrayContaining(['applications', 'account']));
     });
 
     it('keeps the guest pages out of the dashboard layout', () => {
         const layout = assembled().find((route) =>
             route.path === undefined
-            && (route.children ?? []).some((child) => child.path === 'dashboard')
+            && (route.children ?? []).some((child) => child.path === 'applications')
         );
 
         expect(pathsOf(layout?.children ?? [])).not.toContain('sign-in');

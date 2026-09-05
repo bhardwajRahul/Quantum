@@ -128,7 +128,7 @@ const DangerZone = ({ organization }: { organization: Organization }) => {
                 organization={organization}
                 isOpen={deleteOpen}
                 onClose={setDeleteOpen}
-                onRemoved={() => { clearTenant(); navigate('/dashboard'); }}
+                onRemoved={() => { clearTenant(); navigate('/applications'); }}
             />
         </Card>
     );

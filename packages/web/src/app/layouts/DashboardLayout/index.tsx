@@ -1,16 +1,15 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
-import { sections } from '@/app/navigation/sections';
+import { sections, settingsEntry, settingsSections } from '@/app/navigation/sections';
 import { endSession } from '@/shared/services/end-session';
 import OrganizationSwitcher from '@/modules/organization/components/OrganizationSwitcher';
 import ThemeToggle from '@/shared/components/layout/ThemeToggle';
 import SessionAvatar from '@/modules/auth/components/SessionAvatar';
 
-const panelFor = (pathname: string): 'app' | 'settings' => {
-    if(pathname.startsWith('/settings')) return 'settings';
+const SETTINGS_PATHS = ['/settings', '/account', '/change-password'];
 
-    return 'app';
-};
+const panelFor = (pathname: string): 'app' | 'settings' =>
+    SETTINGS_PATHS.some((path) => pathname.startsWith(path)) ? 'settings' : 'app';
 
 const navItemClass = (active: boolean): string =>
     `flex h-8 w-full items-center gap-2.5 rounded-md px-2 text-[0.875rem] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground motion-reduce:transition-none ${
@@ -28,8 +27,11 @@ const DashboardLayout = () => {
     return (
         <div className='flex h-dvh bg-background text-foreground' data-panel={panel}>
             <aside className='app-sidebar hidden shrink-0 flex-col overflow-hidden lg:flex'>
-                <nav aria-label='Main' className='flex flex-1 flex-col gap-0.5 px-3 pb-3 pt-5'>
-                    {sections.map(({ label, to, icon: Icon }) => (
+                <nav
+                    aria-label={panel === 'settings' ? 'Settings' : 'Main'}
+                    className='flex flex-1 flex-col gap-0.5 px-3 pb-3 pt-5'
+                >
+                    {(panel === 'settings' ? settingsSections : sections).map(({ label, to, icon: Icon }) => (
                         <NavLink key={to} to={to} className={({ isActive }) => navItemClass(isActive)}>
                             <Icon className='size-[18px] shrink-0' aria-hidden='true' />
                             <span className='truncate'>{label}</span>
@@ -37,6 +39,14 @@ const DashboardLayout = () => {
                     ))}
 
                     <span className='flex-1' />
+
+                    {/* Settings sits at the foot of the app tree, next to the way out. */}
+                    {panel === 'app' && (
+                        <NavLink to={settingsEntry.to} className={({ isActive }) => navItemClass(isActive)}>
+                            <settingsEntry.icon className='size-[18px] shrink-0' aria-hidden='true' />
+                            <span className='truncate'>{settingsEntry.label}</span>
+                        </NavLink>
+                    )}
 
                     <button type='button' onClick={signOut} className={navItemClass(false)}>
                         <LogOut className='size-[18px] shrink-0' aria-hidden='true' />

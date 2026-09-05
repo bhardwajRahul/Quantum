@@ -9,7 +9,7 @@ const GuestGuard = () => {
     if(isLoading) return <RouteLoader />;
     if(isAuthenticated){
         const next = params.get('next');
-        const to = next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard';
+        const to = next && next.startsWith('/') && !next.startsWith('//') ? next : '/applications';
         return <Navigate to={to} replace />;
     }
     return <Outlet />;

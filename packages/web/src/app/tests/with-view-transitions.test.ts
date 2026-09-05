@@ -14,24 +14,24 @@ const stays = (from: string, to: string): boolean => staysWithinLayout(routes(),
  */
 describe('staysWithinLayout', () => {
     it('transitions between pages that only share the dashboard chrome', () => {
-        expect(stays('/dashboard', '/applications')).toBe(false);
+        expect(stays('/projects', '/applications')).toBe(false);
         expect(stays('/applications', '/settings/organization')).toBe(false);
     });
 
     it('reads past a query string and a hash on the target', () => {
-        expect(stays('/dashboard', '/applications?tab=1')).toBe(false);
-        expect(stays('/dashboard', '/applications#top')).toBe(false);
+        expect(stays('/projects', '/applications?tab=1')).toBe(false);
+        expect(stays('/projects', '/applications#top')).toBe(false);
     });
 
     it('accepts the object form of a target', () => {
-        expect(staysWithinLayout(routes(), '/dashboard', { pathname: '/applications' })).toBe(false);
+        expect(staysWithinLayout(routes(), '/projects', { pathname: '/applications' })).toBe(false);
     });
 
     it('transitions when there is no target to compare', () => {
-        expect(staysWithinLayout(routes(), '/dashboard', null)).toBe(false);
+        expect(staysWithinLayout(routes(), '/projects', null)).toBe(false);
     });
 
     it('ignores a target that is not an absolute path', () => {
-        expect(staysWithinLayout(routes(), '/dashboard', 'applications')).toBe(false);
+        expect(staysWithinLayout(routes(), '/projects', 'applications')).toBe(false);
     });
 });

@@ -12,7 +12,7 @@ const NeedAuthenticate = () => (
         <div className='mt-6 flex items-center gap-4'>
             <ConnectGithubButton />
 
-            <RouterLink to='/dashboard' className='text-sm text-muted'>Skip for now</RouterLink>
+            <RouterLink to='/applications' className='text-sm text-muted'>Skip for now</RouterLink>
         </div>
     </PageBody>
 );

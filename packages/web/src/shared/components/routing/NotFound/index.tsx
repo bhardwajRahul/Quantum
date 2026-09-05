@@ -17,7 +17,7 @@ const NotFound = () => {
                     The page you are looking for doesn&apos;t exist or may have moved.
                 </p>
 
-                <Button className='mt-7' fullWidth onPress={() => navigate('/dashboard')}>
+                <Button className='mt-7' fullWidth onPress={() => navigate('/applications')}>
                     Back to dashboard
                 </Button>
             </section>

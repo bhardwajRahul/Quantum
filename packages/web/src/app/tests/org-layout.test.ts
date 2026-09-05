@@ -7,29 +7,33 @@ const flatten = (routes: RouteObject[]): RouteObject[] =>
 
 const assembled = (): RouteObject[] => flatten(router.routes as RouteObject[]);
 
+const pathsOf = (routes: RouteObject[]): (string | undefined)[] => routes.map((route) => route.path);
+
+const orgLayout = (): RouteObject | undefined =>
+    assembled().find((route) =>
+        route.path === undefined
+        && (route.children ?? []).some((child) => child.path === 'dashboard')
+    );
+
 describe('the organization-gated layout routes', () => {
-    it('nests the settings pages under the settings layout', () => {
-        const settings = assembled().find((route) => route.path === 'settings');
-        const children = (settings?.children ?? []).map((child) => child.path);
+    it('wraps every protected page in a single shared layout', () => {
+        const layout = orgLayout();
 
-        expect(settings).toBeDefined();
-        expect(children).toEqual(['organization', 'team']);
+        expect(layout).toBeDefined();
+        expect(pathsOf(layout?.children ?? [])).toEqual(expect.arrayContaining([
+            'dashboard',
+            'account',
+            'settings/organization',
+            'settings/team'
+        ]));
     });
 
-    it('wraps the dashboard page in a layout route', () => {
-        const dashboard = assembled().find((route) => route.path === 'dashboard');
-
-        expect(dashboard?.children).toHaveLength(1);
-        expect(dashboard?.children?.[0]).toMatchObject({ index: true });
+    it('keeps the guest pages out of the organization layout', () => {
+        expect(pathsOf(orgLayout()?.children ?? [])).not.toContain('sign-in');
+        expect(pathsOf(orgLayout()?.children ?? [])).not.toContain('sign-up');
     });
 
-    it('keeps the account page out of the organization layouts', () => {
-        const account = assembled().find((route) => route.path === 'account');
-        const settings = assembled().find((route) => route.path === 'settings');
-        const dashboard = assembled().find((route) => route.path === 'dashboard');
-
-        expect(account).toBeDefined();
-        expect(settings?.children?.some((child) => child.path === 'account')).toBe(false);
-        expect(dashboard?.children?.some((child) => child.path === 'account')).toBe(false);
+    it('keeps a catch-all for unknown paths', () => {
+        expect(pathsOf(assembled())).toContain('*');
     });
 });

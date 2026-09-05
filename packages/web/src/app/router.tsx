@@ -3,7 +3,7 @@ import type { RouteObject } from 'react-router-dom';
 import { discoverRoutes } from '@/app/routes';
 import { lazyElement } from '@/app/lazy-element';
 import { withViewTransitions } from '@/app/with-view-transitions';
-import type { DiscoveredRoute, RouteTier } from '@/shared/contracts/routing/route';
+import type { DiscoveredRoute, PageLoader, RouteTier } from '@/shared/contracts/routing/route';
 import DashboardLayout from '@/app/layouts/DashboardLayout';
 import GuestGuard from '@/modules/auth/components/GuestGuard';
 import ProtectedGuard from '@/modules/auth/components/ProtectedGuard';
@@ -35,7 +35,7 @@ const toRoute = (page: DiscoveredRoute, parent: string | null): RouteObject => {
         : { path, element: lazyElement(page.load) };
 };
 
-const toRoutes = (list: DiscoveredRoute[]): RouteObject[] => {
+const toRoutes = (list: DiscoveredRoute[], fallback: PageLoader | null = null): RouteObject[] => {
     const layouts = list.filter((route) => route.kind === 'layout');
     const pages = list.filter((route) => route.kind === 'page');
 
@@ -49,7 +49,9 @@ const toRoutes = (list: DiscoveredRoute[]): RouteObject[] => {
             .map((page) => toRoute(page, layout.path))
     }));
 
-    return [...loose.map((page) => toRoute(page, null)), ...nested];
+    if(fallback === null) return [...loose.map((page) => toRoute(page, null)), ...nested];
+
+    return [...nested, { element: lazyElement(fallback), children: loose.map((page) => toRoute(page, null)) }];
 };
 
 const discovered = discoverRoutes();
@@ -60,7 +62,9 @@ const children: RouteObject[] = [];
 const guest = toRoutes(byTier('guest'));
 if(guest.length) children.push({ element: <GuestGuard />, children: guest });
 
-const protectedChildren = toRoutes(byTier('protected'));
+const loadOrgLayout: PageLoader = () => import('@/app/layouts/OrgLayout');
+
+const protectedChildren = toRoutes(byTier('protected'), loadOrgLayout);
 if(protectedChildren.length){
     children.push({
         element: <ProtectedGuard />,

@@ -375,7 +375,7 @@ const Deployments = () => {
     }, [id, deploymentChannel]);
 
     const stepsQuery = useQuery(
-        activityApi.list,
+        (query: { correlationId?: string; minutes?: number }) => activityApi.list({ query }),
         [activeJobId !== null ? { correlationId: activeJobId } : undefined],
         { enabled: activeJobId !== null }
     );

@@ -10,6 +10,13 @@ import type { DeepPartial } from 'typeorm';
 
 const ctx = useApp();
 
+interface ActivityEnvelope{
+    data: ActivityEvent[];
+    meta: { total: number; limit: number; offset: number };
+}
+
+const envelopeOf = (res: { json: <T>() => T }): ActivityEvent[] => res.json<ActivityEnvelope>().data;
+
 const seedEvent = async (attributes: DeepPartial<ActivityEvent>): Promise<ActivityEvent> => {
     return Object.assign(ActivityEvent.create(), {
         level: ActivityLevel.Info,
@@ -35,8 +42,8 @@ describe('activity', () => {
         const res = await request(ctx.app, activityRoutes.list, { as: user.id });
 
         expect(res.status).toBe(200);
-        expect(res.data()).toHaveLength(1);
-        expect(res.data()[0].organizationId).toBe(org.id);
+        expect(envelopeOf(res)).toHaveLength(1);
+        expect(envelopeOf(res)[0].organizationId).toBe(org.id);
     });
 
     it('includes personal events without an organization', async () => {
@@ -46,8 +53,8 @@ describe('activity', () => {
         const res = await request(ctx.app, activityRoutes.list, { as: user.id });
 
         expect(res.status).toBe(200);
-        expect(res.data()).toHaveLength(1);
-        expect(res.data()[0].title).toBe('Signed in');
+        expect(envelopeOf(res)).toHaveLength(1);
+        expect(envelopeOf(res)[0].title).toBe('Signed in');
     });
 
     it('lets a platform admin see every event', async () => {
@@ -60,7 +67,7 @@ describe('activity', () => {
         const res = await request(ctx.app, activityRoutes.list, { as: admin.id });
 
         expect(res.status).toBe(200);
-        expect(res.data()).toHaveLength(2);
+        expect(envelopeOf(res)).toHaveLength(2);
     });
 
     it('paginates with meta', async () => {
@@ -79,9 +86,9 @@ describe('activity', () => {
         });
 
         expect(first.status).toBe(200);
-        expect(first.data()).toHaveLength(2);
+        expect(envelopeOf(first)).toHaveLength(2);
         expect(first.json().meta).toEqual({ total: 5, limit: 2, offset: 0 });
-        expect(first.data()[0].title).toBe('Event 4');
+        expect(envelopeOf(first)[0].title).toBe('Event 4');
 
         const second = await request(ctx.app, activityRoutes.list, {
             as: user.id,
@@ -89,9 +96,9 @@ describe('activity', () => {
         });
 
         expect(second.status).toBe(200);
-        expect(second.data()).toHaveLength(2);
+        expect(envelopeOf(second)).toHaveLength(2);
         expect(second.json().meta).toEqual({ total: 5, limit: 2, offset: 2 });
-        expect(second.data()[0].title).toBe('Event 2');
+        expect(envelopeOf(second)[0].title).toBe('Event 2');
     });
 
     it('filters by correlationId', async () => {
@@ -105,7 +112,7 @@ describe('activity', () => {
         });
 
         expect(res.status).toBe(200);
-        expect(res.data()).toHaveLength(1);
-        expect(res.data()[0].correlationId).toBe('deploy-42');
+        expect(envelopeOf(res)).toHaveLength(1);
+        expect(envelopeOf(res)[0].correlationId).toBe('deploy-42');
     });
 });

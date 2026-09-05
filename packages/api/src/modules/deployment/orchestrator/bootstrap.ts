@@ -1,5 +1,6 @@
 import JobRunner from './JobRunner';
 import { buildHandlerMap } from './HandlerRegistry';
+import { writeUpstreamConfig } from '@/modules/domain/services/UpstreamRouterFile';
 import { ensureEdgeNetwork } from './NetworkOps';
 import OrchestratorService from './OrchestratorService';
 import { config } from '@/shared/config';
@@ -28,6 +29,14 @@ export const startOrchestrator = (): void => {
     runner.start();
 
     ensureEdgeNetwork().catch((error) => logger.error('ensureEdgeNetwork failed', error, { scope: 'orchestrator' }));
+
+    /*
+     * Published on boot, not only when a domain changes. The file carries the shared
+     * redirect middleware that every TLS router references, so it has to exist before the
+     * first request — and after a restart it is what puts the stored routes back.
+     */
+    writeUpstreamConfig().catch((error) =>
+        logger.error('publishing the upstream routes on boot failed', error, { scope: 'orchestrator' }));
     orchestrator.reconcile().catch((error) => logger.error('initial reconcile enqueue failed', error, { scope: 'orchestrator' }));
 
     schedule(interval('RECONCILE_INTERVAL_MS', 300000), () => orchestrator.reconcile(), 'reconcile');

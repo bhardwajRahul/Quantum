@@ -66,4 +66,34 @@ describe('renderUpstreamConfig', () => {
         expect(isRuleSafeHost('a`)||Host(`b')).toBe(false);
         expect(isRuleSafeHost('a b')).toBe(false);
     });
+    /**
+     * The redirect used to sit on the entrypoint, which ran before routing — so a host
+     * asking for plain HTTP could never be served and an unrouted name got a 301 instead
+     * of a 404. Each TLS host now carries its own redirecting router on :80.
+     */
+    it('gives a TLS host a redirecting router on plain HTTP', () => {
+        const yaml = renderUpstreamConfig([route({ tls: true })]);
+
+        expect(yaml).toContain('    upstream-7-plain:');
+        expect(yaml).toContain('      entryPoints: [web]');
+        expect(yaml).toContain('      middlewares: [to-https]');
+    });
+
+    it('leaves a plain host alone, with no redirect back to itself', () => {
+        const yaml = renderUpstreamConfig([route({ tls: false })]);
+
+        // The shared middlewares are always declared; what matters is that no router
+        // attaches the redirect to a host that asked to be served in the clear.
+        expect(yaml).not.toContain('upstream-7-plain');
+        expect(yaml).not.toContain('[to-https]');
+    });
+
+    /** Both providers reference these by name, so they have to be in every document. */
+    it('always publishes the shared middlewares, even with no routes', () => {
+        const yaml = renderUpstreamConfig([]);
+
+        expect(yaml).toContain('    to-https:');
+        expect(yaml).toContain('        scheme: https');
+        expect(yaml).toContain('    strip-api:');
+    });
 });

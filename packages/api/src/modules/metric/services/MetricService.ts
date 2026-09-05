@@ -1,7 +1,7 @@
 import { MoreThanOrEqual } from 'typeorm';
+import { assertOrg } from '@/shared/tenancy';
 import { config } from '@/shared/config';
 import Metric from '../models/Metric';
-import DockerContainer from '@/modules/docker/models/DockerContainer';
 import { MetricError } from '../contracts/domain/errors';
 import type { FindOptionsWhere } from 'typeorm';
 import type { Tenant } from '@/modules/organization/contracts/types/fastify';
@@ -15,25 +15,14 @@ interface RepositoryOrgRow{
 }
 
 export default class MetricService{
-    async byContainer(tenant: Tenant, containerId: number, limit: string | undefined, minutes: string | undefined): Promise<Metric[]>{
-        const container = await DockerContainer.findOneBy({ id: containerId });
-        if(!container) throw MetricError.NotFound();
-        if(!tenant.isPlatformAdmin && !tenant.organizationIds.includes(container.organizationId)){
-            throw MetricError.Forbidden();
-        }
-        return this.#window({ containerId }, limit, minutes);
-    }
-
-    async byRepository(tenant: Tenant, repositoryId: number, limit: string | undefined, minutes: string | undefined): Promise<Metric[]>{
+    async byRepository(tenant: Tenant, repositoryId: number, limit: string | number | undefined, minutes: string | number | undefined): Promise<Metric[]>{
         const organizationId = await this.#repositoryOrganizationId(repositoryId);
         if(organizationId === null) throw MetricError.NotFound();
-        if(!tenant.isPlatformAdmin && !tenant.organizationIds.includes(organizationId)){
-            throw MetricError.Forbidden();
-        }
+        assertOrg(tenant, organizationId, MetricError.Forbidden);
         return this.#window({ repositoryId }, limit, minutes);
     }
 
-    async #window(where: FindOptionsWhere<Metric>, rawLimit: string | undefined, rawMinutes: string | undefined): Promise<Metric[]>{
+    async #window(where: FindOptionsWhere<Metric>, rawLimit: string | number | undefined, rawMinutes: string | number | undefined): Promise<Metric[]>{
         const limit = Math.min(Number(rawLimit) || DEFAULT_LIMIT, MAX_WINDOW);
         const since = new Date(Date.now() - (Number(rawMinutes) || DEFAULT_MINUTES) * 60 * 1000);
         return Metric.find({

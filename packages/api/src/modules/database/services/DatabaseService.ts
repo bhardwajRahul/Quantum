@@ -1,7 +1,8 @@
 import { randomBytes } from 'node:crypto';
 import { v4 } from 'uuid';
 import { eventBus } from '@/shared/events/EventBus';
-import { isUniqueViolation } from '@/shared/models/isUniqueViolation';
+import { saveOrConflict } from '@/shared/models/isUniqueViolation';
+import { assertOrg, assertProject } from '@/shared/tenancy';
 import SecretCipher from '@/shared/services/SecretCipher';
 import Project from '@/modules/project/models/Project';
 import Database from '../models/Database';
@@ -39,36 +40,29 @@ export default class DatabaseService{
         const credentials = this.generateCredentials(input.engine);
         const connectionString = this.buildConnectionString(input.engine, credentials, this.#containerName(input.engine, name));
 
-        try{
-            const database = await Database.create({
-                name,
-                engine: input.engine,
-                version: input.version ?? ENGINE_SPECS[input.engine].defaultVersion,
-                organizationId: project.organizationId,
-                projectId: project.id,
-                environmentId: null,
-                userId,
-                nodeId: 'local',
-                status: DatabaseStatus.Pending,
-                credentialsEnc: this.#cipher.encrypt(JSON.stringify(credentials)),
-                connectionStringEnc: this.#cipher.encrypt(connectionString),
-                backups: []
-            }).save();
+        const database = await saveOrConflict(Database.create({
+            name,
+            engine: input.engine,
+            version: input.version ?? ENGINE_SPECS[input.engine].defaultVersion,
+            organizationId: project.organizationId,
+            projectId: project.id,
+            environmentId: null,
+            userId,
+            nodeId: 'local',
+            status: DatabaseStatus.Pending,
+            credentialsEnc: this.#cipher.encrypt(JSON.stringify(credentials)),
+            connectionStringEnc: this.#cipher.encrypt(connectionString),
+            backups: []
+        }).save(), DatabaseError.NameAlreadyTaken);
 
-            this.#requestProvision(database.id, 'create', userId);
-            return database;
-        }catch(error){
-            if(isUniqueViolation(error)) throw DatabaseError.NameAlreadyTaken();
-            throw error;
-        }
+        this.#requestProvision(database.id, 'create', userId);
+        return database;
     }
 
     async getOwned(tenant: Tenant, databaseId: number): Promise<Database>{
         const database = await Database.findOneBy({ id: databaseId });
         if(!database) throw DatabaseError.NotFound();
-        if(!tenant.isPlatformAdmin && !tenant.projectIds.includes(database.projectId)){
-            throw DatabaseError.Forbidden();
-        }
+        assertProject(tenant, database.projectId, DatabaseError.Forbidden);
         return database;
     }
 
@@ -122,9 +116,7 @@ export default class DatabaseService{
     async #resolveProject(tenant: Tenant, projectId: number): Promise<Project>{
         const project = await Project.findOneBy({ id: projectId });
         if(!project) throw DatabaseError.NotFound('Project');
-        if(!tenant.isPlatformAdmin && !tenant.organizationIds.includes(project.organizationId)){
-            throw DatabaseError.Forbidden('Project');
-        }
+        assertOrg(tenant, project.organizationId, () => DatabaseError.Forbidden('Project'));
         return project;
     }
 

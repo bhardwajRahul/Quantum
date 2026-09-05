@@ -3,17 +3,16 @@ import { Route } from '@/shared/controllers/Route';
 import { Status } from '@/shared/controllers/Status';
 import { Body, NumericParam } from '@/shared/controllers/RequestParams';
 import { Middleware } from '@/shared/middlewares/Middleware';
-import { AuthenticatedRoute } from '@/modules/auth/middlewares/AuthenticatedRoute';
 import { CurrentUser } from '@/modules/auth/middlewares/CurrentUser';
 import { Tenant } from '@/modules/organization/middlewares/Tenant';
-import { TenantRoute } from '@/modules/organization/middlewares/TenantRoute';
+import { TenantGuard } from '@/modules/organization/middlewares/TenantGuard';
 import RepositoryService from '../services/RepositoryService';
 import { OwnedRepository, RepositoryOwnershipRoute } from '../middlewares/RepositoryOwnershipRoute';
 import Repository from '../models/Repository';
 import { repositoryRoutes } from '@quantum/contracts/modules/repository/routes';
 import type { CreateRepositoryInput, UpdateRepositoryInput } from '@quantum/contracts/modules/repository/http';
 
-@Middleware(AuthenticatedRoute, TenantRoute)
+@Middleware(TenantGuard())
 export default class RepositoryController extends BaseController{
     #repositories = new RepositoryService();
 

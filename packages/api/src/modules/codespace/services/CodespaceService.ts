@@ -1,4 +1,5 @@
 import { eventBus } from '@/shared/events/EventBus';
+import { assertOrg } from '@/shared/tenancy';
 import SecretCipher from '@/shared/services/SecretCipher';
 import Project from '@/modules/project/models/Project';
 import Codespace from '../models/Codespace';
@@ -34,9 +35,7 @@ export default class CodespaceService{
     async getOwned(tenant: Tenant, codespaceId: number): Promise<Codespace>{
         const codespace = await Codespace.findOneBy({ id: codespaceId });
         if(!codespace) throw CodespaceError.NotFound();
-        if(!tenant.isPlatformAdmin && !tenant.organizationIds.includes(codespace.organizationId)){
-            throw CodespaceError.Forbidden();
-        }
+        assertOrg(tenant, codespace.organizationId, CodespaceError.Forbidden);
         return codespace;
     }
 
@@ -63,9 +62,7 @@ export default class CodespaceService{
     async #projectFor(tenant: Tenant, projectId: number): Promise<Project>{
         const project = await Project.findOneBy({ id: projectId });
         if(!project) throw CodespaceError.NotFound();
-        if(!tenant.isPlatformAdmin && !tenant.organizationIds.includes(project.organizationId)){
-            throw CodespaceError.Forbidden();
-        }
+        assertOrg(tenant, project.organizationId, CodespaceError.Forbidden);
         return project;
     }
 }

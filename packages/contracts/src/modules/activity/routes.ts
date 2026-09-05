@@ -1,7 +1,8 @@
-import { get } from '../../shared/routing';
+import { getWithQuery } from '../../shared/routing';
 import type { PageOf } from '../../shared/http';
 import type { ActivityEvent } from './domain';
+import type { ActivityListQuery } from './http';
 
 export const activityRoutes = {
-    list: get<PageOf<ActivityEvent>>('/activity')
+    list: getWithQuery<ActivityListQuery, PageOf<ActivityEvent>>('/activity')
 };

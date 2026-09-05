@@ -1,5 +1,6 @@
 import { eventBus } from '@/shared/events/EventBus';
-import { isUniqueViolation } from '@/shared/models/isUniqueViolation';
+import { saveOrConflict } from '@/shared/models/isUniqueViolation';
+import { assertOrg } from '@/shared/tenancy';
 import Repository from '@/modules/repository/models/Repository';
 import Domain from '../models/Domain';
 import { DomainError } from '../contracts/domain/errors';
@@ -23,33 +24,26 @@ export default class DomainService{
         const scope = await this.#resolveRepository(tenant, repositoryId);
         const existingCount = await Domain.countBy({ repositoryId });
 
-        try{
-            const domain = await Domain.create({
-                host: this.#normalizeHost(input.host),
-                repositoryId,
-                organizationId: scope.organizationId,
-                projectId: scope.projectId,
-                userId: scope.userId,
-                kind: DomainKind.Custom,
-                isPrimary: input.isPrimary ?? existingCount === 0,
-                tls: input.tls ?? true,
-                status: DomainStatus.Pending
-            }).save();
+        const domain = await saveOrConflict(Domain.create({
+            host: this.#normalizeHost(input.host),
+            repositoryId,
+            organizationId: scope.organizationId,
+            projectId: scope.projectId,
+            userId: scope.userId,
+            kind: DomainKind.Custom,
+            isPrimary: input.isPrimary ?? existingCount === 0,
+            tls: input.tls ?? true,
+            status: DomainStatus.Pending
+        }).save(), DomainError.AlreadyExists);
 
-            eventBus.emit('domain.created', { domainId: domain.id, repositoryId });
-            return domain;
-        }catch(error){
-            if(isUniqueViolation(error)) throw DomainError.AlreadyExists();
-            throw error;
-        }
+        eventBus.emit('domain.created', { domainId: domain.id, repositoryId });
+        return domain;
     }
 
     async getOwned(tenant: Tenant, domainId: number): Promise<Domain>{
         const domain = await Domain.findOneBy({ id: domainId });
         if(!domain) throw DomainError.NotFound();
-        if(!tenant.isPlatformAdmin && !tenant.organizationIds.includes(domain.organizationId)){
-            throw DomainError.Forbidden();
-        }
+        assertOrg(tenant, domain.organizationId, DomainError.Forbidden);
         return domain;
     }
 
@@ -72,9 +66,7 @@ export default class DomainService{
     async #resolveRepository(tenant: Tenant, repositoryId: number): Promise<RepositoryScope>{
         const repository = await Repository.findOneBy({ id: repositoryId });
         if(!repository || repository.organizationId === null) throw DomainError.NotFound('Repository');
-        if(!tenant.isPlatformAdmin && !tenant.organizationIds.includes(repository.organizationId)){
-            throw DomainError.Forbidden('Repository');
-        }
+        assertOrg(tenant, repository.organizationId, () => DomainError.Forbidden('Repository'));
         return {
             organizationId: repository.organizationId,
             projectId: repository.projectId,

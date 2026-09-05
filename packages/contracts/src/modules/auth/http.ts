@@ -3,6 +3,10 @@ export interface CheckEmailInput{
     email: string;
 }
 
+export interface CheckEmailQuery{
+    email?: string;
+}
+
 export interface SignInInput{
     /** @format email */
     email: string;

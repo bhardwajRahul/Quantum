@@ -1,6 +1,6 @@
 import { call } from '@/shared/api/call';
 import type { CallOptions, PathValues } from '@/shared/contracts/api';
-import type { Endpoint, InputOf, OutputOf } from '@quantum/contracts/shared/routing';
+import type { Endpoint, InputOf, OutputOf, QueryEndpoint } from '@quantum/contracts/shared/routing';
 
 export interface EndpointTable{
     [name: string]: Endpoint<never, unknown>;
@@ -16,7 +16,9 @@ interface RequestBody<Input>{
     body: Input;
 }
 
-export type RequestOf<E extends Endpoint> = [InputOf<E>] extends [never] ? RequestTarget : RequestTarget & RequestBody<InputOf<E>>;
+export type RequestOf<E extends Endpoint> = E extends QueryEndpoint<infer Query, unknown>
+    ? [Query] extends [never] ? RequestTarget : RequestTarget & { query?: Query }
+    : [InputOf<E>] extends [never] ? RequestTarget : RequestTarget & RequestBody<InputOf<E>>;
 
 export type ActionOf<E extends Endpoint> = (request?: RequestOf<E>) => Promise<OutputOf<E>>;
 

@@ -10,6 +10,12 @@ export type InputOf<E> = E extends Endpoint<infer I, unknown> ? I : never;
 export type OutputOf<E> = E extends Endpoint<never, infer O> ? O : E extends Endpoint<infer _I, infer O> ? O : never;
 
 export const get = <Output>(path: string): Endpoint<never, Output> => ({ method: 'GET', path });
+
+export interface QueryEndpoint<Query, Output> extends Endpoint<Query, Output>{
+    readonly method: 'GET';
+}
+
+export const getWithQuery = <Query, Output>(path: string): QueryEndpoint<Query, Output> => ({ method: 'GET', path });
 export const post = <Input, Output = void>(path: string): Endpoint<Input, Output> => ({ method: 'POST', path });
 export const patch = <Input, Output = void>(path: string): Endpoint<Input, Output> => ({ method: 'PATCH', path });
 export const del = <Output = void>(path: string): Endpoint<never, Output> => ({ method: 'DELETE', path });

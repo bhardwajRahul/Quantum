@@ -1,5 +1,6 @@
 import { eventBus } from '@/shared/events/EventBus';
-import { isUniqueViolation } from '@/shared/models/isUniqueViolation';
+import { saveOrConflict } from '@/shared/models/isUniqueViolation';
+import { assertProject } from '@/shared/tenancy';
 import ValidationError from '@/shared/errors/ValidationError';
 import { TenancyError } from '@/modules/organization/contracts/domain/errors';
 import Project from '@/modules/project/models/Project';
@@ -25,42 +26,33 @@ export default class RepositoryService{
         return Repository.find({ where: { userId }, order: { id: 'ASC' } });
     }
 
-    listAll(): Promise<Repository[]>{
-        return Repository.find({ order: { id: 'ASC' } });
-    }
-
     async create(userId: number, tenant: Tenant, input: CreateRepositoryInput): Promise<Repository>{
         if(tenant.organizationId === null) throw TenancyError.OrganizationNotFound();
         const project = await this.#projectFor(tenant, input.projectId);
 
-        try{
-            return await Repository.create({
-                name: input.name,
-                alias: this.#alias(input.alias ?? input.name),
-                owner: input.owner ?? null,
-                branch: input.branch ?? 'main',
-                webhookId: null,
-                buildCommand: input.buildCommand ?? '',
-                installCommand: input.installCommand ?? '',
-                startCommand: input.startCommand ?? '',
-                rootDirectory: input.rootDirectory ?? '/',
-                framework: input.framework ?? null,
-                runtime: input.runtime ?? null,
-                runtimeVersion: input.runtimeVersion ?? null,
-                outputDirectory: input.outputDirectory ?? null,
-                url: input.url,
-                port: input.port ?? null,
-                containerId: null,
-                userId,
-                organizationId: tenant.organizationId,
-                projectId: project.id,
-                environmentId: await this.#defaultEnvironmentId(project.id),
-                sourceType: SourceType.Github
-            }).save();
-        }catch(error){
-            if(isUniqueViolation(error)) throw RepositoryError.AliasAlreadyTaken();
-            throw error;
-        }
+        return saveOrConflict(Repository.create({
+            name: input.name,
+            alias: this.#alias(input.alias ?? input.name),
+            owner: input.owner ?? null,
+            branch: input.branch ?? 'main',
+            webhookId: null,
+            buildCommand: input.buildCommand ?? '',
+            installCommand: input.installCommand ?? '',
+            startCommand: input.startCommand ?? '',
+            rootDirectory: input.rootDirectory ?? '/',
+            framework: input.framework ?? null,
+            runtime: input.runtime ?? null,
+            runtimeVersion: input.runtimeVersion ?? null,
+            outputDirectory: input.outputDirectory ?? null,
+            url: input.url,
+            port: input.port ?? null,
+            containerId: null,
+            userId,
+            organizationId: tenant.organizationId,
+            projectId: project.id,
+            environmentId: await this.#defaultEnvironmentId(project.id),
+            sourceType: SourceType.Github
+        }).save(), RepositoryError.AliasAlreadyTaken);
     }
 
     async getOwned(userId: number, tenant: Tenant, id: number): Promise<Repository>{
@@ -73,14 +65,9 @@ export default class RepositoryService{
 
     async update(userId: number, tenant: Tenant, repository: Repository, input: UpdateRepositoryInput): Promise<Repository>{
         await this.#apply(tenant, repository, input);
-        try{
-            const updated = await repository.save();
-            this.#requestRedeploy(updated, input, userId);
-            return updated;
-        }catch(error){
-            if(isUniqueViolation(error)) throw RepositoryError.AliasAlreadyTaken();
-            throw error;
-        }
+        const updated = await saveOrConflict(repository.save(), RepositoryError.AliasAlreadyTaken);
+        this.#requestRedeploy(updated, input, userId);
+        return updated;
     }
 
     async remove(repository: Repository): Promise<void>{
@@ -142,9 +129,7 @@ export default class RepositoryService{
     async #projectFor(tenant: Tenant, projectId: number): Promise<Project>{
         const project = await Project.findOneBy({ id: projectId });
         if(!project) throw TenancyError.ProjectNotFound();
-        if(!tenant.isPlatformAdmin && !tenant.projectIds.includes(project.id)){
-            throw TenancyError.ProjectForbidden();
-        }
+        assertProject(tenant, project.id, TenancyError.ProjectForbidden);
         return project;
     }
 

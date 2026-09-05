@@ -1,7 +1,8 @@
 import { v4 } from 'uuid';
 import slugify from 'slugify';
 import { eventBus } from '@/shared/events/EventBus';
-import { isUniqueViolation } from '@/shared/models/isUniqueViolation';
+import { saveOrConflict } from '@/shared/models/isUniqueViolation';
+import { assertOrg } from '@/shared/tenancy';
 import Project from '../models/Project';
 import Environment from '../models/Environment';
 import { ProjectError } from '../contracts/domain/errors';
@@ -10,43 +11,32 @@ import type { CreateProjectInput, UpdateProjectInput } from '@quantum/contracts/
 
 export default class ProjectService{
     async listForOrg(tenant: Tenant, orgId: number): Promise<Project[]>{
-        if(!tenant.isPlatformAdmin && !tenant.organizationIds.includes(orgId)){
-            throw ProjectError.Forbidden();
-        }
+        assertOrg(tenant, orgId, ProjectError.Forbidden);
         return Project.find({ where: { organizationId: orgId }, order: { id: 'ASC' } });
     }
 
     async create(userId: number, tenant: Tenant, orgId: number, input: CreateProjectInput): Promise<Project>{
-        if(!tenant.isPlatformAdmin && !tenant.organizationIds.includes(orgId)){
-            throw ProjectError.Forbidden();
-        }
+        assertOrg(tenant, orgId, ProjectError.Forbidden);
 
-        try{
-            const project = await Project.create({
-                name: input.name,
-                slug: this.#slug(input.name),
-                organizationId: orgId
-            }).save();
+        const project = await saveOrConflict(Project.create({
+            name: input.name,
+            slug: this.#slug(input.name),
+            organizationId: orgId
+        }).save(), ProjectError.SlugAlreadyTaken);
 
-            eventBus.emit('project.created', {
-                projectId: project.id,
-                organizationId: project.organizationId,
-                name: project.name
-            });
+        eventBus.emit('project.created', {
+            projectId: project.id,
+            organizationId: project.organizationId,
+            name: project.name
+        });
 
-            return project;
-        }catch(error){
-            if(isUniqueViolation(error)) throw ProjectError.SlugAlreadyTaken();
-            throw error;
-        }
+        return project;
     }
 
     async getOwned(tenant: Tenant, projectId: number): Promise<Project>{
         const project = await Project.findOneBy({ id: projectId });
         if(!project) throw ProjectError.NotFound();
-        if(!tenant.isPlatformAdmin && !tenant.organizationIds.includes(project.organizationId)){
-            throw ProjectError.Forbidden();
-        }
+        assertOrg(tenant, project.organizationId, ProjectError.Forbidden);
         return project;
     }
 

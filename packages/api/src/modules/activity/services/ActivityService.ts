@@ -46,7 +46,7 @@ export default class ActivityService{
         tenant: Tenant,
         page: Page,
         correlationId: string | undefined,
-        rawMinutes: string | undefined
+        rawMinutes: string | number | undefined
     ): Promise<Paginated<ActivityEvent>>{
         const [items, total] = await ActivityEvent.findAndCount({
             where: this.#scope(userId, tenant, correlationId, rawMinutes),
@@ -61,7 +61,7 @@ export default class ActivityService{
         userId: number,
         tenant: Tenant,
         correlationId: string | undefined,
-        rawMinutes: string | undefined
+        rawMinutes: string | number | undefined
     ): FindOptionsWhere<ActivityEvent>[] | FindOptionsWhere<ActivityEvent>{
         const extra: FindOptionsWhere<ActivityEvent> = {};
         if(correlationId !== undefined) extra.correlationId = correlationId;

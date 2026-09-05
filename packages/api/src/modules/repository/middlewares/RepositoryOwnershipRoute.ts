@@ -1,16 +1,16 @@
-import { MiddlewareFn } from '@/shared/middlewares/Middleware';
+import { ownedEntity } from '@/shared/middlewares/ownedEntity';
 import { createParamDecorator } from '@/shared/controllers/params';
-import { parseId } from '@/shared/controllers/parseId';
-import { principalId } from '@/modules/auth/middlewares/principalId';
-import { TenancyError } from '@/modules/organization/contracts/domain/errors';
 import RepositoryService from '../services/RepositoryService';
 import { RepositoryError } from '../contracts/domain/errors';
+import type Repository from '../models/Repository';
 
-export const RepositoryOwnershipRoute: MiddlewareFn = async (req) => {
-    if(!req.tenant) throw TenancyError.ContextMissing();
-    const id = parseId((req.params as Record<string, string>).id);
-    req.repository = await new RepositoryService().getOwned(principalId(req), req.tenant, id);
-};
+export const RepositoryOwnershipRoute = ownedEntity<Repository>({
+    load: (userId, tenant, id) => new RepositoryService().getOwned(userId, tenant, id),
+    assign: (req, repository) => {
+        req.repository = repository;
+    },
+    missing: RepositoryError.NotFound
+});
 
 export const OwnedRepository = (): ParameterDecorator => createParamDecorator((req) => {
     if(!req.repository) throw RepositoryError.NotFound();

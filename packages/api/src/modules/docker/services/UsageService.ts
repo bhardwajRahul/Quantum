@@ -17,7 +17,7 @@ interface UsageRow{
 }
 
 export default class UsageService{
-    async network(tenant: Tenant, rawMinutes: string | undefined): Promise<NetworkUsageStat[]>{
+    async network(tenant: Tenant, rawMinutes: string | number | undefined): Promise<NetworkUsageStat[]>{
         const rows: UsageRow[] = await Metric.query(`
             WITH per_container AS (
                 SELECT "containerId", "projectId",
@@ -43,7 +43,7 @@ export default class UsageService{
         }));
     }
 
-    async resources(tenant: Tenant, rawMinutes: string | undefined): Promise<ResourceUsageStat[]>{
+    async resources(tenant: Tenant, rawMinutes: string | number | undefined): Promise<ResourceUsageStat[]>{
         const rows: UsageRow[] = await Metric.query(`
             SELECT m."projectId" AS "projectId", p.name AS "projectName",
                    AVG(m."cpuPercent") AS "avgCpu",
@@ -65,7 +65,7 @@ export default class UsageService{
         }));
     }
 
-    #params(tenant: Tenant, rawMinutes: string | undefined): [number[], Date]{
+    #params(tenant: Tenant, rawMinutes: string | number | undefined): [number[], Date]{
         const organizationIds = tenant.organizationId !== null
             ? [tenant.organizationId]
             : tenant.organizationIds;

@@ -3,10 +3,9 @@ import { Route } from '@/shared/controllers/Route';
 import { Status } from '@/shared/controllers/Status';
 import { Body, NumericParam } from '@/shared/controllers/RequestParams';
 import { Middleware } from '@/shared/middlewares/Middleware';
-import { AuthenticatedRoute } from '@/modules/auth/middlewares/AuthenticatedRoute';
 import { CurrentUser } from '@/modules/auth/middlewares/CurrentUser';
 import { Tenant } from '@/modules/organization/middlewares/Tenant';
-import { TenantRoute } from '@/modules/organization/middlewares/TenantRoute';
+import { TenantGuard } from '@/modules/organization/middlewares/TenantGuard';
 import DeploymentService from '../services/DeploymentService';
 import { DeploymentOwnershipRoute, OwnedDeployment } from '../middlewares/DeploymentOwnershipRoute';
 import Deployment from '../models/Deployment';
@@ -16,7 +15,7 @@ import type { UpdateDeploymentInput } from '@quantum/contracts/modules/deploymen
 import type { RepositoryOperationInput } from '@quantum/contracts/modules/repository/http';
 import type { DeploymentAccepted } from '@quantum/contracts/modules/deployment/domain';
 
-@Middleware(AuthenticatedRoute, TenantRoute)
+@Middleware(TenantGuard())
 export default class DeploymentController extends BaseController{
     #deployments = new DeploymentService();
 

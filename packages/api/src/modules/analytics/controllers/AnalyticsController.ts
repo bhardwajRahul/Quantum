@@ -2,40 +2,28 @@ import BaseController from '@/shared/controllers/BaseController';
 import { Route } from '@/shared/controllers/Route';
 import { Query } from '@/shared/controllers/RequestParams';
 import { Middleware } from '@/shared/middlewares/Middleware';
-import { AuthenticatedRoute } from '@/modules/auth/middlewares/AuthenticatedRoute';
 import { Tenant } from '@/modules/organization/middlewares/Tenant';
-import { TenantRoute } from '@/modules/organization/middlewares/TenantRoute';
+import { TenantGuard } from '@/modules/organization/middlewares/TenantGuard';
 import AnalyticsService from '../services/AnalyticsService';
 import { analyticsRoutes } from '@quantum/contracts/modules/analytics/routes';
+import type { AnalyticsQuery } from '@quantum/contracts/modules/analytics/http';
 
-@Middleware(AuthenticatedRoute, TenantRoute)
+@Middleware(TenantGuard())
 export default class AnalyticsController extends BaseController{
     #service = new AnalyticsService();
 
     @Route(analyticsRoutes.summary)
-    summary(
-        @Tenant() tenant: Tenant,
-        @Query('minutes') minutes: string | undefined,
-        @Query('domainId') domainId: string | undefined
-    ){
-        return this.#service.summary(tenant, minutes, domainId);
+    summary(@Tenant() tenant: Tenant, @Query() query: AnalyticsQuery){
+        return this.#service.summary(tenant, query.minutes, query.domainId);
     }
 
     @Route(analyticsRoutes.top)
-    top(
-        @Tenant() tenant: Tenant,
-        @Query('minutes') minutes: string | undefined,
-        @Query('domainId') domainId: string | undefined
-    ){
-        return this.#service.top(tenant, minutes, domainId);
+    top(@Tenant() tenant: Tenant, @Query() query: AnalyticsQuery){
+        return this.#service.top(tenant, query.minutes, query.domainId);
     }
 
     @Route(analyticsRoutes.domains)
-    domains(
-        @Tenant() tenant: Tenant,
-        @Query('minutes') minutes: string | undefined,
-        @Query('domainId') domainId: string | undefined
-    ){
-        return this.#service.domains(tenant, minutes, domainId);
+    domains(@Tenant() tenant: Tenant, @Query() query: AnalyticsQuery){
+        return this.#service.domains(tenant, query.minutes, query.domainId);
     }
 }

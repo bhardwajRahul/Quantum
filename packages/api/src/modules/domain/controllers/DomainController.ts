@@ -3,15 +3,13 @@ import { Route } from '@/shared/controllers/Route';
 import { Status } from '@/shared/controllers/Status';
 import { Body, NumericParam } from '@/shared/controllers/RequestParams';
 import { Middleware } from '@/shared/middlewares/Middleware';
-import { AuthenticatedRoute } from '@/modules/auth/middlewares/AuthenticatedRoute';
-import { RequirePermission } from '@/modules/organization/middlewares/RequirePermission';
 import { Tenant } from '@/modules/organization/middlewares/Tenant';
-import { TenantRoute } from '@/modules/organization/middlewares/TenantRoute';
+import { TenantGuard } from '@/modules/organization/middlewares/TenantGuard';
 import DomainService from '../services/DomainService';
 import { domainRoutes } from '@quantum/contracts/modules/domain/routes';
 import type { CreateDomainInput, UpdateDomainInput } from '@quantum/contracts/modules/domain/http';
 
-@Middleware(AuthenticatedRoute, TenantRoute)
+@Middleware(TenantGuard())
 export default class DomainController extends BaseController{
     #service = new DomainService();
 
@@ -22,19 +20,19 @@ export default class DomainController extends BaseController{
 
     @Route(domainRoutes.create)
     @Status(201)
-    @Middleware(RequirePermission('repo:write'))
+    @Middleware(TenantGuard('repo:write'))
     create(@NumericParam('repositoryId') repositoryId: number, @Tenant() tenant: Tenant, @Body() body: CreateDomainInput){
         return this.#service.create(tenant, repositoryId, body);
     }
 
     @Route(domainRoutes.update)
-    @Middleware(RequirePermission('repo:write'))
+    @Middleware(TenantGuard('repo:write'))
     update(@NumericParam('id') id: number, @Tenant() tenant: Tenant, @Body() body: UpdateDomainInput){
         return this.#service.update(tenant, id, body);
     }
 
     @Route(domainRoutes.remove)
-    @Middleware(RequirePermission('repo:write'))
+    @Middleware(TenantGuard('repo:write'))
     async remove(@NumericParam('id') id: number, @Tenant() tenant: Tenant){
         await this.#service.remove(tenant, id);
     }

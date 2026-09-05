@@ -44,16 +44,6 @@ export interface Repository extends BaseEntity{
     sourceType: SourceType;
 }
 
-export interface ContainerEntry{
-    name: string;
-    isDirectory: boolean;
-}
-
-export interface ContainerFile{
-    name: string;
-    content: string;
-}
-
 export interface RollbackAccepted{
     repositoryId: number;
     deploymentId: number;

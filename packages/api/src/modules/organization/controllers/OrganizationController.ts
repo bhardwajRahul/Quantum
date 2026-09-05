@@ -3,17 +3,15 @@ import { Route } from '@/shared/controllers/Route';
 import { Status } from '@/shared/controllers/Status';
 import { Body, NumericParam } from '@/shared/controllers/RequestParams';
 import { Middleware } from '@/shared/middlewares/Middleware';
-import { AuthenticatedRoute } from '@/modules/auth/middlewares/AuthenticatedRoute';
 import { CurrentUser } from '@/modules/auth/middlewares/CurrentUser';
-import { RequirePermission } from '../middlewares/RequirePermission';
 import { Tenant } from '../middlewares/Tenant';
-import { TenantRoute } from '../middlewares/TenantRoute';
+import { TenantGuard } from '../middlewares/TenantGuard';
 import OrganizationService from '../services/OrganizationService';
 import { TenancyError } from '../contracts/domain/errors';
 import { organizationRoutes } from '@quantum/contracts/modules/organization/routes';
 import type { CreateOrganizationInput, UpdateOrganizationInput } from '@quantum/contracts/modules/organization/http';
 
-@Middleware(AuthenticatedRoute, TenantRoute)
+@Middleware(TenantGuard())
 export default class OrganizationController extends BaseController{
     #service = new OrganizationService();
 
@@ -34,14 +32,14 @@ export default class OrganizationController extends BaseController{
     }
 
     @Route(organizationRoutes.update)
-    @Middleware(RequirePermission('org:settings'))
+    @Middleware(TenantGuard('org:settings'))
     update(@NumericParam('id') id: number, @Tenant() tenant: Tenant, @Body() body: UpdateOrganizationInput){
         this.#assertMembership(id, tenant);
         return this.#service.update(id, body);
     }
 
     @Route(organizationRoutes.remove)
-    @Middleware(RequirePermission('org:delete'))
+    @Middleware(TenantGuard('org:delete'))
     async remove(@NumericParam('id') id: number, @Tenant() tenant: Tenant){
         this.#assertMembership(id, tenant);
         await this.#service.remove(id);

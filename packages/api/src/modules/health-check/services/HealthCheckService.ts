@@ -1,4 +1,5 @@
 import { eventBus } from '@/shared/events/EventBus';
+import { assertOrg } from '@/shared/tenancy';
 import Repository from '@/modules/repository/models/Repository';
 import HealthCheck from '../models/HealthCheck';
 import { HealthCheckError } from '../contracts/domain/errors';
@@ -46,9 +47,7 @@ export default class HealthCheckService{
     async getOwned(tenant: Tenant, healthCheckId: number): Promise<HealthCheck>{
         const healthCheck = await HealthCheck.findOneBy({ id: healthCheckId });
         if(!healthCheck) throw HealthCheckError.NotFound();
-        if(!tenant.isPlatformAdmin && !tenant.organizationIds.includes(healthCheck.organizationId)){
-            throw HealthCheckError.Forbidden();
-        }
+        assertOrg(tenant, healthCheck.organizationId, HealthCheckError.Forbidden);
         return healthCheck;
     }
 

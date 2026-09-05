@@ -3,24 +3,22 @@ import { Route } from '@/shared/controllers/Route';
 import { Status } from '@/shared/controllers/Status';
 import { Body, NumericParam, Query } from '@/shared/controllers/RequestParams';
 import { Middleware } from '@/shared/middlewares/Middleware';
-import { AuthenticatedRoute } from '@/modules/auth/middlewares/AuthenticatedRoute';
 import { CurrentUser } from '@/modules/auth/middlewares/CurrentUser';
-import { RequirePermission } from '@/modules/organization/middlewares/RequirePermission';
 import { Tenant } from '@/modules/organization/middlewares/Tenant';
-import { TenantRoute } from '@/modules/organization/middlewares/TenantRoute';
+import { TenantGuard } from '@/modules/organization/middlewares/TenantGuard';
 import TemplateService from '../services/TemplateService';
 import TemplateInstallService from '../services/TemplateInstallService';
 import { templateRoutes } from '@quantum/contracts/modules/template/routes';
-import type { InstallTemplateInput } from '@quantum/contracts/modules/template/http';
+import type { InstallTemplateInput, TemplateListQuery } from '@quantum/contracts/modules/template/http';
 
-@Middleware(AuthenticatedRoute, TenantRoute)
+@Middleware(TenantGuard())
 export default class TemplateController extends BaseController{
     #templates = new TemplateService();
     #installs = new TemplateInstallService();
 
     @Route(templateRoutes.list)
-    list(@Tenant() tenant: Tenant, @Query('category') category: string | undefined){
-        return this.#templates.list(tenant, category);
+    list(@Tenant() tenant: Tenant, @Query() query: TemplateListQuery){
+        return this.#templates.list(tenant, query.category);
     }
 
     @Route(templateRoutes.categories)
@@ -30,7 +28,7 @@ export default class TemplateController extends BaseController{
 
     @Route(templateRoutes.install)
     @Status(201)
-    @Middleware(RequirePermission('deploy'))
+    @Middleware(TenantGuard('deploy'))
     install(
         @CurrentUser() userId: number,
         @Tenant() tenant: Tenant,

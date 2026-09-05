@@ -1,6 +1,6 @@
 import { In } from 'typeorm';
 import { eventBus } from '@/shared/events/EventBus';
-import { isUniqueViolation } from '@/shared/models/isUniqueViolation';
+import { saveOrConflict } from '@/shared/models/isUniqueViolation';
 import PortBinding from '../models/PortBinding';
 import { PortBindingError } from '../contracts/domain/errors';
 import { PortBindingProtocol } from '@quantum/contracts/modules/codespace/domain';
@@ -22,22 +22,17 @@ export default class PortBindingService{
     async create(userId: number, tenant: Tenant, input: CreatePortBindingInput): Promise<PortBinding>{
         if(tenant.organizationId === null) throw PortBindingError.Forbidden();
 
-        try{
-            const binding = await PortBinding.create({
-                containerId: input.containerId,
-                userId,
-                organizationId: tenant.organizationId,
-                internalPort: input.internalPort,
-                externalPort: input.externalPort,
-                protocol: input.protocol ?? PortBindingProtocol.Tcp
-            }).save();
+        const binding = await saveOrConflict(PortBinding.create({
+            containerId: input.containerId,
+            userId,
+            organizationId: tenant.organizationId,
+            internalPort: input.internalPort,
+            externalPort: input.externalPort,
+            protocol: input.protocol ?? PortBindingProtocol.Tcp
+        }).save(), PortBindingError.PortUnavailable);
 
-            this.#notifyChange(binding, 'create');
-            return binding;
-        }catch(error){
-            if(isUniqueViolation(error)) throw PortBindingError.PortUnavailable();
-            throw error;
-        }
+        this.#notifyChange(binding, 'create');
+        return binding;
     }
 
     async getOwned(tenant: Tenant, userId: number, bindingId: number): Promise<PortBinding>{

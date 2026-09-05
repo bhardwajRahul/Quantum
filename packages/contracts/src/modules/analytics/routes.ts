@@ -1,8 +1,9 @@
-import { get } from '../../shared/routing';
+import { getWithQuery } from '../../shared/routing';
 import type { AnalyticsSummary, AnalyticsTop, DomainStat } from './domain';
+import type { AnalyticsQuery } from './http';
 
 export const analyticsRoutes = {
-    summary: get<AnalyticsSummary>('/analytics/summary'),
-    top: get<AnalyticsTop>('/analytics/top'),
-    domains: get<DomainStat[]>('/analytics/domains')
+    summary: getWithQuery<AnalyticsQuery, AnalyticsSummary>('/analytics/summary'),
+    top: getWithQuery<AnalyticsQuery, AnalyticsTop>('/analytics/top'),
+    domains: getWithQuery<AnalyticsQuery, DomainStat[]>('/analytics/domains')
 };

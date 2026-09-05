@@ -2,13 +2,13 @@ import BaseController from '@/shared/controllers/BaseController';
 import { Route } from '@/shared/controllers/Route';
 import { NumericParam, Query } from '@/shared/controllers/RequestParams';
 import { Middleware } from '@/shared/middlewares/Middleware';
-import { AuthenticatedRoute } from '@/modules/auth/middlewares/AuthenticatedRoute';
 import { Tenant } from '@/modules/organization/middlewares/Tenant';
-import { TenantRoute } from '@/modules/organization/middlewares/TenantRoute';
+import { TenantGuard } from '@/modules/organization/middlewares/TenantGuard';
 import MetricService from '../services/MetricService';
 import { metricRoutes } from '@quantum/contracts/modules/metric/routes';
+import type { MetricQuery } from '@quantum/contracts/modules/metric/http';
 
-@Middleware(AuthenticatedRoute, TenantRoute)
+@Middleware(TenantGuard())
 export default class MetricController extends BaseController{
     #service = new MetricService();
 
@@ -16,9 +16,8 @@ export default class MetricController extends BaseController{
     byRepository(
         @NumericParam('repositoryId') repositoryId: number,
         @Tenant() tenant: Tenant,
-        @Query('limit') limit: string | undefined,
-        @Query('minutes') minutes: string | undefined
+        @Query() query: MetricQuery
     ){
-        return this.#service.byRepository(tenant, repositoryId, limit, minutes);
+        return this.#service.byRepository(tenant, repositoryId, query.limit, query.minutes);
     }
 }

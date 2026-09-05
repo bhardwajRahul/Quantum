@@ -8,11 +8,11 @@ import {
     useRegisteredLoader
 } from '@/shared/hooks/api/query-cache';
 import type { QueryKey } from '@/shared/hooks/api/query-cache';
-import type { Endpoint, InputOf, OutputOf } from '@quantum/contracts/shared/routing';
+import type { Endpoint, InputOf, OutputOf, QueryEndpoint } from '@quantum/contracts/shared/routing';
 
 export type ListNames<T extends EndpointTable> = {
-    readonly [K in keyof T & string]: InputOf<T[K]> extends never
-        ? (Awaited<OutputOf<T[K]>> extends unknown[] ? K : never)
+    readonly [K in keyof T & string]: Awaited<OutputOf<T[K]>> extends unknown[]
+        ? (InputOf<T[K]> extends never ? K : T[K] extends QueryEndpoint<never, unknown> ? K : never)
         : never;
 }[keyof T & string];
 

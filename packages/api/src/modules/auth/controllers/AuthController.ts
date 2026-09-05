@@ -9,15 +9,15 @@ import { CurrentUser } from '../middlewares/CurrentUser';
 import { ClientIp } from '../middlewares/ClientIp';
 import AuthService from '../services/AuthService';
 import { authRoutes } from '@quantum/contracts/modules/auth/routes';
-import type { SignInInput, SignUpInput, UpdatePasswordInput } from '@quantum/contracts/modules/auth/http';
+import type { CheckEmailQuery, SignInInput, SignUpInput, UpdatePasswordInput } from '@quantum/contracts/modules/auth/http';
 
 export default class AuthController extends BaseController{
     #service = new AuthService();
 
     @Route(authRoutes.checkEmail)
     @RateLimit({ max: 3, window: '15m' })
-    checkEmail(@Query('email') email: string | undefined){
-        return this.#service.checkEmail(email);
+    checkEmail(@Query() query: CheckEmailQuery){
+        return this.#service.checkEmail(query.email);
     }
 
     @Route(authRoutes.signIn)

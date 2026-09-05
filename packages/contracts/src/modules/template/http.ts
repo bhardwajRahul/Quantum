@@ -50,3 +50,7 @@ export interface InstallTemplateInput{
     environmentId?: number | null;
     inputs?: Record<string, string | number | boolean>;
 }
+
+export interface TemplateListQuery{
+    category?: string;
+}

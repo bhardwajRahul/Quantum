@@ -3,16 +3,14 @@ import { Route } from '@/shared/controllers/Route';
 import { Status } from '@/shared/controllers/Status';
 import { Body, NumericParam } from '@/shared/controllers/RequestParams';
 import { Middleware } from '@/shared/middlewares/Middleware';
-import { AuthenticatedRoute } from '@/modules/auth/middlewares/AuthenticatedRoute';
 import { CurrentUser } from '@/modules/auth/middlewares/CurrentUser';
-import { RequirePermission } from '@/modules/organization/middlewares/RequirePermission';
 import { Tenant } from '@/modules/organization/middlewares/Tenant';
-import { TenantRoute } from '@/modules/organization/middlewares/TenantRoute';
+import { TenantGuard } from '@/modules/organization/middlewares/TenantGuard';
 import HealthCheckService from '../services/HealthCheckService';
 import { healthCheckRoutes } from '@quantum/contracts/modules/health-check/routes';
 import type { CreateHealthCheckInput, UpdateHealthCheckInput } from '@quantum/contracts/modules/health-check/http';
 
-@Middleware(AuthenticatedRoute, TenantRoute)
+@Middleware(TenantGuard())
 export default class HealthCheckController extends BaseController{
     #service = new HealthCheckService();
 
@@ -23,7 +21,7 @@ export default class HealthCheckController extends BaseController{
 
     @Route(healthCheckRoutes.create)
     @Status(201)
-    @Middleware(RequirePermission('repo:write'))
+    @Middleware(TenantGuard('repo:write'))
     create(
         @CurrentUser() userId: number,
         @NumericParam('repositoryId') repositoryId: number,
@@ -39,13 +37,13 @@ export default class HealthCheckController extends BaseController{
     }
 
     @Route(healthCheckRoutes.update)
-    @Middleware(RequirePermission('repo:write'))
+    @Middleware(TenantGuard('repo:write'))
     update(@NumericParam('id') id: number, @Tenant() tenant: Tenant, @Body() body: UpdateHealthCheckInput){
         return this.#service.update(tenant, id, body);
     }
 
     @Route(healthCheckRoutes.remove)
-    @Middleware(RequirePermission('repo:write'))
+    @Middleware(TenantGuard('repo:write'))
     async remove(@NumericParam('id') id: number, @Tenant() tenant: Tenant){
         await this.#service.remove(tenant, id);
     }

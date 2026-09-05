@@ -1,4 +1,4 @@
-import { isUniqueViolation } from '@/shared/models/isUniqueViolation';
+import { saveOrConflict } from '@/shared/models/isUniqueViolation';
 import ProjectService from './ProjectService';
 import Environment from '../models/Environment';
 import { EnvironmentError } from '../contracts/domain/errors';
@@ -16,17 +16,12 @@ export default class EnvironmentService{
     async create(tenant: Tenant, projectId: number, input: CreateEnvironmentInput): Promise<Environment>{
         const project = await this.#projects.getOwned(tenant, projectId);
 
-        try{
-            return await Environment.create({
-                name: input.name,
-                type: input.type,
-                projectId: project.id,
-                organizationId: project.organizationId
-            }).save();
-        }catch(error){
-            if(isUniqueViolation(error)) throw EnvironmentError.NameAlreadyTaken();
-            throw error;
-        }
+        return saveOrConflict(Environment.create({
+            name: input.name,
+            type: input.type,
+            projectId: project.id,
+            organizationId: project.organizationId
+        }).save(), EnvironmentError.NameAlreadyTaken);
     }
 
     async getOwned(tenant: Tenant, environmentId: number): Promise<Environment>{
@@ -41,12 +36,7 @@ export default class EnvironmentService{
         if(input.name !== undefined) environment.name = input.name;
         if(input.type !== undefined) environment.type = input.type;
 
-        try{
-            return await environment.save();
-        }catch(error){
-            if(isUniqueViolation(error)) throw EnvironmentError.NameAlreadyTaken();
-            throw error;
-        }
+        return saveOrConflict(environment.save(), EnvironmentError.NameAlreadyTaken);
     }
 
     async remove(tenant: Tenant, environmentId: number): Promise<void>{

@@ -13,7 +13,7 @@ const DEFAULT_MINUTES = 1440;
 export default class AnalyticsService{
     #domains = new DomainService();
 
-    async summary(tenant: Tenant, rawMinutes: string | undefined, rawDomainId: string | undefined): Promise<AnalyticsSummary>{
+    async summary(tenant: Tenant, rawMinutes: string | number | undefined, rawDomainId: string | number | undefined): Promise<AnalyticsSummary>{
         const domainId = await this.#resolveDomainId(tenant, rawDomainId);
         const rollups = await AnalyticsRollup.find({ where: this.#rollupScope(tenant, this.#since(rawMinutes), domainId) });
 
@@ -25,7 +25,7 @@ export default class AnalyticsService{
         return { pageviews, visitors, bounces, bounceRate };
     }
 
-    async top(tenant: Tenant, rawMinutes: string | undefined, rawDomainId: string | undefined): Promise<AnalyticsTop>{
+    async top(tenant: Tenant, rawMinutes: string | number | undefined, rawDomainId: string | number | undefined): Promise<AnalyticsTop>{
         const domainId = await this.#resolveDomainId(tenant, rawDomainId);
         const since = this.#since(rawMinutes);
         const rollups = await AnalyticsRollup.find({ where: this.#rollupScope(tenant, since, domainId) });
@@ -50,7 +50,7 @@ export default class AnalyticsService{
         };
     }
 
-    async domains(tenant: Tenant, rawMinutes: string | undefined, rawDomainId: string | undefined): Promise<DomainStat[]>{
+    async domains(tenant: Tenant, rawMinutes: string | number | undefined, rawDomainId: string | number | undefined): Promise<DomainStat[]>{
         const domainId = await this.#resolveDomainId(tenant, rawDomainId);
         const rollups = await AnalyticsRollup.find({ where: this.#rollupScope(tenant, this.#since(rawMinutes), domainId) });
 
@@ -65,13 +65,13 @@ export default class AnalyticsService{
             .sort((a, b) => b.pageviews - a.pageviews || a.host.localeCompare(b.host));
     }
 
-    async #resolveDomainId(tenant: Tenant, rawDomainId: string | undefined): Promise<number | undefined>{
+    async #resolveDomainId(tenant: Tenant, rawDomainId: string | number | undefined): Promise<number | undefined>{
         if(rawDomainId === undefined) return undefined;
         const domain = await this.#domains.getOwned(tenant, Number(rawDomainId));
         return domain.id;
     }
 
-    #since(rawMinutes: string | undefined): Date{
+    #since(rawMinutes: string | number | undefined): Date{
         const minutes = Math.min(Number(rawMinutes) || DEFAULT_MINUTES, MAX_MINUTES);
         return new Date(Date.now() - minutes * 60 * 1000);
     }

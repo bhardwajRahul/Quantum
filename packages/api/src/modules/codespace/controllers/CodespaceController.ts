@@ -3,16 +3,14 @@ import { Route } from '@/shared/controllers/Route';
 import { Status } from '@/shared/controllers/Status';
 import { Body, NumericParam } from '@/shared/controllers/RequestParams';
 import { Middleware } from '@/shared/middlewares/Middleware';
-import { AuthenticatedRoute } from '@/modules/auth/middlewares/AuthenticatedRoute';
 import { CurrentUser } from '@/modules/auth/middlewares/CurrentUser';
-import { RequirePermission } from '@/modules/organization/middlewares/RequirePermission';
 import { Tenant } from '@/modules/organization/middlewares/Tenant';
-import { TenantRoute } from '@/modules/organization/middlewares/TenantRoute';
+import { TenantGuard } from '@/modules/organization/middlewares/TenantGuard';
 import CodespaceService from '../services/CodespaceService';
 import { codespaceRoutes } from '@quantum/contracts/modules/codespace/routes';
 import type { CreateCodespaceInput } from '@quantum/contracts/modules/codespace/http';
 
-@Middleware(AuthenticatedRoute, TenantRoute)
+@Middleware(TenantGuard())
 export default class CodespaceController extends BaseController{
     #service = new CodespaceService();
 
@@ -23,7 +21,7 @@ export default class CodespaceController extends BaseController{
 
     @Route(codespaceRoutes.create)
     @Status(201)
-    @Middleware(RequirePermission('deploy'))
+    @Middleware(TenantGuard('deploy'))
     create(
         @CurrentUser() userId: number,
         @NumericParam('projectId') projectId: number,
@@ -34,13 +32,13 @@ export default class CodespaceController extends BaseController{
     }
 
     @Route(codespaceRoutes.access)
-    @Middleware(RequirePermission('deploy'))
+    @Middleware(TenantGuard('deploy'))
     access(@NumericParam('id') id: number, @Tenant() tenant: Tenant){
         return this.#service.access(tenant, id);
     }
 
     @Route(codespaceRoutes.remove)
-    @Middleware(RequirePermission('deploy'))
+    @Middleware(TenantGuard('deploy'))
     async remove(@CurrentUser() userId: number, @NumericParam('id') id: number, @Tenant() tenant: Tenant){
         await this.#service.remove(userId, tenant, id);
     }

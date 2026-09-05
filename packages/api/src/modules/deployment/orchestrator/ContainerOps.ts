@@ -21,6 +21,31 @@ export interface ExecResult{
     error?: string;
 }
 
+const APP_PID_FILE = '/app/.quantum/app.pid';
+
+/**
+ * Replaces whatever the previous deployment left running, then starts the new process.
+ *
+ * Three things this has to get right, each of which was leaking before:
+ *
+ * - The previous instance is stopped. Relaunching without it left both alive, and the
+ *   published port kept serving the older one while the new process quietly picked a
+ *   different port because the first was taken.
+ * - The whole process group goes, not just the command that was launched. `npm start`
+ *   spawns the real server as a child, so killing the parent alone orphans the thing
+ *   actually holding the port — hence `setsid` on the way in and a negated pid on the
+ *   way out.
+ * - Output is redirected onto PID 1's stdout, which is what puts it in `docker logs`.
+ *   An `exec`'d process writes to its exec stream, and this one is backgrounded with
+ *   the stream dropped, so everything the app printed used to be discarded.
+ */
+export const relaunchScript = (startCommand: string): string => [
+    `mkdir -p "$(dirname ${APP_PID_FILE})"`,
+    `if [ -f ${APP_PID_FILE} ]; then kill -TERM -"$(cat ${APP_PID_FILE})" 2>/dev/null || true; fi`,
+    `setsid sh -c 'exec ${startCommand} >> /proc/1/fd/1 2>&1' &`,
+    `echo $! > ${APP_PID_FILE}`
+].join('\n');
+
 export default class ContainerOps{
     #docker: Dockerode;
 
@@ -199,7 +224,7 @@ export default class ContainerOps{
         const workingDir = '/app' + (repository.rootDirectory || '');
         const env = await this.#environmentArray(repository.id);
 
-        this.executeCommand(['sh', '-c', `${repository.startCommand} &`], { WorkingDir: workingDir, Env: env })
+        this.executeCommand(['sh', '-c', relaunchScript(repository.startCommand)], { WorkingDir: workingDir, Env: env })
             .catch(() => undefined);
         logger.info(`re-launched start command for ${this.container.dockerContainerName}`, { scope: 'orchestrator.container' });
     }

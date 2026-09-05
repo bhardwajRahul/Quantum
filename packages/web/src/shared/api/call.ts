@@ -18,12 +18,8 @@ const interpolatePath = (path: string, values: PathValues = {}): string =>
         return encodeURIComponent(value);
     });
 
-export const call = <I, O>(endpoint: Endpoint<I, O>, options: CallOptions<I> = {}) => {
-    const url = interpolatePath(endpoint.path, options.path);
-    const config = {
-        ...(options.query ? { params: options.query as Record<string, unknown> } : {}),
-        ...(options.fresh ? { cacheFor: 0 } : {})
-    };
+const methodFor = <I, O>(endpoint: Endpoint<I, O>, url: string, options: CallOptions<I>) => {
+    const config = options.query ? { params: options.query as Record<string, unknown> } : {};
     const body = options.body as RequestBody | undefined;
 
     switch(endpoint.method){
@@ -33,4 +29,16 @@ export const call = <I, O>(endpoint: Endpoint<I, O>, options: CallOptions<I> = {
         case 'DELETE': return alova.Delete<O>(url, body, config);
         default: return alova.Get<O>(url, config);
     }
+};
+
+export const call = <I, O>(endpoint: Endpoint<I, O>, options: CallOptions<I> = {}) => {
+    const method = methodFor(endpoint, interpolatePath(endpoint.path, options.path), options);
+
+    /**
+     * `send(true)`, not `cacheFor: 0`. The latter only stops the response being *written*
+     * to the cache: alova still answers from the entry an earlier GET left behind, so a
+     * "fresh" reload after a delete kept handing back the deleted row for the rest of the
+     * 30s GET window — which is why a list needed a page reload to look right.
+     */
+    return options.fresh ? method.send(true) : method;
 };

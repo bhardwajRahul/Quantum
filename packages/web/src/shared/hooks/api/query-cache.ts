@@ -89,6 +89,25 @@ class QueryCache{
         return true;
     }
 
+    /**
+     * Writes a locally-derived snapshot so the UI can show the outcome of a write before
+     * the server has confirmed it, and hands back the undo. The entry is left untouched
+     * when nothing has loaded yet: there is no "before" to optimistically move on from,
+     * and inventing one would flash content that was never fetched.
+     */
+    patch(key: QueryKey, updater: (data: unknown) => unknown): () => void{
+        const id = keyOf(key);
+        const current = this.#entries.get(id);
+        if(current === undefined || current.status !== 'success') return () => {};
+
+        this.#write(id, { ...current, data: updater(current.data) });
+        return () => {
+            const now = this.#entries.get(id);
+            // A settled reload already replaced this snapshot with the server's own truth.
+            if(now?.status === 'success') this.#write(id, current);
+        };
+    }
+
     async refresh(keys: QueryKey[]): Promise<void>{
         if(keys.length === 0) return;
 

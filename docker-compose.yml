@@ -109,11 +109,15 @@ services:
 
   traefik:
     container_name: quantum-traefik
-    image: traefik:v3.3
+    image: traefik:v3.6
     restart: unless-stopped
     command:
       - --providers.docker
       - --providers.docker.exposedbydefault=false
+      # Routes that cannot be container labels — anything this platform did not deploy —
+      # are written here by the api and picked up without restarting the proxy.
+      - --providers.file.directory=/dynamic
+      - --providers.file.watch=true
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
@@ -134,6 +138,7 @@ services:
 
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/quantum/ingress:/dynamic:ro
       - traefik_acme:/acme
       - traefik_logs:/logs
 

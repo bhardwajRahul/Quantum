@@ -5,6 +5,7 @@ import IngressHandler from './handlers/IngressHandler';
 import Repository from '@/modules/repository/models/Repository';
 import { startOrchestrator } from './bootstrap';
 import { JobType } from '@quantum/contracts/modules/deployment/domain';
+import { writeUpstreamConfig } from '@/modules/domain/services/UpstreamRouterFile';
 import { logger } from '@/shared/utils/Logger';
 import type { DeployOptions } from './OrchestratorService';
 import type { DeploymentRequestedPayload, DeploymentRollbackRequestedPayload } from '@/modules/repository/contracts/domain/events';
@@ -95,7 +96,12 @@ export default class DeploymentEvents{
         return this.#orchestrator.healthCheck();
     }
 
-    async #domainChanged(payload: { repositoryId: number }): Promise<void>{
+    async #domainChanged(payload: { repositoryId: number | null }): Promise<void>{
+        // Republished on every domain change, including the ones with no repository:
+        // the file is rendered from the whole table, so one writer covers add and remove.
+        await writeUpstreamConfig();
+
+        if(payload.repositoryId === null) return;
         const repository = await Repository.findOneBy({ id: payload.repositoryId });
         if(!repository) return;
         await this.#ingress.applyIngress(repository).catch((error) =>

@@ -7,7 +7,7 @@ import { Tenant } from '@/modules/organization/middlewares/Tenant';
 import { TenantGuard } from '@/modules/organization/middlewares/TenantGuard';
 import DomainService from '../services/DomainService';
 import { domainRoutes } from '@quantum/contracts/modules/domain/routes';
-import type { CreateDomainInput, UpdateDomainInput } from '@quantum/contracts/modules/domain/http';
+import type { CreateDomainInput, CreateUpstreamDomainInput, UpdateDomainInput } from '@quantum/contracts/modules/domain/http';
 
 @Middleware(TenantGuard())
 export default class DomainController extends BaseController{
@@ -16,6 +16,18 @@ export default class DomainController extends BaseController{
     @Route(domainRoutes.listByRepository)
     list(@NumericParam('repositoryId') repositoryId: number, @Tenant() tenant: Tenant){
         return this.#service.listForRepository(tenant, repositoryId);
+    }
+
+    @Route(domainRoutes.listUpstreams)
+    listUpstreams(@Tenant() tenant: Tenant){
+        return this.#service.listUpstreams(tenant);
+    }
+
+    @Route(domainRoutes.createUpstream)
+    @Status(201)
+    @Middleware(TenantGuard('repo:write'))
+    createUpstream(@Tenant() tenant: Tenant, @Body() body: CreateUpstreamDomainInput){
+        return this.#service.createUpstream(tenant, body);
     }
 
     @Route(domainRoutes.create)

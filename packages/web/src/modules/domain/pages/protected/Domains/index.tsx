@@ -10,6 +10,7 @@ import DeleteConfirmDialog from '@/shared/components/DeleteConfirmDialog';
 import DomainStatusChip from '@/modules/domain/components/DomainStatus';
 import EntitySelect from '@/shared/components/EntitySelect';
 import CreateDomainDialog from '@/modules/domain/components/CreateDomainDialog';
+import CreateUpstreamDialog from '@/modules/domain/components/CreateUpstreamDialog';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { useResource } from '@/shared/hooks/api/use-resource';
 import { useMutation } from '@/shared/hooks/api/use-mutation';
@@ -18,6 +19,7 @@ import { repositoryApi } from '@/modules/repository/api/api';
 import { domainRoutes } from '@quantum/contracts/modules/domain/routes';
 import { domainErrorMessages } from '@/modules/domain/utils/error-messages';
 import { errorCopy } from '@/shared/utils/error-copy';
+import { DomainTarget } from '@quantum/contracts/modules/domain/domain';
 import type { Domain } from '@quantum/contracts/modules/domain/domain';
 import type { UpdateDomainInput } from '@quantum/contracts/modules/domain/http';
 
@@ -88,7 +90,11 @@ const DomainRow = ({ domain, isBusy, onUpdate, onRemove }: DomainRowProps) => (
                 {domain.isPrimary && <Chip size='sm' variant='soft' color='accent'>Primary</Chip>}
             </span>
         </Table.Cell>
-        <Table.Cell>{domain.kind}</Table.Cell>
+        <Table.Cell>
+            {domain.target === DomainTarget.Upstream
+                ? <span className='text-[0.8125rem] text-muted'>{domain.upstreamUrl}</span>
+                : <span className='text-[0.8125rem] text-muted'>{domain.kind}</span>}
+        </Table.Cell>
         <Table.Cell><DomainStatusChip status={domain.status} /></Table.Cell>
         <Table.Cell>{domain.tls ? 'Enabled' : 'Off'}</Table.Cell>
         <Table.Cell>
@@ -136,7 +142,7 @@ const DomainsTable = ({ domains, onChanged, onOptimisticRemove }: DomainsTablePr
                     <Table.Content aria-label='Domains'>
                         <Table.Header>
                             <Table.Column isRowHeader>Host</Table.Column>
-                            <Table.Column>Kind</Table.Column>
+                            <Table.Column>Target</Table.Column>
                             <Table.Column>Status</Table.Column>
                             <Table.Column>TLS</Table.Column>
                             <Table.Column><span className='sr-only'>Actions</span></Table.Column>
@@ -173,6 +179,89 @@ const DomainsTable = ({ domains, onChanged, onOptimisticRemove }: DomainsTablePr
     );
 };
 
+type Mode = 'apps' | 'proxy';
+
+interface ModeSwitchProps{
+    mode: Mode;
+    onChange: (mode: Mode) => void;
+}
+
+/**
+ * Two lists, not one: a domain for a deployed app is scoped to a repository and routed by
+ * that container's labels, while a proxied host belongs to the organization and is routed
+ * by generated configuration. Mixing them in one list would mean a selector that applies
+ * to half the rows.
+ */
+const ModeSwitch = ({ mode, onChange }: ModeSwitchProps) => (
+    <div className='inline-flex gap-1 rounded-lg bg-foreground/[0.06] p-1'>
+        {([['apps', 'Deployed apps'], ['proxy', 'Proxied hosts']] as const).map(([value, label]) => (
+            <button
+                key={value}
+                type='button'
+                onClick={() => onChange(value)}
+                aria-current={mode === value}
+                className={`rounded-md px-3 py-1.5 text-[0.8125rem] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground ${
+                    mode === value ? 'bg-background font-medium text-foreground' : 'text-muted hover:text-foreground'
+                }`}
+            >
+                {label}
+            </button>
+        ))}
+    </div>
+);
+
+const ProxiedHosts = () => {
+    const upstreams = useResource(domainRoutes, { list: 'listUpstreams' });
+    const [createOpen, setCreateOpen] = useState(false);
+
+    return (
+        <div className='flex flex-1 flex-col'>
+            <div className='flex justify-end'>
+                <Button onPress={() => setCreateOpen(true)}>
+                    <Plus aria-hidden='true' className='size-4' />
+                    Add route
+                </Button>
+            </div>
+
+            <div className='mt-4 flex flex-1 flex-col'>
+                <ListPageShell
+                    loading={upstreams.loading}
+                    loadingTitle='Loading routes'
+                    error={upstreams.error}
+                    errorTitle='Could not load routes'
+                    getErrorDescription={copy}
+                    onRetry={upstreams.refresh}
+                    isEmpty={(upstreams.data ?? []).length === 0}
+                    empty={{
+                        icon: Globe,
+                        title: 'No proxied hosts yet',
+                        description: 'Point a hostname at anything this server can reach — a container, another machine on the network, a device on the LAN.',
+                        action: (
+                            <Button onPress={() => setCreateOpen(true)}>
+                                <Plus aria-hidden='true' className='size-4' />
+                                Add route
+                            </Button>
+                        )
+                    }}
+                >
+                    <DomainsTable
+                        domains={upstreams.data ?? []}
+                        onChanged={upstreams.refresh}
+                        onOptimisticRemove={(id) => upstreams.patch((items) => items.filter((item) => item.id !== id))}
+                    />
+                </ListPageShell>
+            </div>
+
+            {createOpen && (
+                <CreateUpstreamDialog
+                    onClose={() => setCreateOpen(false)}
+                    onCreated={upstreams.refresh}
+                />
+            )}
+        </div>
+    );
+};
+
 const Domains = () => {
     const repositories = useQuery(repositoryApi.mine, []);
     const itemsIds = useMemo(() => (repositories.data ?? []).map((entry) => entry.id), [repositories.data]);
@@ -182,6 +271,7 @@ const Domains = () => {
         request: repositoryId === null ? null : { path: { repositoryId } }
     });
     const [createOpen, setCreateOpen] = useState(false);
+    const [mode, setMode] = useState<Mode>('apps');
 
     if(repositories.loading || repositories.error !== undefined){
         return (
@@ -210,6 +300,12 @@ const Domains = () => {
                 onAdd={openCreate}
             />
 
+            <div className='mt-6'>
+                <ModeSwitch mode={mode} onChange={setMode} />
+            </div>
+
+            {mode === 'proxy' ? <div className='mt-6 flex flex-1 flex-col'><ProxiedHosts /></div> : (
+            <>
             <div className='mt-6 max-w-sm'>
                 <EntitySelect
                     items={items}
@@ -264,6 +360,8 @@ const Domains = () => {
                     onClose={() => setCreateOpen(false)}
                     onCreated={setRepositoryId}
                 />
+            )}
+            </>
             )}
         </PageBody>
     );

@@ -1,8 +1,10 @@
-import type { DomainKind, DomainStatus } from '@quantum/contracts/modules/domain/domain';
+import type { DomainKind, DomainStatus, DomainTarget } from '@quantum/contracts/modules/domain/domain';
 
 export interface DomainFields{
     host: string;
-    repositoryId: number;
+    target: DomainTarget;
+    repositoryId: number | null;
+    upstreamUrl: string | null;
     organizationId: number;
     projectId: number;
     userId: number | null;

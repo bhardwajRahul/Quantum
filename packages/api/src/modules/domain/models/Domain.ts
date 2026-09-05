@@ -1,6 +1,6 @@
 import { Entity, Column, Index } from 'typeorm';
 import BaseModel from '@/shared/models/BaseModel';
-import { DomainKind, DomainStatus } from '@quantum/contracts/modules/domain/domain';
+import { DomainKind, DomainStatus, DomainTarget } from '@quantum/contracts/modules/domain/domain';
 import { DomainFields } from '../contracts/domain/domain';
 
 @Entity()
@@ -9,8 +9,14 @@ export default class Domain extends BaseModel implements DomainFields{
     @Column({ type: 'varchar', unique: true })
     host!: string;
 
-    @Column('int')
-    repositoryId!: number;
+    @Column({ type: 'simple-enum', enum: DomainTarget, default: DomainTarget.Repository })
+    target!: DomainTarget;
+
+    @Column({ type: 'int', nullable: true })
+    repositoryId!: number | null;
+
+    @Column({ type: 'varchar', nullable: true })
+    upstreamUrl!: string | null;
 
     @Column('int')
     organizationId!: number;

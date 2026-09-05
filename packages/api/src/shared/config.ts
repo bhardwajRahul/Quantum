@@ -66,6 +66,8 @@ export const config = {
         enabled: optional('INGRESS_ENABLED') !== 'false',
         baseDomain: optional('BASE_DOMAIN'),
         acmeEmail: optional('ACME_EMAIL'),
-        acmeCaServer: optional('ACME_CA_SERVER') ?? 'https://acme-staging-v02.api.letsencrypt.org/directory'
+        acmeCaServer: optional('ACME_CA_SERVER') ?? 'https://acme-staging-v02.api.letsencrypt.org/directory',
+        /** Where the generated router configuration is written for the proxy to watch. */
+        dynamicDir: optional('INGRESS_DYNAMIC_DIR') ?? '/var/lib/quantum/ingress'
     }
 } as const;

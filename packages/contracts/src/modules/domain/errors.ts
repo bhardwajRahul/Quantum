@@ -5,7 +5,8 @@ export const DomainErrors = {
     causes: {
         NotFound: 404,
         Forbidden: 403,
-        AlreadyExists: 409
+        AlreadyExists: 409,
+        InvalidHost: 400
     }
 } as const satisfies ErrorTable;
 

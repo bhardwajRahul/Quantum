@@ -5,6 +5,9 @@ import DockerNetwork from '@/modules/docker/models/DockerNetwork';
 import { getRuntimeImage } from './RuntimeRegistry';
 import { getSystemDockerName, getContainerStoragePath } from './paths';
 import { materializeNetwork } from './NetworkOps';
+import { allocateHostPort } from './PortAllocator';
+import PortBinding from '@/modules/codespace/models/PortBinding';
+import { PortBindingProtocol } from '@quantum/contracts/modules/codespace/domain';
 import ContainerOps from './ContainerOps';
 import { NetworkDriver } from '@quantum/contracts/modules/docker/domain';
 import { logger } from '@/shared/utils/Logger';
@@ -12,16 +15,20 @@ import { logger } from '@/shared/utils/Logger';
 export default class ProvisionService{
     async ensureRepositoryInfra(repository: Repository): Promise<DockerContainer>{
         const existing = await DockerContainer.findOneBy({ repositoryId: repository.id });
-        if(existing) return existing;
+        if(existing){
+            // An early return here is what left the port unpublished for every repository
+            // provisioned before ports existed: the method is called `ensure`, so it has
+            // to ensure on the path where the container is already there.
+            await this.#ensurePortBinding(repository, existing, existing.organizationId);
+            return existing;
+        }
 
         const organizationId = repository.organizationId ?? 0;
         const image = await this.#ensureImage(repository, organizationId);
         const network = await this.#ensureNetwork(repository, organizationId);
         const container = await this.#createContainerRow(repository, organizationId, image.id, network.id);
+        await this.#ensurePortBinding(repository, container, organizationId);
         await this.#materialize(container);
-
-        repository.containerId = container.id;
-        await repository.save();
         return container;
     }
 
@@ -44,6 +51,31 @@ export default class ProvisionService{
         await network.save();
         await materializeNetwork(network);
         return network;
+    }
+
+    /**
+     * Publishes the port the repository declares on a free host port, so the deployment
+     * is reachable without a domain — which is the documented fallback when BASE_DOMAIN
+     * is unset. The port was being collected on the create form and then never used by
+     * anything, so the container ran with nothing published.
+     *
+     * Docker fixes a container's port bindings at creation, so this has to run before the
+     * container is materialized.
+     */
+    async #ensurePortBinding(repository: Repository, container: DockerContainer, organizationId: number): Promise<void>{
+        if(repository.port === null) return;
+
+        const existing = await PortBinding.findOneBy({ containerId: container.id, internalPort: repository.port });
+        if(existing) return;
+
+        await PortBinding.create({
+            containerId: container.id,
+            userId: repository.userId,
+            organizationId,
+            internalPort: repository.port,
+            externalPort: await allocateHostPort(),
+            protocol: PortBindingProtocol.Tcp
+        }).save();
     }
 
     async #createContainerRow(repository: Repository, organizationId: number, imageId: number, networkId: number): Promise<DockerContainer>{

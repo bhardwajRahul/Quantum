@@ -1,7 +1,6 @@
 import Dockerode from 'dockerode';
 import slugify from 'slugify';
 import { getDockerHost } from './DockerHost';
-import { getSystemNetworkName } from './NetworkOps';
 import DockerContainer from '@/modules/docker/models/DockerContainer';
 import DockerImage from '@/modules/docker/models/DockerImage';
 import DockerNetwork from '@/modules/docker/models/DockerNetwork';
@@ -17,7 +16,10 @@ export default class ContainerOptionsResolver{
         const { exposedPorts, bindings } = await this.#portBindings();
         const mounts = await this.#volumeMounts();
         const binds = this.#binds();
-        const env = Object.entries(this.container.environmentVariables).map(([key, value]) => `${key}=${value}`);
+        const env = [
+            ...Object.entries(this.container.environmentVariables).map(([key, value]) => `${key}=${value}`),
+            ...(overrides.extraEnv ?? [])
+        ];
 
         const options: Dockerode.ContainerCreateOptions = {
             Image: image,
@@ -51,7 +53,15 @@ export default class ContainerOptionsResolver{
     async #networkName(): Promise<string>{
         const network = await DockerNetwork.findOneBy({ id: this.container.networkId });
         if(!network) throw new Error('Container::Network::NotFound');
-        return getSystemNetworkName(this.container.userId, network.id);
+
+        /*
+         * The persisted name, not one recomposed from ids. `materializeNetwork` created
+         * the Docker network as `network.dockerNetworkName`, so anything else is a guess
+         * at what Docker was told — and a wrong guess only surfaces as a 404 from the
+         * daemon at container-create time, long after provisioning reported success.
+         */
+        if(!network.dockerNetworkName) throw new Error('Container::Network::NotMaterialized');
+        return network.dockerNetworkName;
     }
 
     async #portBindings(): Promise<{ exposedPorts: Record<string, object>; bindings: Record<string, Array<{ HostPort: string }>> }>{

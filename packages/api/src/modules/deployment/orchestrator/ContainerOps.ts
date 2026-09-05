@@ -11,6 +11,8 @@ import { logger } from '@/shared/utils/Logger';
 export interface ContainerOverrides{
     imageOverride?: string;
     extraLabels?: Record<string, string>;
+    /** `KEY=value` entries added to the container's own environment at creation. */
+    extraEnv?: string[];
 }
 
 export interface ExecResult{
@@ -56,17 +58,47 @@ export default class ContainerOps{
         logger.info(`restarted container ${this.container.dockerContainerName}`, { scope: 'orchestrator.container' });
     }
 
-    async removeContainer(): Promise<void>{
+    /**
+     * Host ports the live container publishes. Docker fixes these when the container is
+     * created, so they are the only way to tell that a container predates a port it is
+     * meant to expose.
+     */
+    async publishedPorts(): Promise<Set<number>>{
         const live = this.#docker.getContainer(this.container.dockerContainerName);
         const info = await live.inspect().catch((error: { statusCode?: number }) =>
             error.statusCode === 404 ? null : Promise.reject(error));
-        if(info){
-            await live.remove({ force: true }).catch((error: { statusCode?: number }) => {
-                if(error.statusCode === 404) return;
-                return Promise.reject(error);
-            });
+        if(!info) return new Set();
+
+        const published = new Set<number>();
+        for(const hostPorts of Object.values(info.HostConfig?.PortBindings ?? {})){
+            for(const { HostPort } of (hostPorts ?? []) as Array<{ HostPort?: string }>){
+                const port = Number(HostPort);
+                if(Number.isInteger(port) && port > 0) published.add(port);
+            }
         }
+        return published;
+    }
+
+    async removeContainer(): Promise<void>{
+        await this.destroyContainer();
         await this.#removeVolumes();
+    }
+
+    /**
+     * Removes the container and nothing else. A container's network, mounts and port
+     * bindings are fixed at creation, so replacing it is sometimes the only way to change
+     * them — and that must not cost the caller its volumes.
+     */
+    async destroyContainer(): Promise<void>{
+        const live = this.#docker.getContainer(this.container.dockerContainerName);
+        const info = await live.inspect().catch((error: { statusCode?: number }) =>
+            error.statusCode === 404 ? null : Promise.reject(error));
+        if(!info) return;
+
+        await live.remove({ force: true }).catch((error: { statusCode?: number }) => {
+            if(error.statusCode === 404) return;
+            return Promise.reject(error);
+        });
     }
 
     async executeCommand(command: string[] | string, options: Partial<Dockerode.ExecCreateOptions> = {}): Promise<ExecResult>{
@@ -166,6 +198,7 @@ export default class ContainerOps{
         if(!repository || !repository.startCommand) return;
         const workingDir = '/app' + (repository.rootDirectory || '');
         const env = await this.#environmentArray(repository.id);
+
         this.executeCommand(['sh', '-c', `${repository.startCommand} &`], { WorkingDir: workingDir, Env: env })
             .catch(() => undefined);
         logger.info(`re-launched start command for ${this.container.dockerContainerName}`, { scope: 'orchestrator.container' });

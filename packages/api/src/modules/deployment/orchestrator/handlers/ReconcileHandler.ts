@@ -1,5 +1,6 @@
 import { In } from 'typeorm';
 import DockerContainer from '@/modules/docker/models/DockerContainer';
+import PortBinding from '@/modules/codespace/models/PortBinding';
 import Deployment from '../../models/Deployment';
 import Repository from '@/modules/repository/models/Repository';
 import Job from '../../models/Job';
@@ -55,12 +56,55 @@ export default class ReconcileHandler{
                 await this.#recreate(ops, container);
                 return 'recreated';
             }
-            if(container.status !== ContainerStatus.Running) await ops.start();
+            if(await this.#portsDrifted(ops, container)) return await this.#replace(ops, container);
+            if(container.status !== ContainerStatus.Running) return await this.#startOrRecreate(ops, container);
             return 'started';
         }catch(error){
             logger.error(`reconcile failed for ${container.dockerContainerName}`, error, { scope: 'orchestrator.handler.reconcile' });
             return 'skipped';
         }
+    }
+
+    /**
+     * Some containers cannot be started, only replaced: a container's network, mounts and
+     * port bindings are fixed by Docker at creation, so if the network it was created
+     * against is gone, every `start` returns the same 404 and reconciling would retry it
+     * forever. Falling through to a recreate is the same remedy a missing container
+     * already gets.
+     */
+    async #startOrRecreate(ops: ContainerOps, container: DockerContainer): Promise<'started' | 'recreated'>{
+        try{
+            await ops.start();
+            return 'started';
+        }catch(error){
+            logger.warn(
+                `reconcile: ${container.dockerContainerName} could not start, recreating it — ${(error as Error).message}`,
+                { scope: 'orchestrator.handler.reconcile' }
+            );
+            return await this.#replace(ops, container);
+        }
+    }
+
+    /**
+     * A container that publishes a different set of host ports than its bindings ask for
+     * cannot be corrected in place — Docker fixes port bindings at creation. Left alone,
+     * the platform would show an address nobody can reach, which is worse than showing
+     * none, so the drift is repaired the same way a broken container is.
+     */
+    async #portsDrifted(ops: ContainerOps, container: DockerContainer): Promise<boolean>{
+        const bindings = await PortBinding.find({ where: { containerId: container.id } });
+        const wanted = new Set(bindings.map((binding) => binding.externalPort));
+        const published = await ops.publishedPorts();
+
+        if(wanted.size !== published.size) return true;
+        return [...wanted].some((port) => !published.has(port));
+    }
+
+    async #replace(ops: ContainerOps, container: DockerContainer): Promise<'recreated'>{
+        // Volumes are kept: this is a repair, not a teardown.
+        await ops.destroyContainer();
+        await this.#recreate(ops, container);
+        return 'recreated';
     }
 
     async #recreate(ops: ContainerOps, container: DockerContainer): Promise<void>{

@@ -6,9 +6,6 @@ import { config } from '@/shared/config';
 
 export const EDGE_NETWORK_NAME = `quantum-edge-${config.nodeEnv}`;
 
-export const getSystemNetworkName = (userId: number, networkId: number): string =>
-    `quantum-network-${config.nodeEnv}-${userId}-${networkId}`;
-
 export const ensureEdgeNetwork = async (): Promise<string> => {
     try{
         const docker = getDockerHost().client();

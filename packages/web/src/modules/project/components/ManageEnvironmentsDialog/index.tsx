@@ -7,9 +7,10 @@ import Field from '@/shared/components/forms/Field';
 import LoadingState from '@/shared/components/LoadingState';
 import InlineError from '@/shared/components/InlineError';
 import { useForm } from '@/shared/hooks/forms/use-form';
-import { useQuery } from '@/shared/hooks/api/use-query';
+import { useResource } from '@/shared/hooks/api/use-resource';
 import { useMutation } from '@/shared/hooks/api/use-mutation';
 import { environmentApi } from '@/modules/project/api/api';
+import { environmentRoutes } from '@quantum/contracts/modules/project/routes';
 import { projectErrorMessages } from '@/modules/project/utils/error-messages';
 import { errorCopy } from '@/shared/utils/error-copy';
 import { EnvironmentType } from '@quantum/contracts/modules/project/domain';
@@ -38,7 +39,7 @@ const CreateEnvironmentForm = ({ projectId, onCreated }: CreateEnvironmentFormPr
         submitErrorMessages: projectErrorMessages,
         initialValues: { name: '', type: EnvironmentType.Production },
         onSubmit: async (values) => {
-            await environmentApi.create(projectId, { ...values, name: values.name.trim() });
+            await environmentApi.create({ path: { projectId }, body: { ...values, name: values.name.trim() } });
             form.reset();
             onCreated();
         }
@@ -90,11 +91,14 @@ interface ManageEnvironmentsDialogProps{
 }
 
 const ManageEnvironmentsDialog = ({ project, onClose }: ManageEnvironmentsDialogProps) => {
-    const environments = useQuery(environmentApi.list, [project?.id], { enabled: project !== null });
-    const remove = useMutation((environmentId: number) => environmentApi.remove(environmentId));
+    const environments = useResource(environmentRoutes, {
+        list: 'list',
+        request: project === null ? null : { path: { projectId: project.id } }
+    });
+    const remove = useMutation((environmentId: number) => environmentApi.remove({ path: { id: environmentId } }));
 
     const handleRemove = (environmentId: number) => {
-        void remove.run(environmentId).then(() => environments.reload(), () => undefined);
+        void remove.run(environmentId).then(() => environments.refresh(), () => undefined);
     };
 
     return (
@@ -113,7 +117,7 @@ const ManageEnvironmentsDialog = ({ project, onClose }: ManageEnvironmentsDialog
                 {!environments.loading && environments.error !== undefined && (
                     <div className='flex flex-col gap-2'>
                         <InlineError>{copy(environments.error)}</InlineError>
-                        <Button variant='secondary' onPress={environments.reload}>Try again</Button>
+                        <Button variant='secondary' onPress={environments.refresh}>Try again</Button>
                     </div>
                 )}
 
@@ -145,7 +149,7 @@ const ManageEnvironmentsDialog = ({ project, onClose }: ManageEnvironmentsDialog
 
                 {remove.error !== undefined && <InlineError>{copy(remove.error)}</InlineError>}
 
-                {project !== null && <CreateEnvironmentForm projectId={project.id} onCreated={environments.reload} />}
+                {project !== null && <CreateEnvironmentForm projectId={project.id} onCreated={environments.refresh} />}
             </div>
         </Modal>
     );

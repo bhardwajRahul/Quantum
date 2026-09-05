@@ -21,7 +21,7 @@ const CreateProjectDialog = ({ organizationId, isOpen, onClose, onCreated }: Cre
         submitErrorMessages: projectErrorMessages,
         initialValues: { name: '' },
         onSubmit: async (values) => {
-            await projectApi.create(organizationId, { name: values.name.trim() });
+            await projectApi.create({ path: { orgId: organizationId }, body: { name: values.name.trim() } });
             onCreated();
             onClose(false);
         }

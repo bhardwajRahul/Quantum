@@ -22,7 +22,7 @@ const RenameProjectDialog = ({ project, onClose, onRenamed }: RenameProjectDialo
         initialValues: { name: project?.name ?? '' },
         onSubmit: async (values) => {
             if(project === null) return;
-            await projectApi.update(project.id, { name: values.name?.trim() });
+            await projectApi.update({ path: { id: project.id }, body: { name: values.name?.trim() } });
             onRenamed();
             onClose();
         }

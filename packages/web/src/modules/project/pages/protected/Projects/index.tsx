@@ -11,9 +11,10 @@ import ProjectCard from '@/modules/project/components/ProjectCard';
 import CreateProjectDialog from '@/modules/project/components/CreateProjectDialog';
 import RenameProjectDialog from '@/modules/project/components/RenameProjectDialog';
 import ManageEnvironmentsDialog from '@/modules/project/components/ManageEnvironmentsDialog';
-import { useQuery } from '@/shared/hooks/api/use-query';
+import { useResource } from '@/shared/hooks/api/use-resource';
 import { useMutation } from '@/shared/hooks/api/use-mutation';
 import { projectApi } from '@/modules/project/api/api';
+import { projectRoutes } from '@quantum/contracts/modules/project/routes';
 import { useCurrentOrganizationId } from '@/modules/organization/hooks/use-current-organization-id';
 import { projectErrorMessages } from '@/modules/project/utils/error-messages';
 import { errorCopy } from '@/shared/utils/error-copy';
@@ -46,7 +47,7 @@ interface DeleteProjectDialogProps{
 }
 
 const DeleteProjectDialog = ({ project, onClose, onDeleted }: DeleteProjectDialogProps) => {
-    const remove = useMutation((projectId: number) => projectApi.remove(projectId));
+    const remove = useMutation((projectId: number) => projectApi.remove({ path: { id: projectId } }));
 
     const handleDelete = async () => {
         if(project === null) return;
@@ -76,7 +77,10 @@ const DeleteProjectDialog = ({ project, onClose, onDeleted }: DeleteProjectDialo
 
 const Projects = () => {
     const organizationId = useCurrentOrganizationId();
-    const projects = useQuery(projectApi.listByOrganization, [organizationId ?? undefined]);
+    const projects = useResource(projectRoutes, {
+        list: 'listByOrganization',
+        request: organizationId === null ? null : { path: { orgId: organizationId } }
+    });
     const [createOpen, setCreateOpen] = useState(false);
     const [renameTarget, setRenameTarget] = useState<Project | null>(null);
     const [environmentsTarget, setEnvironmentsTarget] = useState<Project | null>(null);
@@ -87,7 +91,7 @@ const Projects = () => {
     if(projects.error !== undefined){
         return (
             <CenterState className='h-full'>
-                <ErrorState title='Could not load projects' description={copy(projects.error)} onRetry={projects.reload} />
+                <ErrorState title='Could not load projects' description={copy(projects.error)} onRetry={projects.refresh} />
             </CenterState>
         );
     }
@@ -131,14 +135,14 @@ const Projects = () => {
                 organizationId={organizationId}
                 isOpen={createOpen}
                 onClose={setCreateOpen}
-                onCreated={projects.reload}
+                onCreated={projects.refresh}
             />
 
             <RenameProjectDialog
                 key={renameTarget?.id ?? 'rename'}
                 project={renameTarget}
                 onClose={() => setRenameTarget(null)}
-                onRenamed={projects.reload}
+                onRenamed={projects.refresh}
             />
 
             <ManageEnvironmentsDialog
@@ -150,7 +154,7 @@ const Projects = () => {
             <DeleteProjectDialog
                 project={deleteTarget}
                 onClose={() => setDeleteTarget(null)}
-                onDeleted={projects.reload}
+                onDeleted={projects.refresh}
             />
         </PageBody>
     );

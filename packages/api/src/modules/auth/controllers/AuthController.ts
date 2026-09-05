@@ -10,7 +10,6 @@ import { ClientIp } from '../middlewares/ClientIp';
 import AuthService from '../services/AuthService';
 import { authRoutes } from '@quantum/contracts/modules/auth/routes';
 import type { SignInInput, SignUpInput, UpdatePasswordInput } from '@quantum/contracts/modules/auth/http';
-import type { UpdateMyAccountInput } from '@quantum/contracts/modules/user/http';
 
 export default class AuthController extends BaseController{
     #service = new AuthService();
@@ -34,28 +33,10 @@ export default class AuthController extends BaseController{
         return this.#service.signUp(body);
     }
 
-    @Route(authRoutes.signOut)
-    @Middleware(AuthenticatedRoute)
-    signOut(){
-        return null;
-    }
-
     @Route(authRoutes.me)
     @Middleware(AuthenticatedRoute)
     me(@CurrentUser() userId: number){
         return this.#service.getMe(userId);
-    }
-
-    @Route(authRoutes.updateMe)
-    @Middleware(AuthenticatedRoute)
-    updateMe(@CurrentUser() userId: number, @Body() body: UpdateMyAccountInput){
-        return this.#service.updateMe(userId, body);
-    }
-
-    @Route(authRoutes.deleteMe)
-    @Middleware(AuthenticatedRoute)
-    deleteMe(@CurrentUser() userId: number){
-        return this.#service.deleteMe(userId);
     }
 
     @Route(authRoutes.updatePassword)

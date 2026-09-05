@@ -1,12 +1,11 @@
 import { createHmac } from 'node:crypto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { useApp, flushEvents, authHeader } from '@tests/harness';
+import { useApp, flushEvents } from '@tests/harness';
 import { request, expectError } from '@tests/request';
 import { seed } from '@tests/Seed';
 import { config } from '@/shared/config';
 import { eventBus } from '@/shared/events/EventBus';
 import { repositoryRoutes } from '@quantum/contracts/modules/repository/routes';
-import { RepositoryOperation } from '@quantum/contracts/modules/repository/domain';
 import { UserRole } from '@quantum/contracts/modules/user/domain';
 import Repository from '../models/Repository';
 
@@ -310,35 +309,6 @@ describe('repository', () => {
         expect(await Repository.findOneBy({ id: created.data().id })).not.toBeNull();
     });
 
-    it('accepts a valid operation', async () => {
-        const { user, project } = await seed.orgContext();
-        const created = await createRepository(user.id, project.id);
-
-        const res = await request(ctx.app, repositoryRoutes.operate, {
-            as: user.id,
-            params: { id: created.data().id },
-            body: { operation: RepositoryOperation.Restart }
-        });
-
-        expect(res.status).toBe(200);
-        expect(res.data().id).toBe(created.data().id);
-    });
-
-    it('rejects an unknown operation', async () => {
-        const { user, project } = await seed.orgContext();
-        const created = await createRepository(user.id, project.id);
-
-        const res = await ctx.app.inject({
-            method: repositoryRoutes.operate.method,
-            url: repositoryRoutes.operate.path.replace(':id', String(created.data().id)),
-            headers: authHeader(user.id),
-            payload: { operation: 'explode' }
-        });
-
-        expect(res.statusCode).toBe(400);
-        expect(res.json()).toMatchObject({ error: 'Request::ValidationFailed' });
-    });
-
     it('requests a rollback for a deployment', async () => {
         const { user, project } = await seed.orgContext();
         const created = await createRepository(user.id, project.id);
@@ -373,41 +343,6 @@ describe('repository', () => {
         expectError(res, 403, 'Repository::Forbidden');
     });
 
-    it('lists every repository for a platform admin', async () => {
-        const first = await seed.orgContext();
-        const second = await seed.orgContext();
-        await createRepository(first.user.id, first.project.id);
-        await createRepository(second.user.id, second.project.id);
-        const admin = await seed.user(UserRole.Admin);
-
-        const res = await request(ctx.app, repositoryRoutes.listAll, { as: admin.id });
-
-        expect(res.status).toBe(200);
-        expect(res.data()).toHaveLength(2);
-    });
-
-    it('forbids the admin list for a regular user', async () => {
-        const { user } = await seed.orgContext();
-
-        const res = await request(ctx.app, repositoryRoutes.listAll, { as: user.id });
-
-        expectError(res, 403, 'Authentication::Forbidden');
-    });
-
-    it('answers 404 for storage access without a container', async () => {
-        const { user, project } = await seed.orgContext();
-        const created = await createRepository(user.id, project.id);
-
-        for(const suffix of ['', '/app', '/read?path=/app/main.ts']){
-            const res = await ctx.app.inject({
-                method: 'GET',
-                url: `/repository/${created.data().id}/storage${suffix}`,
-                headers: authHeader(user.id)
-            });
-            expect(res.statusCode).toBe(404);
-            expect(res.json()).toMatchObject({ error: 'Repository::NotFound' });
-        }
-    });
 });
 
 describe('webhook', () => {

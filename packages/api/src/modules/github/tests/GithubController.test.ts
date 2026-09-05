@@ -36,14 +36,6 @@ describe('github account', () => {
         expectError(res, 404, 'Github::NotConnected');
     });
 
-    it('answers 404 AccountNotFound when removing without a connection', async () => {
-        const user = await seed.user();
-
-        const res = await request(ctx.app, githubRoutes.remove, { as: user.id });
-
-        expectError(res, 404, 'Github::AccountNotFound');
-    });
-
     it('answers 404 NotConnected when listing repositories without a connection', async () => {
         const user = await seed.user();
 
@@ -78,18 +70,6 @@ describe('github account', () => {
         });
         expect(res.body).not.toContain('gh-secret-token');
         expect(res.body).not.toContain('accessToken');
-
-        await flushEvents();
-    });
-
-    it('removes a connected account', async () => {
-        const user = await seed.user();
-        await new GithubAccountService().upsertFromGithub(user.id, GITHUB_PROFILE, 'gh-secret-token');
-
-        const res = await request(ctx.app, githubRoutes.remove, { as: user.id });
-
-        expect(res.status).toBe(204);
-        expect(await GithubAccount.findOneBy({ userId: user.id })).toBeNull();
 
         await flushEvents();
     });

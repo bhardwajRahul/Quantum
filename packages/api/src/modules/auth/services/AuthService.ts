@@ -9,7 +9,6 @@ import PasswordService from './PasswordService';
 import ValidationError from '@/shared/errors/ValidationError';
 import type { EmailAvailability, Session } from '@quantum/contracts/modules/auth/domain';
 import type { SignInInput, SignUpInput, UpdatePasswordInput } from '@quantum/contracts/modules/auth/http';
-import type { UpdateMyAccountInput } from '@quantum/contracts/modules/user/http';
 
 export default class AuthService{
     #jwt = new JWTService();
@@ -66,33 +65,6 @@ export default class AuthService{
         const user = await User.findOneBy({ id: userId });
         if(!user) throw AuthError.UserNotFound();
         return user;
-    }
-
-    async updateMe(userId: number, input: UpdateMyAccountInput): Promise<User>{
-        const user = await this.getMe(userId);
-
-        if(input.username !== undefined) user.username = this.#normalizeUsername(input.username);
-        if(input.fullname !== undefined) user.fullname = input.fullname;
-        if(input.email !== undefined) user.email = input.email.toLowerCase();
-
-        try{
-            return await user.save();
-        }catch(error){
-            throw this.#duplicateUserError(error);
-        }
-    }
-
-    async deleteMe(userId: number){
-        const user = await this.getMe(userId);
-        await user.remove();
-
-        eventBus.emit('user.deleted', { userId: user.id });
-
-        eventBus.emit('notification.send', {
-            to: user.email,
-            subject: 'You have deleted your account.',
-            html: '<p>All your data on the platform has been deleted. This action is irreversible.</p>'
-        });
     }
 
     async updatePassword(userId: number, input: UpdatePasswordInput): Promise<Session>{

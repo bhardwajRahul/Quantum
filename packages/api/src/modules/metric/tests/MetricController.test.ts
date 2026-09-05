@@ -5,7 +5,6 @@ import { seed } from '@tests/Seed';
 import { metricRoutes } from '@quantum/contracts/modules/metric/routes';
 import { UserRole } from '@quantum/contracts/modules/user/domain';
 import Metric from '../models/Metric';
-import DockerContainer from '../../docker/models/DockerContainer';
 import { config } from '@/shared/config';
 import type { DeepPartial } from 'typeorm';
 
@@ -132,58 +131,6 @@ describe('metric', () => {
 
         expect(res.status).toBe(200);
         expect(res.data()).toHaveLength(1);
-    });
-
-    it('returns container metrics scoped by tenant', async () => {
-        const { user, org } = await seed.orgContext();
-        const container = await DockerContainer.create({
-            name: 'web',
-            userId: user.id,
-            organizationId: org.id,
-            networkId: 1,
-            imageId: 1
-        }).save();
-        await seedMetric({ organizationId: org.id, containerId: container.id });
-
-        const res = await request(ctx.app, metricRoutes.byContainer, {
-            as: user.id,
-            params: { containerId: container.id }
-        });
-
-        expect(res.status).toBe(200);
-        expect(res.data()).toHaveLength(1);
-        expect(res.data()[0].containerId).toBe(container.id);
-    });
-
-    it('forbids container metrics for a non-member organization', async () => {
-        const owner = await seed.orgContext();
-        const outsider = await seed.orgContext();
-        const container = await DockerContainer.create({
-            name: 'web',
-            userId: owner.user.id,
-            organizationId: owner.org.id,
-            networkId: 1,
-            imageId: 1
-        }).save();
-        await seedMetric({ organizationId: owner.org.id, containerId: container.id });
-
-        const res = await request(ctx.app, metricRoutes.byContainer, {
-            as: outsider.user.id,
-            params: { containerId: container.id }
-        });
-
-        expectError(res, 403, 'Metric::Forbidden');
-    });
-
-    it('answers 404 for an unknown container', async () => {
-        const { user } = await seed.orgContext();
-
-        const res = await request(ctx.app, metricRoutes.byContainer, {
-            as: user.id,
-            params: { containerId: 999999 }
-        });
-
-        expectError(res, 404, 'Metric::NotFound');
     });
 
     it('applies the limit and minutes window', async () => {

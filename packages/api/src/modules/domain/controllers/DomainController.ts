@@ -27,11 +27,6 @@ export default class DomainController extends BaseController{
         return this.#service.create(tenant, repositoryId, body);
     }
 
-    @Route(domainRoutes.get)
-    get(@NumericParam('id') id: number, @Tenant() tenant: Tenant){
-        return this.#service.getOwned(tenant, id);
-    }
-
     @Route(domainRoutes.update)
     @Middleware(RequirePermission('repo:write'))
     update(@NumericParam('id') id: number, @Tenant() tenant: Tenant, @Body() body: UpdateDomainInput){

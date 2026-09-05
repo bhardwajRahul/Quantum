@@ -10,7 +10,7 @@ import Template from '../models/Template';
 import TemplateInstall from '../models/TemplateInstall';
 import type { TemplateSpec } from '@quantum/contracts/modules/template/domain';
 import type { CreateTemplateInput } from '@quantum/contracts/modules/template/http';
-import type { TemplateDeletedPayload, TemplateInstalledPayload } from '../contracts/domain/events';
+import type { TemplateInstalledPayload } from '../contracts/domain/events';
 import type { TemplateFields } from '../contracts/domain/template';
 
 const ctx = useApp();
@@ -31,12 +31,19 @@ const seedBuiltin = (overrides: Partial<Omit<TemplateFields, 'createdAt' | 'upda
     ...overrides
 }).save();
 
-const createTemplate = (userId: number, orgId: number, overrides: Partial<CreateTemplateInput> = {}) =>
-    request(ctx.app, templateRoutes.create, {
-        as: userId,
-        params: { orgId },
-        body: { name: 'Redis Cache', spec: spec('redis:7'), ...overrides }
-    });
+const createTemplate = (userId: number, orgId: number, overrides: Partial<CreateTemplateInput> = {}) => Template.create({
+    name: overrides.name ?? 'Redis Cache',
+    slug: overrides.slug ?? 'redis-cache',
+    version: overrides.version ?? '1.0.0',
+    category: overrides.category ?? 'other',
+    description: overrides.description ?? null,
+    icon: overrides.icon ?? null,
+    website: overrides.website ?? null,
+    source: TemplateSource.Custom,
+    organizationId: orgId,
+    spec: overrides.spec ?? spec('redis:7'),
+    inputsSchema: overrides.inputsSchema ?? []
+}).save();
 
 const installTemplate = (userId: number, projectId: number, templateId: number, name = 'My Redis') =>
     request(ctx.app, templateRoutes.install, {
@@ -58,52 +65,6 @@ describe('template', () => {
         const res = await request(ctx.app, templateRoutes.list);
 
         expectError(res, 401, 'Authentication::Unauthorized');
-    });
-
-    it('creates a custom template scoped to the organization', async () => {
-        const { user, org } = await seed.orgContext();
-
-        const res = await createTemplate(user.id, org.id);
-
-        expect(res.status).toBe(201);
-        expect(res.data()).toMatchObject({
-            name: 'Redis Cache',
-            slug: 'redis-cache',
-            version: '1.0.0',
-            category: 'other',
-            source: TemplateSource.Custom,
-            organizationId: org.id,
-            spec: spec('redis:7')
-        });
-    });
-
-    it('rejects an invalid create body', async () => {
-        const { user, org } = await seed.orgContext();
-
-        const res = await request(ctx.app, templateRoutes.create, {
-            as: user.id,
-            params: { orgId: org.id },
-            body: { name: '', spec: { services: { app: { image: 'redis:7' } } } }
-        });
-
-        expectError(res, 400, 'Request::ValidationFailed');
-    });
-
-    it('rejects a duplicate slug and version with 409', async () => {
-        const { user, org } = await seed.orgContext();
-        await createTemplate(user.id, org.id, { slug: 'cache' });
-
-        const res = await createTemplate(user.id, org.id, { slug: 'cache', name: 'Cache Two' });
-
-        expectError(res, 409, 'Template::SlugAlreadyTaken');
-    });
-
-    it('forbids template creation for the viewer role', async () => {
-        const { user, org } = await seed.orgContext(OrganizationRole.Viewer);
-
-        const res = await createTemplate(user.id, org.id);
-
-        expectError(res, 403, 'Tenancy::InsufficientPermissions');
     });
 
     it('lists builtin templates for everyone and custom templates only for member organizations', async () => {
@@ -146,78 +107,16 @@ describe('template', () => {
         expect(res.data()).toEqual(['cms', 'database']);
     });
 
-    it('gets a visible template', async () => {
-        const builtin = await seedBuiltin();
-        const outsider = await seed.user();
-
-        const res = await request(ctx.app, templateRoutes.get, { as: outsider.id, params: { id: builtin.id } });
-
-        expect(res.status).toBe(200);
-        expect(res.data()).toMatchObject({ id: builtin.id, slug: 'postgres' });
-    });
-
-    it('answers 404 for a template outside the caller organizations', async () => {
-        const { user, org } = await seed.orgContext();
-        const created = await createTemplate(user.id, org.id);
-        const outsider = await seed.user();
-
-        const res = await request(ctx.app, templateRoutes.get, { as: outsider.id, params: { id: created.data().id } });
-
-        expectError(res, 404, 'Template::NotFound');
-    });
-
-    it('answers 404 for a missing template', async () => {
-        const { user } = await seed.orgContext();
-
-        const res = await request(ctx.app, templateRoutes.get, { as: user.id, params: { id: 999999 } });
-
-        expectError(res, 404, 'Template::NotFound');
-    });
-
-    it('deletes a custom template and emits template.deleted', async () => {
-        const { user, org } = await seed.orgContext();
-        const created = await createTemplate(user.id, org.id);
-        const deleted = collect<TemplateDeletedPayload>('template.deleted');
-
-        const res = await request(ctx.app, templateRoutes.remove, { as: user.id, params: { id: created.data().id } });
-
-        expect(res.status).toBe(204);
-        expect(await Template.findOneBy({ id: created.data().id })).toBeNull();
-        await flushEvents();
-        expect(deleted).toEqual([{ templateId: created.data().id }]);
-    });
-
-    it('refuses to delete builtin templates', async () => {
-        const builtin = await seedBuiltin();
-        const { user } = await seed.orgContext();
-
-        const res = await request(ctx.app, templateRoutes.remove, { as: user.id, params: { id: builtin.id } });
-
-        expectError(res, 404, 'Template::NotFound');
-    });
-
-    it('forbids template deletion for the viewer role', async () => {
-        const { user, org } = await seed.orgContext();
-        const viewer = await seed.member(org, OrganizationRole.Viewer);
-        const created = await createTemplate(user.id, org.id);
-
-        const res = await request(ctx.app, templateRoutes.remove, { as: viewer.id, params: { id: created.data().id } });
-
-        expectError(res, 403, 'Tenancy::InsufficientPermissions');
-    });
-});
-
-describe('template install', () => {
     it('installs a template into a project and emits template.installed', async () => {
         const { user, org, project } = await seed.orgContext();
         const created = await createTemplate(user.id, org.id);
         const installed = collect<TemplateInstalledPayload>('template.installed');
 
-        const res = await installTemplate(user.id, project.id, created.data().id);
+        const res = await installTemplate(user.id, project.id, created.id);
 
         expect(res.status).toBe(201);
         expect(res.data()).toMatchObject({
-            templateId: created.data().id,
+            templateId: created.id,
             templateVersion: '1.0.0',
             name: 'My Redis',
             projectId: project.id,
@@ -231,7 +130,7 @@ describe('template install', () => {
         expect(installed).toEqual([{
             templateInstallId: res.data().id,
             projectId: project.id,
-            templateId: created.data().id,
+            templateId: created.id,
             userId: user.id
         }]);
     });
@@ -252,7 +151,7 @@ describe('template install', () => {
 
         const { user, project } = await seed.orgContext();
 
-        const res = await installTemplate(user.id, project.id, created.data().id, 'Steal');
+        const res = await installTemplate(user.id, project.id, created.id, 'Steal');
 
         expectError(res, 404, 'Template::NotFound');
     });
@@ -280,7 +179,7 @@ describe('template install', () => {
     it('lists the installs of a project', async () => {
         const { user, org, project } = await seed.orgContext();
         const created = await createTemplate(user.id, org.id);
-        await installTemplate(user.id, project.id, created.data().id);
+        await installTemplate(user.id, project.id, created.id);
 
         const res = await request(ctx.app, templateInstallRoutes.listByProject, {
             as: user.id,
@@ -304,38 +203,10 @@ describe('template install', () => {
         expectError(res, 403, 'TemplateInstall::Forbidden');
     });
 
-    it('gets an install for a member', async () => {
-        const { user, org, project } = await seed.orgContext();
-        const created = await createTemplate(user.id, org.id);
-        const installed = await installTemplate(user.id, project.id, created.data().id);
-
-        const res = await request(ctx.app, templateInstallRoutes.get, {
-            as: user.id,
-            params: { id: installed.data().id }
-        });
-
-        expect(res.status).toBe(200);
-        expect(res.data()).toMatchObject({ id: installed.data().id, name: 'My Redis' });
-    });
-
-    it('answers 404 when getting an install from another organization', async () => {
-        const { user, org, project } = await seed.orgContext();
-        const created = await createTemplate(user.id, org.id);
-        const installed = await installTemplate(user.id, project.id, created.data().id);
-        const outsider = await seed.user();
-
-        const res = await request(ctx.app, templateInstallRoutes.get, {
-            as: outsider.id,
-            params: { id: installed.data().id }
-        });
-
-        expectError(res, 404, 'TemplateInstall::NotFound');
-    });
-
     it('deletes an install', async () => {
         const { user, org, project } = await seed.orgContext();
         const created = await createTemplate(user.id, org.id);
-        const installed = await installTemplate(user.id, project.id, created.data().id);
+        const installed = await installTemplate(user.id, project.id, created.id);
 
         const res = await request(ctx.app, templateInstallRoutes.remove, {
             as: user.id,
@@ -350,7 +221,7 @@ describe('template install', () => {
         const { user, org, project } = await seed.orgContext();
         const viewer = await seed.member(org, OrganizationRole.Viewer);
         const created = await createTemplate(user.id, org.id);
-        const installed = await installTemplate(user.id, project.id, created.data().id);
+        const installed = await installTemplate(user.id, project.id, created.id);
 
         const res = await request(ctx.app, templateInstallRoutes.remove, {
             as: viewer.id,

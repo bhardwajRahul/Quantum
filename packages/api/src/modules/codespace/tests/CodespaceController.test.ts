@@ -156,62 +156,6 @@ describe('codespace', () => {
         expectError(res, 404, 'Codespace::NotFound');
     });
 
-    it('gets a codespace as an org member', async () => {
-        const { user, org, project } = await seed.orgContext();
-        const created = await createCodespace(user.id, project.id);
-
-        const res = await request(ctx.app, codespaceRoutes.get, {
-            as: user.id,
-            params: { id: created.data().id }
-        });
-
-        expect(res.status).toBe(200);
-        expect(res.data()).toMatchObject({ id: created.data().id, organizationId: org.id });
-        expect(res.json<{ data: Record<string, unknown> }>().data.passwordEnc).toBeUndefined();
-    });
-
-    it('forbids getting a codespace of another organization', async () => {
-        const owner = await seed.orgContext();
-        const outsider = await seed.orgContext();
-        const created = await createCodespace(owner.user.id, owner.project.id);
-
-        const res = await request(ctx.app, codespaceRoutes.get, {
-            as: outsider.user.id,
-            params: { id: created.data().id }
-        });
-
-        expectError(res, 403, 'Codespace::Forbidden');
-
-        await flushEvents();
-    });
-
-    it('answers 404 for an unknown codespace', async () => {
-        const { user } = await seed.orgContext();
-
-        const res = await request(ctx.app, codespaceRoutes.get, {
-            as: user.id,
-            params: { id: 999999 }
-        });
-
-        expectError(res, 404, 'Codespace::NotFound');
-    });
-
-    it('lets a platform admin bypass codespace ownership', async () => {
-        const { user, project } = await seed.orgContext();
-        const created = await createCodespace(user.id, project.id);
-        const admin = await seed.user(UserRole.Admin);
-
-        const res = await request(ctx.app, codespaceRoutes.get, {
-            as: admin.id,
-            params: { id: created.data().id }
-        });
-
-        expect(res.status).toBe(200);
-        expect(res.data()).toMatchObject({ id: created.data().id });
-
-        await flushEvents();
-    });
-
     it('returns the decrypted access info of a provisioned codespace', async () => {
         const { user, project } = await seed.orgContext();
         const created = await createCodespace(user.id, project.id);

@@ -33,11 +33,6 @@ export default class DatabaseController extends BaseController{
         return this.#service.create(userId, tenant, projectId, body);
     }
 
-    @Route(databaseRoutes.get)
-    get(@NumericParam('id') id: number, @Tenant() tenant: Tenant){
-        return this.#service.getOwned(tenant, id);
-    }
-
     @Route(databaseRoutes.remove)
     @Middleware(RequirePermission('deploy'))
     async remove(@CurrentUser() userId: number, @NumericParam('id') id: number, @Tenant() tenant: Tenant){

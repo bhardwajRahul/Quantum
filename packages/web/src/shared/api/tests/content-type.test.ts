@@ -2,6 +2,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { authApi } from '@/modules/auth/api/api';
 import { call } from '@/shared/api/call';
 import { authRoutes } from '@quantum/contracts/modules/auth/routes';
+import { domainRoutes } from '@quantum/contracts/modules/domain/routes';
+import { toRequest } from '@/shared/tests/fetch-stub';
 
 interface Captured{
     method: string;
@@ -15,9 +17,7 @@ beforeEach(() => {
     captured.length = 0;
 
     vi.stubGlobal('fetch', vi.fn(async (input: unknown, init?: RequestInit) => {
-        const request = input instanceof Request
-            ? input
-            : new Request(new URL(String(input), 'http://localhost/'), init);
+        const request = toRequest(input, init);
 
         captured.push({
             method: request.method,
@@ -31,10 +31,10 @@ beforeEach(() => {
 
 describe('outgoing content type', () => {
     it('omits it on a bodyless DELETE', async () => {
-        await authApi.deleteMe();
+        await call(domainRoutes.remove, { path: { id: 7 } });
 
         expect(captured[0]?.method).toBe('DELETE');
-        expect(captured[0]?.url).toContain('/auth/me');
+        expect(captured[0]?.url).toContain('/domain/7');
         expect(captured[0]?.contentType).toBeNull();
     });
 

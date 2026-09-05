@@ -33,12 +33,6 @@ export default class OrganizationController extends BaseController{
         return this.#service.currentFor(userId, tenant);
     }
 
-    @Route(organizationRoutes.get)
-    get(@NumericParam('id') id: number, @Tenant() tenant: Tenant){
-        this.#assertMembership(id, tenant);
-        return this.#service.get(id);
-    }
-
     @Route(organizationRoutes.update)
     @Middleware(RequirePermission('org:settings'))
     update(@NumericParam('id') id: number, @Tenant() tenant: Tenant, @Body() body: UpdateOrganizationInput){

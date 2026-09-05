@@ -5,8 +5,7 @@ export const DeploymentErrors = {
     causes: {
         NotFound: 404,
         Forbidden: 403,
-        OperationFailed: 500,
-        BuildFailed: 500
+        OperationFailed: 500
     }
 } as const satisfies ErrorTable;
 

@@ -5,7 +5,6 @@ import type { Member, Organization, TenantContext } from './domain';
 export const organizationRoutes = {
     list: get<Organization[]>('/organization'),
     create: post<CreateOrganizationInput, Organization>('/organization'),
-    get: get<Organization>('/organization/:id'),
     update: patch<UpdateOrganizationInput, Organization>('/organization/:id'),
     remove: del('/organization/:id'),
     current: get<TenantContext>('/organization/current'),

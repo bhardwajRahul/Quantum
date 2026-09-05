@@ -94,30 +94,6 @@ describe('organization', () => {
         });
     });
 
-    it('gets an organization for a member', async () => {
-        const { user, org } = await seed.orgContext();
-
-        const res = await request(ctx.app, organizationRoutes.get, {
-            as: user.id,
-            params: { id: org.id }
-        });
-
-        expect(res.status).toBe(200);
-        expect(res.data()).toMatchObject({ id: org.id, name: org.name });
-    });
-
-    it('rejects getting an organization for a non-member', async () => {
-        const { org } = await seed.orgContext();
-        const outsider = await seed.user();
-
-        const res = await request(ctx.app, organizationRoutes.get, {
-            as: outsider.id,
-            params: { id: org.id }
-        });
-
-        expectError(res, 404, 'Tenancy::OrganizationNotFound');
-    });
-
     it('updates an organization as owner', async () => {
         const { user, org } = await seed.orgContext();
 

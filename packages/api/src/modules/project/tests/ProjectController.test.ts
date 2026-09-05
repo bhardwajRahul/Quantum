@@ -5,7 +5,6 @@ import { seed } from '@tests/Seed';
 import { projectRoutes, environmentRoutes } from '@quantum/contracts/modules/project/routes';
 import { EnvironmentType } from '@quantum/contracts/modules/project/domain';
 import { OrganizationRole } from '@quantum/contracts/modules/organization/domain';
-import { UserRole } from '@quantum/contracts/modules/user/domain';
 import Project from '../models/Project';
 import Environment from '../models/Environment';
 
@@ -103,54 +102,6 @@ describe('project', () => {
         expectError(res, 403, 'Tenancy::OrganizationForbidden');
     });
 
-    it('gets a project as a member', async () => {
-        const { user, project } = await seed.orgContext();
-
-        const res = await request(ctx.app, projectRoutes.get, {
-            as: user.id,
-            params: { id: project.id }
-        });
-
-        expect(res.status).toBe(200);
-        expect(res.data()).toMatchObject({ id: project.id, name: project.name });
-    });
-
-    it('forbids getting a project of another organization', async () => {
-        const owner = await seed.orgContext();
-        const outsider = await seed.orgContext();
-
-        const res = await request(ctx.app, projectRoutes.get, {
-            as: outsider.user.id,
-            params: { id: owner.project.id }
-        });
-
-        expectError(res, 403, 'Project::Forbidden');
-    });
-
-    it('answers 404 for an unknown project', async () => {
-        const { user } = await seed.orgContext();
-
-        const res = await request(ctx.app, projectRoutes.get, {
-            as: user.id,
-            params: { id: 999999 }
-        });
-
-        expectError(res, 404, 'Project::NotFound');
-    });
-
-    it('lets a platform admin bypass project ownership', async () => {
-        const { project } = await seed.orgContext();
-        const admin = await seed.user(UserRole.Admin);
-
-        const res = await request(ctx.app, projectRoutes.get, {
-            as: admin.id,
-            params: { id: project.id }
-        });
-
-        expect(res.status).toBe(200);
-        expect(res.data()).toMatchObject({ id: project.id });
-    });
-
     it('updates a project as owner', async () => {
         const { user, project } = await seed.orgContext();
 
@@ -214,19 +165,13 @@ describe('project', () => {
     });
 
     it('lets a viewer read projects but not write them', async () => {
-        const { user, org, project } = await seed.orgContext(OrganizationRole.Viewer);
+        const { user, org } = await seed.orgContext(OrganizationRole.Viewer);
 
         const list = await request(ctx.app, projectRoutes.listByOrganization, {
             as: user.id,
             params: { orgId: org.id }
         });
         expect(list.status).toBe(200);
-
-        const get = await request(ctx.app, projectRoutes.get, {
-            as: user.id,
-            params: { id: project.id }
-        });
-        expect(get.status).toBe(200);
 
         const write = await request(ctx.app, projectRoutes.create, {
             as: user.id,
@@ -331,95 +276,6 @@ describe('environment', () => {
         });
 
         expectError(res, 403, 'Project::Forbidden');
-    });
-
-    it('gets an environment', async () => {
-        const { user, project } = await seed.orgContext();
-        const created = await request(ctx.app, environmentRoutes.create, {
-            as: user.id,
-            params: { projectId: project.id },
-            body: { name: 'web', type: EnvironmentType.Production }
-        });
-
-        const res = await request(ctx.app, environmentRoutes.get, {
-            as: user.id,
-            params: { id: created.data().id }
-        });
-
-        expect(res.status).toBe(200);
-        expect(res.data()).toMatchObject({ id: created.data().id, name: 'web' });
-    });
-
-    it('forbids getting an environment of another organization', async () => {
-        const owner = await seed.orgContext();
-        const outsider = await seed.orgContext();
-        const created = await request(ctx.app, environmentRoutes.create, {
-            as: owner.user.id,
-            params: { projectId: owner.project.id },
-            body: { name: 'web', type: EnvironmentType.Production }
-        });
-
-        const res = await request(ctx.app, environmentRoutes.get, {
-            as: outsider.user.id,
-            params: { id: created.data().id }
-        });
-
-        expectError(res, 403, 'Project::Forbidden');
-    });
-
-    it('answers 404 for an unknown environment', async () => {
-        const { user } = await seed.orgContext();
-
-        const res = await request(ctx.app, environmentRoutes.get, {
-            as: user.id,
-            params: { id: 999999 }
-        });
-
-        expectError(res, 404, 'Environment::NotFound');
-    });
-
-    it('updates an environment', async () => {
-        const { user, project } = await seed.orgContext();
-        const created = await request(ctx.app, environmentRoutes.create, {
-            as: user.id,
-            params: { projectId: project.id },
-            body: { name: 'web', type: EnvironmentType.Production }
-        });
-
-        const res = await request(ctx.app, environmentRoutes.update, {
-            as: user.id,
-            params: { id: created.data().id },
-            body: { name: 'web-eu', type: EnvironmentType.Preview }
-        });
-
-        expect(res.status).toBe(200);
-        expect(res.data()).toMatchObject({
-            id: created.data().id,
-            name: 'web-eu',
-            type: EnvironmentType.Preview
-        });
-    });
-
-    it('rejects renaming an environment to a taken name', async () => {
-        const { user, project } = await seed.orgContext();
-        await request(ctx.app, environmentRoutes.create, {
-            as: user.id,
-            params: { projectId: project.id },
-            body: { name: 'web', type: EnvironmentType.Production }
-        });
-        const api = await request(ctx.app, environmentRoutes.create, {
-            as: user.id,
-            params: { projectId: project.id },
-            body: { name: 'api', type: EnvironmentType.Production }
-        });
-
-        const res = await request(ctx.app, environmentRoutes.update, {
-            as: user.id,
-            params: { id: api.data().id },
-            body: { name: 'web' }
-        });
-
-        expectError(res, 409, 'Environment::NameAlreadyTaken');
     });
 
     it('deletes an environment', async () => {

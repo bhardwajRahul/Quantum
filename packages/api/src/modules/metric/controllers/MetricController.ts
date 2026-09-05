@@ -12,16 +12,6 @@ import { metricRoutes } from '@quantum/contracts/modules/metric/routes';
 export default class MetricController extends BaseController{
     #service = new MetricService();
 
-    @Route(metricRoutes.byContainer)
-    byContainer(
-        @NumericParam('containerId') containerId: number,
-        @Tenant() tenant: Tenant,
-        @Query('limit') limit: string | undefined,
-        @Query('minutes') minutes: string | undefined
-    ){
-        return this.#service.byContainer(tenant, containerId, limit, minutes);
-    }
-
     @Route(metricRoutes.byRepository)
     byRepository(
         @NumericParam('repositoryId') repositoryId: number,

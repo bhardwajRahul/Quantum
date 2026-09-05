@@ -39,11 +39,6 @@ export default class CodespaceController extends BaseController{
         return this.#service.access(tenant, id);
     }
 
-    @Route(codespaceRoutes.get)
-    get(@NumericParam('id') id: number, @Tenant() tenant: Tenant){
-        return this.#service.getOwned(tenant, id);
-    }
-
     @Route(codespaceRoutes.remove)
     @Middleware(RequirePermission('deploy'))
     async remove(@CurrentUser() userId: number, @NumericParam('id') id: number, @Tenant() tenant: Tenant){

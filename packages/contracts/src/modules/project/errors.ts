@@ -5,8 +5,7 @@ export const ProjectErrors = {
     causes: {
         NotFound: 404,
         Forbidden: 403,
-        SlugAlreadyTaken: 409,
-        NameAlreadyTaken: 409
+        SlugAlreadyTaken: 409
     }
 } as const satisfies ErrorTable;
 

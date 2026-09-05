@@ -6,7 +6,6 @@ export const codespaceRoutes = {
     listByProject: get<Codespace[]>('/codespace/project/:projectId'),
     create: post<CreateCodespaceInput, Codespace>('/codespace/project/:projectId'),
     access: get<CodespaceAccess>('/codespace/:id/access'),
-    get: get<Codespace>('/codespace/:id'),
     remove: del('/codespace/:id')
 };
 

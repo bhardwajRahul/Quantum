@@ -7,7 +7,6 @@ import SecretCipher from '@/shared/services/SecretCipher';
 import { databaseRoutes } from '@quantum/contracts/modules/database/routes';
 import { DatabaseEngine, DatabaseStatus } from '@quantum/contracts/modules/database/domain';
 import { OrganizationRole } from '@quantum/contracts/modules/organization/domain';
-import { UserRole } from '@quantum/contracts/modules/user/domain';
 import Database from '../models/Database';
 import DatabaseService from '../services/DatabaseService';
 import type { DatabaseCredentials } from '@quantum/contracts/modules/database/domain';
@@ -171,57 +170,6 @@ describe('database', () => {
         });
 
         expectError(res, 403, 'Database::Forbidden:Project');
-    });
-
-    it('gets a database as a member', async () => {
-        const { user, project } = await seed.orgContext();
-        const created = await createDatabase(user.id, project.id, 'readable');
-
-        const res = await request(ctx.app, databaseRoutes.get, {
-            as: user.id,
-            params: { id: created.data().id }
-        });
-
-        expect(res.status).toBe(200);
-        expect(res.data()).toMatchObject({ id: created.data().id, name: 'readable' });
-    });
-
-    it('forbids getting a database of another organization', async () => {
-        const owner = await seed.orgContext();
-        const outsider = await seed.orgContext();
-        const created = await createDatabase(owner.user.id, owner.project.id, 'private');
-
-        const res = await request(ctx.app, databaseRoutes.get, {
-            as: outsider.user.id,
-            params: { id: created.data().id }
-        });
-
-        expectError(res, 403, 'Database::Forbidden');
-    });
-
-    it('answers 404 for an unknown database', async () => {
-        const { user } = await seed.orgContext();
-
-        const res = await request(ctx.app, databaseRoutes.get, {
-            as: user.id,
-            params: { id: 999999 }
-        });
-
-        expectError(res, 404, 'Database::NotFound');
-    });
-
-    it('lets a platform admin bypass database ownership', async () => {
-        const owner = await seed.orgContext();
-        const created = await createDatabase(owner.user.id, owner.project.id, 'admin-visible');
-        const admin = await seed.user(UserRole.Admin);
-
-        const res = await request(ctx.app, databaseRoutes.get, {
-            as: admin.id,
-            params: { id: created.data().id }
-        });
-
-        expect(res.status).toBe(200);
-        expect(res.data()).toMatchObject({ id: created.data().id });
     });
 
     it('returns a connection string built from the generated credentials', async () => {

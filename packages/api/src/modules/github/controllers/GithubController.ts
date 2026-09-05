@@ -44,12 +44,6 @@ export default class GithubController extends BaseController{
         return this.#accounts.requireForUser(userId);
     }
 
-    @Route(githubRoutes.remove)
-    @Middleware(AuthenticatedRoute)
-    async remove(@CurrentUser() userId: number){
-        await this.#accounts.removeForUser(userId);
-    }
-
     @Route(githubRoutes.repositories)
     @Middleware(AuthenticatedRoute)
     repositories(@CurrentUser() userId: number){

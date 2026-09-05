@@ -9,7 +9,7 @@ import { Tenant } from '@/modules/organization/middlewares/Tenant';
 import { TenantRoute } from '@/modules/organization/middlewares/TenantRoute';
 import EnvironmentService from '../services/EnvironmentService';
 import { environmentRoutes } from '@quantum/contracts/modules/project/routes';
-import type { CreateEnvironmentInput, UpdateEnvironmentInput } from '@quantum/contracts/modules/project/http';
+import type { CreateEnvironmentInput } from '@quantum/contracts/modules/project/http';
 
 @Middleware(AuthenticatedRoute, TenantRoute)
 export default class EnvironmentController extends BaseController{
@@ -25,17 +25,6 @@ export default class EnvironmentController extends BaseController{
     @Middleware(RequirePermission('project:write'))
     create(@NumericParam('projectId') projectId: number, @Tenant() tenant: Tenant, @Body() body: CreateEnvironmentInput){
         return this.#service.create(tenant, projectId, body);
-    }
-
-    @Route(environmentRoutes.get)
-    get(@NumericParam('id') id: number, @Tenant() tenant: Tenant){
-        return this.#service.getOwned(tenant, id);
-    }
-
-    @Route(environmentRoutes.update)
-    @Middleware(RequirePermission('project:write'))
-    update(@NumericParam('id') id: number, @Tenant() tenant: Tenant, @Body() body: UpdateEnvironmentInput){
-        return this.#service.update(tenant, id, body);
     }
 
     @Route(environmentRoutes.remove)

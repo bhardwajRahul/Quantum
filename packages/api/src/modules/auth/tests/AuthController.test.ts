@@ -110,24 +110,12 @@ describe('auth', () => {
 
     it('rejects a token signed for a deleted user', async () => {
         const user = await seed.user();
-        await request(ctx.app, authRoutes.deleteMe, { as: user.id });
+        await (await User.findOneBy({ id: user.id }))?.remove();
 
         const res = await request(ctx.app, authRoutes.me, { as: user.id });
 
         expectError(res, 401, 'Authentication::InvalidToken');
         await flushEvents();
-    });
-
-    it('updates the own account', async () => {
-        const user = await seed.user();
-
-        const res = await request(ctx.app, authRoutes.updateMe, {
-            as: user.id,
-            body: { fullname: 'Renamed Fully Name' }
-        });
-
-        expect(res.status).toBe(200);
-        expect(res.data().fullname).toBe('Renamed Fully Name');
     });
 
     it('updates the password and invalidates previous tokens', async () => {
@@ -174,14 +162,6 @@ describe('auth', () => {
         });
 
         expectError(res, 400, 'Authentication::PasswordsAreSame');
-    });
-
-    it('signs out an authenticated user', async () => {
-        const user = await seed.user();
-
-        const res = await request(ctx.app, authRoutes.signOut, { as: user.id });
-
-        expect(res.status).toBe(204);
     });
 });
 

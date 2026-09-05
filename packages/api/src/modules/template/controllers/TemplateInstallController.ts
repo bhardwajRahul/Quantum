@@ -18,11 +18,6 @@ export default class TemplateInstallController extends BaseController{
         return this.#service.listForProject(tenant, projectId);
     }
 
-    @Route(templateInstallRoutes.get)
-    get(@Tenant() tenant: Tenant, @NumericParam('id') id: number){
-        return this.#service.get(tenant, id);
-    }
-
     @Route(templateInstallRoutes.remove)
     @Middleware(RequirePermission('deploy'))
     async remove(@Tenant() tenant: Tenant, @NumericParam('id') id: number){

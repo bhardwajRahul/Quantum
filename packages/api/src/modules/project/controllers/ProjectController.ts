@@ -33,11 +33,6 @@ export default class ProjectController extends BaseController{
         return this.#service.create(userId, tenant, orgId, body);
     }
 
-    @Route(projectRoutes.get)
-    get(@NumericParam('id') id: number, @Tenant() tenant: Tenant){
-        return this.#service.getOwned(tenant, id);
-    }
-
     @Route(projectRoutes.update)
     @Middleware(RequirePermission('project:write'))
     update(@NumericParam('id') id: number, @Tenant() tenant: Tenant, @Body() body: UpdateProjectInput){

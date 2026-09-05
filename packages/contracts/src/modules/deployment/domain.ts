@@ -74,29 +74,6 @@ export interface Deployment extends BaseEntity{
     environmentVariables: Record<string, string>;
 }
 
-export interface Job extends BaseEntity{
-    type: JobType;
-    status: JobStatus;
-    nodeId: string;
-    repositoryId: number | null;
-    userId: number | null;
-    containerId: number | null;
-    deploymentId: number | null;
-    projectId: number | null;
-    organizationId: number | null;
-    templateInstallId: number | null;
-    payload: unknown;
-    priority: number;
-    attempts: number;
-    maxAttempts: number;
-    backoffMs: number;
-    runAt: string;
-    lockedUntil: string | null;
-    idempotencyKey: string | null;
-    lockKey: string | null;
-    error: string | null;
-}
-
 export interface DeploymentStatusFrame{
     deploymentId: number;
     status: DeploymentStatus;

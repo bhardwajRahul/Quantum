@@ -5,7 +5,6 @@ import type { Domain } from './domain';
 export const domainRoutes = {
     listByRepository: get<Domain[]>('/domain/repository/:repositoryId'),
     create: post<CreateDomainInput, Domain>('/domain/repository/:repositoryId'),
-    get: get<Domain>('/domain/:id'),
     update: patch<UpdateDomainInput, Domain>('/domain/:id'),
     remove: del('/domain/:id')
 };

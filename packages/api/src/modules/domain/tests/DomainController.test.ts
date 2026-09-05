@@ -7,7 +7,6 @@ import Repository from '@/modules/repository/models/Repository';
 import { domainRoutes } from '@quantum/contracts/modules/domain/routes';
 import { DomainKind, DomainStatus } from '@quantum/contracts/modules/domain/domain';
 import { OrganizationRole } from '@quantum/contracts/modules/organization/domain';
-import { UserRole } from '@quantum/contracts/modules/user/domain';
 import Domain from '../models/Domain';
 
 const ctx = useApp();
@@ -185,60 +184,6 @@ describe('domain', () => {
         });
 
         expectError(res, 403, 'Domain::Forbidden:Repository');
-    });
-
-    it('gets a domain as a member', async () => {
-        const { user, org, project } = await seed.orgContext();
-        const repositoryId = await insertRepository(org.id, project.id, user.id);
-        const created = await createDomain(user.id, repositoryId, 'readable.example.com');
-
-        const res = await request(ctx.app, domainRoutes.get, {
-            as: user.id,
-            params: { id: created.data().id }
-        });
-
-        expect(res.status).toBe(200);
-        expect(res.data()).toMatchObject({ id: created.data().id, host: 'readable.example.com' });
-    });
-
-    it('forbids getting a domain of another organization', async () => {
-        const owner = await seed.orgContext();
-        const outsider = await seed.orgContext();
-        const repositoryId = await insertRepository(owner.org.id, owner.project.id, owner.user.id);
-        const created = await createDomain(owner.user.id, repositoryId, 'private.example.com');
-
-        const res = await request(ctx.app, domainRoutes.get, {
-            as: outsider.user.id,
-            params: { id: created.data().id }
-        });
-
-        expectError(res, 403, 'Domain::Forbidden');
-    });
-
-    it('answers 404 for an unknown domain', async () => {
-        const { user } = await seed.orgContext();
-
-        const res = await request(ctx.app, domainRoutes.get, {
-            as: user.id,
-            params: { id: 999999 }
-        });
-
-        expectError(res, 404, 'Domain::NotFound');
-    });
-
-    it('lets a platform admin bypass domain ownership', async () => {
-        const { org, project, user } = await seed.orgContext();
-        const repositoryId = await insertRepository(org.id, project.id, user.id);
-        const created = await createDomain(user.id, repositoryId, 'admin-visible.example.com');
-        const admin = await seed.user(UserRole.Admin);
-
-        const res = await request(ctx.app, domainRoutes.get, {
-            as: admin.id,
-            params: { id: created.data().id }
-        });
-
-        expect(res.status).toBe(200);
-        expect(res.data()).toMatchObject({ id: created.data().id });
     });
 
     it('updates the mutable fields of a domain', async () => {

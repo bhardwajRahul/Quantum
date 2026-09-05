@@ -32,7 +32,7 @@ const CreateDomainDialog = ({
         submitErrorMessages: domainErrorMessages,
         onSubmit: async (values) => {
             if(repositoryId === null) return;
-            await domainApi.create(repositoryId, { host: values.host.trim() });
+            await domainApi.create({ path: { repositoryId }, body: { host: values.host.trim() } });
             onCreated(repositoryId);
             onClose();
         }

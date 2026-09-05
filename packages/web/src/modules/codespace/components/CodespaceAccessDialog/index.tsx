@@ -51,7 +51,7 @@ interface CodespaceAccessDialogProps{
 }
 
 const CodespaceAccessDialog = ({ codespace, onClose }: CodespaceAccessDialogProps) => {
-    const access = useQuery(codespaceApi.access, [codespace?.id], { enabled: codespace !== null });
+    const access = useQuery((codespaceId: number) => codespaceApi.access({ path: { id: codespaceId } }), [codespace?.id], { enabled: codespace !== null });
 
     return (
         <Modal

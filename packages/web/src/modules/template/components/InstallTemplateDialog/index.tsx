@@ -3,10 +3,10 @@ import { Button, FieldError, Input, Label, ListBox, ListBoxItem, Select, TextFie
 import Modal from '@/shared/components/Modal';
 import InlineError from '@/shared/components/InlineError';
 import ProjectSelect from '@/modules/template/components/ProjectSelect';
-import { useQuery } from '@/shared/hooks/api/use-query';
+import { useResource } from '@/shared/hooks/api/use-resource';
 import { useMutation } from '@/shared/hooks/api/use-mutation';
 import { templateApi } from '@/modules/template/api/api';
-import { environmentApi, projectApi } from '@/modules/template/api/projects';
+import { environmentRoutes, projectRoutes } from '@quantum/contracts/modules/project/routes';
 import { useCurrentOrganizationId } from '@/modules/organization/hooks/use-current-organization-id';
 import { templateErrorMessages } from '@/modules/template/utils/error-messages';
 import { errorCopy } from '@/shared/utils/error-copy';
@@ -30,19 +30,29 @@ interface InstallTemplateDialogProps{
 
 const InstallTemplateDialog = ({ template, onClose, onInstalled }: InstallTemplateDialogProps) => {
     const organizationId = useCurrentOrganizationId();
-    const projects = useQuery(projectApi.listByOrganization, [organizationId ?? undefined], { enabled: template !== null });
+    const projects = useResource(projectRoutes, {
+        list: 'listByOrganization',
+        request: organizationId === null ? null : { path: { orgId: organizationId } },
+        enabled: template !== null
+    });
     const [projectId, setProjectId] = useState<number | null>(null);
-    const environments = useQuery(environmentApi.list, [projectId ?? undefined], { enabled: projectId !== null });
+    const environments = useResource(environmentRoutes, {
+        list: 'list',
+        request: projectId === null ? null : { path: { projectId } }
+    });
     const [environmentId, setEnvironmentId] = useState<number | null>(null);
     const [name, setName] = useState('');
     const [inputs, setInputs] = useState<Record<string, string | number | boolean>>({});
 
     const install = useMutation((targetProjectId: number, body: { name: string; environmentId: number | null; inputs: Record<string, string | number | boolean> }) =>
-        templateApi.install(targetProjectId, {
-            templateId: template?.id ?? 0,
-            name: body.name,
-            environmentId: body.environmentId,
-            inputs: body.inputs
+        templateApi.install({
+            path: { projectId: targetProjectId },
+            body: {
+                templateId: template?.id ?? 0,
+                name: body.name,
+                environmentId: body.environmentId,
+                inputs: body.inputs
+            }
         }));
 
     const fields = (template?.inputsSchema ?? []).filter((def) => !def.generate);

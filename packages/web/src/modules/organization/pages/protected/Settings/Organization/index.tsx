@@ -31,7 +31,7 @@ const RenameOrganizationForm = ({ organization, onSaved }: RenameOrganizationFor
         submitErrorMessages: tenancyErrorMessages,
         initialValues: { name: organization.name },
         onSubmit: async (values) => {
-            await organizationApi.update(organization.id, values);
+            await organizationApi.update({ path: { id: organization.id }, body: values });
             onSaved();
         }
     });
@@ -92,7 +92,7 @@ interface DeleteOrganizationDialogProps{
 const DeleteOrganizationDialog = ({ organization, isOpen, onClose }: DeleteOrganizationDialogProps) => {
     const clearTenant = useTenantStore((state) => state.clear);
     const navigate = useNavigate();
-    const remove = useMutation((organizationId: number) => organizationApi.remove(organizationId));
+    const remove = useMutation((organizationId: number) => organizationApi.remove({ path: { id: organizationId } }));
 
     const handleDelete = async () => {
         const deleted = await remove.run(organization.id).then(() => true, () => false);

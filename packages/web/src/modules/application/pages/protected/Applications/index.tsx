@@ -565,7 +565,7 @@ interface UninstallDialogProps{
 }
 
 const UninstallDialog = ({ install, onClose, onRemoved }: UninstallDialogProps) => {
-    const remove = useMutation((id: number) => templateInstallApi.remove(id));
+    const remove = useMutation((id: number) => templateInstallApi.remove({ path: { id } }));
 
     const handleRemove = async () => {
         if(install === null) return;
@@ -606,7 +606,7 @@ const Applications = () => {
         while: (data) => data.some((database) => isDatabaseTransient(database.status)),
         everyMs: 5000
     });
-    const installsQuery = useQuery(templateInstallApi.listByProject, [projectId ?? undefined], { enabled: projectId !== null });
+    const installsQuery = useQuery((installProjectId: number) => templateInstallApi.listByProject({ path: { projectId: installProjectId } }), [projectId ?? undefined], { enabled: projectId !== null });
 
     const [createDatabaseOpen, setCreateDatabaseOpen] = useState(false);
     const [deleteAppTarget, setDeleteAppTarget] = useState<Repository | null>(null);

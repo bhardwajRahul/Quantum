@@ -14,8 +14,9 @@ import Form from '@/shared/components/forms/Form';
 import Field from '@/shared/components/forms/Field';
 import RoleSelect from '@/modules/organization/components/RoleSelect';
 import { useForm } from '@/shared/hooks/forms/use-form';
-import { useQuery } from '@/shared/hooks/api/use-query';
+import { useResource } from '@/shared/hooks/api/use-resource';
 import { useMutation } from '@/shared/hooks/api/use-mutation';
+import { organizationRoutes } from '@quantum/contracts/modules/organization/routes';
 import { organizationApi } from '@/modules/organization/api/api';
 import { useCurrentOrganizationId } from '@/modules/organization/hooks/use-current-organization-id';
 import { useTenancy } from '@/modules/organization/hooks/use-tenancy';
@@ -39,7 +40,7 @@ const InviteMemberDialog = ({ organizationId, onClose, onInvited }: InviteMember
         submitErrorMessages: tenancyErrorMessages,
         initialValues: { email: '', role: OrganizationRole.Member },
         onSubmit: async (values) => {
-            await organizationApi.invite(organizationId, values);
+            await organizationApi.invite({ path: { orgId: organizationId }, body: values });
             onInvited();
             onClose();
         }
@@ -148,7 +149,7 @@ interface RemoveMemberDialogProps{
 }
 
 const RemoveMemberDialog = ({ organizationId, member, onClose, onRemoved }: RemoveMemberDialogProps) => {
-    const removeMember = useMutation((memberId: number) => organizationApi.removeMember(organizationId, memberId));
+    const removeMember = useMutation((memberId: number) => organizationApi.removeMember({ path: { orgId: organizationId, id: memberId } }));
 
     const handleRemove = async () => {
         if(member === null) return;
@@ -184,7 +185,7 @@ interface TeamTableProps{
 
 const TeamTable = ({ organizationId, members, onChanged }: TeamTableProps) => {
     const updateRole = useMutation((memberId: number, body: UpdateMemberInput) =>
-        organizationApi.updateMember(organizationId, memberId, body));
+        organizationApi.updateMember({ path: { orgId: organizationId, id: memberId }, body }));
     const [removeTarget, setRemoveTarget] = useState<Member | null>(null);
 
     const changeRole = (member: Member, role: OrganizationRole) => {
@@ -233,7 +234,10 @@ const TeamTable = ({ organizationId, members, onChanged }: TeamTableProps) => {
 const Team = () => {
     const organizationId = useCurrentOrganizationId();
     const { current } = useTenancy();
-    const members = useQuery(organizationApi.members, [organizationId ?? undefined]);
+    const members = useResource(organizationRoutes, {
+        list: 'members',
+        request: organizationId === null ? null : { path: { orgId: organizationId } }
+    });
     const [inviteOpen, setInviteOpen] = useState(false);
 
     if(organizationId === null) return <CenterState className='h-full'><LoadingState title='Loading team' compact /></CenterState>;
@@ -243,7 +247,7 @@ const Team = () => {
     if(members.error !== undefined){
         return (
             <CenterState className='h-full'>
-                <ErrorState title='Could not load team members' description={copy(members.error)} onRetry={members.reload} />
+                <ErrorState title='Could not load team members' description={copy(members.error)} onRetry={members.refresh} />
             </CenterState>
         );
     }
@@ -258,7 +262,7 @@ const Team = () => {
                 {items.length === 0 ? (
                     <CenterState><MembersEmpty onInvite={() => setInviteOpen(true)} /></CenterState>
                 ) : (
-                    <TeamTable organizationId={organizationId} members={items} onChanged={members.reload} />
+                    <TeamTable organizationId={organizationId} members={items} onChanged={members.refresh} />
                 )}
             </div>
 
@@ -266,7 +270,7 @@ const Team = () => {
                 <InviteMemberDialog
                     organizationId={organizationId}
                     onClose={() => setInviteOpen(false)}
-                    onInvited={members.reload}
+                    onInvited={members.refresh}
                 />
             )}
         </PageBody>

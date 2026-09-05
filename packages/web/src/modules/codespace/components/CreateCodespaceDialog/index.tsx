@@ -21,7 +21,7 @@ const CreateCodespaceDialog = ({ projectId, isOpen, onClose, onCreated }: Create
         submitErrorMessages: codespaceErrorMessages,
         initialValues: { name: '' },
         onSubmit: async (values) => {
-            await codespaceApi.create(projectId, { name: values.name.trim() });
+            await codespaceApi.create({ path: { projectId }, body: { name: values.name.trim() } });
             onCreated();
             onClose(false);
         }

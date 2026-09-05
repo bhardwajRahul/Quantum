@@ -12,10 +12,11 @@ import CodespaceStatusChip from '@/modules/codespace/components/CodespaceStatus'
 import CreateCodespaceDialog from '@/modules/codespace/components/CreateCodespaceDialog';
 import CodespaceAccessDialog from '@/modules/codespace/components/CodespaceAccessDialog';
 import { useQuery } from '@/shared/hooks/api/use-query';
+import { useResource } from '@/shared/hooks/api/use-resource';
 import { useMutation } from '@/shared/hooks/api/use-mutation';
 import { usePolledQuery } from '@/shared/hooks/api/use-polled-query';
 import { codespaceApi } from '@/modules/codespace/api/api';
-import { projectApi } from '@/modules/codespace/api/projects';
+import { projectRoutes } from '@quantum/contracts/modules/project/routes';
 import { useCurrentOrganizationId } from '@/modules/organization/hooks/use-current-organization-id';
 import { isCodespaceTransient } from '@/modules/codespace/utils/status';
 import { codespaceErrorMessages } from '@/modules/codespace/utils/error-messages';
@@ -50,7 +51,7 @@ interface DeleteCodespaceDialogProps{
 }
 
 const DeleteCodespaceDialog = ({ codespace, onClose, onRemoved }: DeleteCodespaceDialogProps) => {
-    const removeCodespace = useMutation((id: number) => codespaceApi.remove(id));
+    const removeCodespace = useMutation((id: number) => codespaceApi.remove({ path: { id } }));
 
     const handleRemove = async () => {
         if(codespace === null) return;
@@ -122,11 +123,14 @@ const CodespacesTable = ({ codespaces, onAccess, onDelete }: CodespacesTableProp
 
 const Codespaces = () => {
     const organizationId = useCurrentOrganizationId();
-    const projects = useQuery(projectApi.listByOrganization, [organizationId ?? undefined]);
+    const projects = useResource(projectRoutes, {
+        list: 'listByOrganization',
+        request: organizationId === null ? null : { path: { orgId: organizationId } }
+    });
     const [projectId, setProjectId] = useState<number | null>(null);
 
     const codespacesQuery = useQuery(
-        codespaceApi.listByProject,
+        (codespaceProjectId: number) => codespaceApi.listByProject({ path: { projectId: codespaceProjectId } }),
         [projectId ?? undefined],
         { enabled: projectId !== null }
     );
@@ -142,7 +146,7 @@ const Codespaces = () => {
     if(organizationId === null) return <LoadingState title='Loading codespaces' compact />;
     if(projects.loading) return <LoadingState title='Loading projects' compact />;
     if(projects.error !== undefined){
-        return <ErrorState title='Could not load projects' description={copy(projects.error)} onRetry={projects.reload} />;
+        return <ErrorState title='Could not load projects' description={copy(projects.error)} onRetry={projects.refresh} />;
     }
 
     const projectItems = projects.data ?? [];

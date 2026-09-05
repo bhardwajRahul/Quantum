@@ -8,6 +8,8 @@ import EmptyState from '@/shared/components/EmptyState';
 import CenterState from '@/shared/components/CenterState';
 import InstallTemplateDialog from '@/modules/template/components/InstallTemplateDialog';
 import { useQuery } from '@/shared/hooks/api/use-query';
+import { useResource } from '@/shared/hooks/api/use-resource';
+import { templateRoutes } from '@quantum/contracts/modules/template/routes';
 import { templateApi } from '@/modules/template/api/api';
 import { templateErrorMessages } from '@/modules/template/utils/error-messages';
 import { errorCopy } from '@/shared/utils/error-copy';
@@ -82,7 +84,7 @@ const TemplateCard = ({ template, onInstall }: TemplateCardProps) => (
 const Templates = () => {
     const [category, setCategory] = useState<string | null>(null);
     const categories = useQuery(templateApi.categories, []);
-    const templates = useQuery(templateApi.list, []);
+    const templates = useResource(templateRoutes, { list: 'list' });
     const [installTarget, setInstallTarget] = useState<Template | null>(null);
 
     if(templates.loading) return <CenterState className='h-full'><LoadingState title='Loading templates' compact /></CenterState>;
@@ -92,7 +94,7 @@ const Templates = () => {
                 <ErrorState
                     title='Could not load templates'
                     description={copy(templates.error)}
-                    onRetry={templates.reload}
+                    onRetry={templates.refresh}
                 />
             </CenterState>
         );

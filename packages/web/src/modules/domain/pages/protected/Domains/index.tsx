@@ -12,9 +12,11 @@ import DomainStatusChip from '@/modules/domain/components/DomainStatus';
 import RepositorySelect from '@/modules/domain/components/RepositorySelect';
 import CreateDomainDialog from '@/modules/domain/components/CreateDomainDialog';
 import { useQuery } from '@/shared/hooks/api/use-query';
+import { useResource } from '@/shared/hooks/api/use-resource';
 import { useMutation } from '@/shared/hooks/api/use-mutation';
 import { domainApi } from '@/modules/domain/api/api';
-import { repositoryApi } from '@/modules/domain/api/repositories';
+import { repositoryApi } from '@/modules/repository/api/api';
+import { domainRoutes } from '@quantum/contracts/modules/domain/routes';
 import { domainErrorMessages } from '@/modules/domain/utils/error-messages';
 import { errorCopy } from '@/shared/utils/error-copy';
 import type { Domain } from '@quantum/contracts/modules/domain/domain';
@@ -59,7 +61,7 @@ interface DeleteDomainDialogProps{
 }
 
 const DeleteDomainDialog = ({ domain, onClose, onRemoved }: DeleteDomainDialogProps) => {
-    const removeDomain = useMutation((id: number) => domainApi.remove(id));
+    const removeDomain = useMutation((id: number) => domainApi.remove({ path: { id } }));
 
     const handleRemove = async () => {
         if(domain === null) return;
@@ -135,7 +137,7 @@ interface DomainsTableProps{
 }
 
 const DomainsTable = ({ domains, onChanged }: DomainsTableProps) => {
-    const updateDomain = useMutation((id: number, body: UpdateDomainInput) => domainApi.update(id, body));
+    const updateDomain = useMutation((id: number, body: UpdateDomainInput) => domainApi.update({ path: { id }, body }));
     const [deleteTarget, setDeleteTarget] = useState<Domain | null>(null);
 
     const applyUpdate = (domain: Domain, body: UpdateDomainInput) => {
@@ -188,11 +190,10 @@ const DomainsTable = ({ domains, onChanged }: DomainsTableProps) => {
 const Domains = () => {
     const repositories = useQuery(repositoryApi.mine, []);
     const [repositoryId, setRepositoryId] = useState<number | null>(null);
-    const domains = useQuery(
-        domainApi.listByRepository,
-        [repositoryId ?? undefined],
-        { enabled: repositoryId !== null }
-    );
+    const domains = useResource(domainRoutes, {
+        list: 'listByRepository',
+        request: repositoryId === null ? null : { path: { repositoryId } }
+    });
     const [createOpen, setCreateOpen] = useState(false);
 
     if(repositories.loading) return <LoadingState title='Loading repositories' compact />;
@@ -215,7 +216,7 @@ const Domains = () => {
                 canRefresh={repositoryId !== null && !domains.loading}
                 canAdd={items.length > 0}
                 refreshing={domains.loading}
-                onRefresh={domains.reload}
+                onRefresh={domains.refresh}
                 onAdd={openCreate}
             />
 
@@ -243,7 +244,7 @@ const Domains = () => {
                         <ErrorState
                             title='Could not load domains'
                             description={copy(domains.error)}
-                            onRetry={domains.reload}
+                            onRetry={domains.refresh}
                         />
                     </CenterState>
                 ) : (domains.data ?? []).length === 0 ? (
@@ -260,7 +261,7 @@ const Domains = () => {
                         </EmptyState>
                     </CenterState>
                 ) : (
-                    <DomainsTable domains={domains.data ?? []} onChanged={domains.reload} />
+                    <DomainsTable domains={domains.data ?? []} onChanged={domains.refresh} />
                 )}
             </div>
 

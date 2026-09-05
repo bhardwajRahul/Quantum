@@ -55,7 +55,7 @@ describe('a tenant reconfigure response', () => {
         useTenantStore.getState().setOrganizationId(7);
         respondWith(409, { error: 'Tenancy::OrganizationReconfigure' });
 
-        await expect(organizationApi.remove(7)).rejects.toThrow('Tenancy::OrganizationReconfigure');
+        await expect(organizationApi.remove({ path: { id: 7 } })).rejects.toThrow('Tenancy::OrganizationReconfigure');
 
         expect(useTenantStore.getState().currentOrganizationId).toBeNull();
         expect(localStorage.getItem('qt-org')).toBeNull();
@@ -66,7 +66,7 @@ describe('a tenant reconfigure response', () => {
         useTenantStore.getState().setOrganizationId(7);
         respondWith(403, { error: 'Tenancy::OrganizationForbidden' });
 
-        await expect(organizationApi.remove(7)).rejects.toThrow('Tenancy::OrganizationForbidden');
+        await expect(organizationApi.remove({ path: { id: 7 } })).rejects.toThrow('Tenancy::OrganizationForbidden');
 
         expect(useTenantStore.getState().currentOrganizationId).toBe(7);
     });

@@ -20,7 +20,7 @@ const CreateOrganizationForm = ({ onCreated }: CreateOrganizationFormProps) => {
         submitErrorMessages: tenancyErrorMessages,
         initialValues: { name: '' },
         onSubmit: async (values) => {
-            const organization = await organizationApi.create(values);
+            const organization = await organizationApi.create({ body: values });
             setOrganizationId(organization.id);
             onCreated();
         }

@@ -6,10 +6,12 @@ import { TenancyError } from '@/modules/organization/contracts/domain/errors';
 import Project from '@/modules/project/models/Project';
 import Environment from '@/modules/project/models/Environment';
 import Repository from '../models/Repository';
+import { oneWithContainerStatus, withContainerStatus } from './withContainerStatus';
 import { RepositoryError } from '../contracts/domain/errors';
 import { SourceType } from '@quantum/contracts/modules/repository/domain';
 import type { Tenant } from '@/modules/organization/contracts/types/fastify';
 import type { RollbackAccepted } from '@quantum/contracts/modules/repository/domain';
+import type { Repository as RepositoryPayload } from '@quantum/contracts/modules/repository/domain';
 import type { CreateRepositoryInput, UpdateRepositoryInput } from '@quantum/contracts/modules/repository/http';
 
 const ALIAS_MIN_LENGTH = 4;
@@ -22,15 +24,16 @@ const REDEPLOY_FIELDS: Array<keyof UpdateRepositoryInput> = [
 ];
 
 export default class RepositoryService{
-    listMine(userId: number): Promise<Repository[]>{
-        return Repository.find({ where: { userId }, order: { id: 'ASC' } });
+    async listMine(userId: number): Promise<RepositoryPayload[]>{
+        const repositories = await Repository.find({ where: { userId }, order: { id: 'ASC' } });
+        return withContainerStatus(repositories);
     }
 
-    async create(userId: number, tenant: Tenant, input: CreateRepositoryInput): Promise<Repository>{
+    async create(userId: number, tenant: Tenant, input: CreateRepositoryInput): Promise<RepositoryPayload>{
         if(tenant.organizationId === null) throw TenancyError.OrganizationNotFound();
         const project = await this.#projectFor(tenant, input.projectId);
 
-        return saveOrConflict(Repository.create({
+        const repository = await saveOrConflict(Repository.create({
             name: input.name,
             alias: this.#alias(input.alias ?? input.name),
             owner: input.owner ?? null,
@@ -46,13 +49,14 @@ export default class RepositoryService{
             outputDirectory: input.outputDirectory ?? null,
             url: input.url,
             port: input.port ?? null,
-            containerId: null,
             userId,
             organizationId: tenant.organizationId,
             projectId: project.id,
             environmentId: await this.#defaultEnvironmentId(project.id),
             sourceType: SourceType.Github
         }).save(), RepositoryError.AliasAlreadyTaken);
+
+        return oneWithContainerStatus(repository);
     }
 
     async getOwned(userId: number, tenant: Tenant, id: number): Promise<Repository>{
@@ -63,11 +67,11 @@ export default class RepositoryService{
         throw RepositoryError.Forbidden();
     }
 
-    async update(userId: number, tenant: Tenant, repository: Repository, input: UpdateRepositoryInput): Promise<Repository>{
+    async update(userId: number, tenant: Tenant, repository: Repository, input: UpdateRepositoryInput): Promise<RepositoryPayload>{
         await this.#apply(tenant, repository, input);
         const updated = await saveOrConflict(repository.save(), RepositoryError.AliasAlreadyTaken);
         this.#requestRedeploy(updated, input, userId);
-        return updated;
+        return oneWithContainerStatus(updated);
     }
 
     async remove(repository: Repository): Promise<void>{

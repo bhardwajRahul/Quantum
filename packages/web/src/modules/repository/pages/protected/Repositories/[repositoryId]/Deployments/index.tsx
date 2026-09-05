@@ -28,6 +28,8 @@ import { deploymentApi } from '@/modules/repository/api/deployment-api';
 import { deploymentRoutes } from '@quantum/contracts/modules/deployment/routes';
 import { activityApi } from '@/modules/activity/api/api';
 import { deploymentStatusColor, deploymentStatusLabel, isDeploymentInProgress } from '@/modules/repository/utils/deployment-status';
+import { isContainerRunning } from '@/modules/application/utils/container-status';
+import PublishedPorts from '@/modules/repository/components/PublishedPorts';
 import { formatDate } from '@/shared/utils/format-date';
 import { repositoryDetailErrorMessages } from '@/modules/repository/utils/error-messages';
 import { errorCopy } from '@/shared/utils/error-copy';
@@ -49,12 +51,13 @@ interface DeploymentsHeaderProps{
 }
 
 const DeploymentsHeader = ({ repository, isOperating, onOperate }: DeploymentsHeaderProps) => {
-    const isRunning = repository.containerId !== null;
+    const isRunning = isContainerRunning(repository.containerStatus);
 
     return (
         <PageHeader
             title='Deployments'
             description={`Continuously generated from ${repository.alias}.`}
+            filter={<PublishedPorts ports={repository.ports} />}
             actions={(
                 <div className='flex gap-2'>
                     <Button

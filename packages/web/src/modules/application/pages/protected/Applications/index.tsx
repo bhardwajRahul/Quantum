@@ -9,7 +9,6 @@ import {
     Eye,
     EyeOff,
     MoreVertical,
-    Package,
     Plus
 } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
@@ -35,6 +34,8 @@ import { repositoryRoutes } from '@quantum/contracts/modules/repository/routes';
 import { templateInstallRoutes } from '@quantum/contracts/modules/template/routes';
 import { useCurrentOrganizationId } from '@/modules/organization/hooks/use-current-organization-id';
 import { databaseStatusColor, databaseStatusLabel, isDatabaseTransient } from '@/modules/application/utils/status';
+import { containerStatusColor, containerStatusLabel } from '@/modules/application/utils/container-status';
+import PublishedPorts from '@/modules/repository/components/PublishedPorts';
 import { formatDate } from '@/shared/utils/format-date';
 import { copyText } from '@/shared/utils/clipboard';
 import { applicationErrorMessages } from '@/modules/application/utils/error-messages';
@@ -170,8 +171,6 @@ const rowActions = (row: Row, handlers: RowActionHandlers) => {
     ];
 };
 
-const ROW_ICON = { app: AppWindow, database: DatabaseIcon, install: Package } as const;
-
 interface ApplicationsTableProps extends RowActionHandlers{
     rows: Row[];
 }
@@ -183,32 +182,26 @@ const ApplicationsTable = ({ rows, ...handlers }: ApplicationsTableProps) => (
                 <Table.Header>
                     <Table.Column isRowHeader>Name</Table.Column>
                     <Table.Column>Status</Table.Column>
+                    <Table.Column>Address</Table.Column>
                     <Table.Column>Created</Table.Column>
                     <Table.Column><span className='sr-only'>Actions</span></Table.Column>
                 </Table.Header>
 
                 <Table.Body>
                     {rows.map((row) => {
-                        const RowIcon = ROW_ICON[row.kind];
-
                         return (
                             <Table.Row key={row.key}>
                                 <Table.Cell>
-                                    <div className='flex items-center gap-3'>
-                                        <span className='flex size-8 shrink-0 items-center justify-center rounded-md bg-foreground/[0.06]'>
-                                            <RowIcon aria-hidden='true' className='size-4 text-muted' />
-                                        </span>
-                                        <div className='flex flex-col'>
-                                            <span className='font-medium text-foreground'>{row.name}</span>
-                                            <span className='text-[0.8125rem] text-muted'>{row.subtitle}</span>
-                                        </div>
+                                    <div className='flex flex-col'>
+                                        <span className='font-medium text-foreground'>{row.name}</span>
+                                        <span className='text-[0.8125rem] text-muted'>{row.subtitle}</span>
                                     </div>
                                 </Table.Cell>
 
                                 <Table.Cell>
                                     {row.kind === 'app' && (
-                                        <Chip size='sm' variant='soft' color={row.repository.containerId !== null ? 'success' : 'default'}>
-                                            {row.repository.containerId !== null ? 'Running' : 'Stopped'}
+                                        <Chip size='sm' variant='soft' color={containerStatusColor(row.repository.containerStatus)}>
+                                            {containerStatusLabel(row.repository.containerStatus)}
                                         </Chip>
                                     )}
                                     {row.kind === 'database' && (
@@ -217,6 +210,12 @@ const ApplicationsTable = ({ rows, ...handlers }: ApplicationsTableProps) => (
                                         </Chip>
                                     )}
                                     {row.kind === 'install' && <Chip size='sm' variant='soft' color='success'>Installed</Chip>}
+                                </Table.Cell>
+
+                                <Table.Cell>
+                                    {row.kind === 'app'
+                                        ? <PublishedPorts ports={row.repository.ports} />
+                                        : <span className='text-[0.8125rem] text-muted'>—</span>}
                                 </Table.Cell>
 
                                 <Table.Cell>{formatDate(row.date)}</Table.Cell>

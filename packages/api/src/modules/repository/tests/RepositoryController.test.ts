@@ -58,7 +58,9 @@ describe('repository', () => {
             alias: 'My App',
             branch: 'main',
             webhookId: null,
-            containerId: null,
+            // Derived from the container row at request time, so a repository that has
+            // never been provisioned reports no runtime state rather than "stopped".
+            containerStatus: null,
             buildStrategy: 'exec',
             sourceType: 'github',
             userId: user.id,

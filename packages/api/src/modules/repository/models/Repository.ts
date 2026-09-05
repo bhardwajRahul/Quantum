@@ -60,9 +60,6 @@ export default class Repository extends BaseModel implements RepositoryFields{
     @Column({ type: 'int', nullable: true })
     port!: number | null;
 
-    @Column({ type: 'int', nullable: true })
-    containerId!: number | null;
-
     @Column('int')
     userId!: number;
 

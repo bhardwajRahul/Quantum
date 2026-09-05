@@ -26,9 +26,7 @@ export default class BuildHandler{
         const deployment = await Deployment.findOneBy({ id: job.deploymentId });
         if(!deployment) throw new Error('Build::Deployment::NotFound');
 
-        const container = repository.containerId
-            ? await DockerContainer.findOneBy({ id: repository.containerId })
-            : null;
+        const container = await DockerContainer.findOneBy({ repositoryId: repository.id });
         const storagePath = container?.storagePath ?? null;
         const nodeId = job.nodeId || 'local';
 

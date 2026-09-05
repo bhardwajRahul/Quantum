@@ -7,6 +7,7 @@ import { CurrentUser } from '@/modules/auth/middlewares/CurrentUser';
 import { Tenant } from '@/modules/organization/middlewares/Tenant';
 import { TenantGuard } from '@/modules/organization/middlewares/TenantGuard';
 import RepositoryService from '../services/RepositoryService';
+import { oneWithContainerStatus } from '../services/withContainerStatus';
 import { OwnedRepository, RepositoryOwnershipRoute } from '../middlewares/RepositoryOwnershipRoute';
 import Repository from '../models/Repository';
 import { repositoryRoutes } from '@quantum/contracts/modules/repository/routes';
@@ -30,7 +31,7 @@ export default class RepositoryController extends BaseController{
     @Route(repositoryRoutes.get)
     @Middleware(RepositoryOwnershipRoute)
     get(@OwnedRepository() repository: Repository){
-        return repository;
+        return oneWithContainerStatus(repository);
     }
 
     @Route(repositoryRoutes.update)

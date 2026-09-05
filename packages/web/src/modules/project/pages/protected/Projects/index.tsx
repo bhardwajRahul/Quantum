@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { Button } from '@heroui/react';
-import { FolderKanban, Plus } from 'lucide-react';
+import { Button, Chip, Dropdown, Table } from '@heroui/react';
+import { FolderKanban, MoreVertical, Plus } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
 import PageHeader from '@/shared/components/layout/PageHeader';
 import ListPageShell from '@/shared/components/ListPageShell';
 import DeleteConfirmDialog from '@/shared/components/DeleteConfirmDialog';
-import ProjectCard from '@/modules/project/components/ProjectCard';
 import CreateProjectDialog from '@/modules/project/components/CreateProjectDialog';
 import RenameProjectDialog from '@/modules/project/components/RenameProjectDialog';
 import ManageEnvironmentsDialog from '@/modules/project/components/ManageEnvironmentsDialog';
@@ -15,6 +14,7 @@ import { projectRoutes } from '@quantum/contracts/modules/project/routes';
 import { useCurrentOrganizationId } from '@/modules/organization/hooks/use-current-organization-id';
 import { projectErrorMessages } from '@/modules/project/utils/error-messages';
 import { errorCopy } from '@/shared/utils/error-copy';
+import { formatDate } from '@/shared/utils/format-date';
 import type { Project } from '@quantum/contracts/modules/project/domain';
 
 const copy = errorCopy(projectErrorMessages);
@@ -40,9 +40,10 @@ interface DeleteProjectDialogProps{
     project: Project | null;
     onClose: () => void;
     onDeleted: () => void;
+    onOptimisticDelete: () => () => void;
 }
 
-const DeleteProjectDialog = ({ project, onClose, onDeleted }: DeleteProjectDialogProps) => (
+const DeleteProjectDialog = ({ project, onClose, onDeleted, onOptimisticDelete }: DeleteProjectDialogProps) => (
     <DeleteConfirmDialog
         isOpen={project !== null}
         title='Delete project'
@@ -52,9 +53,76 @@ const DeleteProjectDialog = ({ project, onClose, onDeleted }: DeleteProjectDialo
         entityId={project?.id ?? null}
         remove={(projectId) => projectApi.remove({ path: { id: projectId } })}
         getErrorMessage={copy}
+        optimistic={onOptimisticDelete}
         onClose={onClose}
         onRemoved={onDeleted}
     />
+);
+
+interface ProjectsTableProps{
+    projects: Project[];
+    onRename: (project: Project) => void;
+    onManageEnvironments: (project: Project) => void;
+    onDelete: (project: Project) => void;
+}
+
+const ProjectsTable = ({ projects, onRename, onManageEnvironments, onDelete }: ProjectsTableProps) => (
+    <Table>
+        <Table.ScrollContainer>
+            <Table.Content aria-label='Projects'>
+                <Table.Header>
+                    <Table.Column isRowHeader>Project</Table.Column>
+                    <Table.Column>Slug</Table.Column>
+                    <Table.Column>Created</Table.Column>
+                    <Table.Column><span className='sr-only'>Actions</span></Table.Column>
+                </Table.Header>
+
+                <Table.Body>
+                    {projects.map((project) => (
+                        <Table.Row key={project.id}>
+                            <Table.Cell>
+                                <div className='flex items-center gap-2'>
+                                    <span className='font-medium text-foreground'>{project.name}</span>
+                                    {project.isDefault && <Chip size='sm' variant='soft'>Default</Chip>}
+                                </div>
+                            </Table.Cell>
+
+                            <Table.Cell>
+                                <span className='text-[0.8125rem] text-muted'>{project.slug}</span>
+                            </Table.Cell>
+
+                            <Table.Cell>{formatDate(project.createdAt)}</Table.Cell>
+
+                            <Table.Cell>
+                                <div className='flex justify-end'>
+                                    <Dropdown>
+                                        <Dropdown.Trigger
+                                            aria-label={`Actions for ${project.name}`}
+                                            className='rounded-md p-1.5 text-muted transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground'
+                                        >
+                                            <MoreVertical aria-hidden='true' className='size-4' />
+                                        </Dropdown.Trigger>
+
+                                        <Dropdown.Popover placement='bottom end'>
+                                            <Dropdown.Menu aria-label={`Actions for ${project.name}`}>
+                                                <Dropdown.Item onAction={() => onRename(project)}>Rename</Dropdown.Item>
+                                                <Dropdown.Item onAction={() => onManageEnvironments(project)}>
+                                                    Manage environments
+                                                </Dropdown.Item>
+                                                <Dropdown.Item variant='danger' onAction={() => onDelete(project)}>
+                                                    Delete
+                                                </Dropdown.Item>
+                                            </Dropdown.Menu>
+                                        </Dropdown.Popover>
+                                    </Dropdown>
+                                </div>
+                            </Table.Cell>
+                        </Table.Row>
+                    ))}
+                </Table.Body>
+            </Table.Content>
+        </Table.ScrollContainer>
+    </Table>
 );
 
 const Projects = () => {
@@ -107,17 +175,12 @@ const Projects = () => {
                         )
                     }}
                 >
-                    <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'>
-                        {items.map((project) => (
-                            <ProjectCard
-                                key={project.id}
-                                project={project}
-                                onRename={() => setRenameTarget(project)}
-                                onManageEnvironments={() => setEnvironmentsTarget(project)}
-                                onDelete={() => setDeleteTarget(project)}
-                            />
-                        ))}
-                    </div>
+                    <ProjectsTable
+                        projects={items}
+                        onRename={setRenameTarget}
+                        onManageEnvironments={setEnvironmentsTarget}
+                        onDelete={setDeleteTarget}
+                    />
                 </ListPageShell>
             </div>
 
@@ -145,6 +208,9 @@ const Projects = () => {
                 project={deleteTarget}
                 onClose={() => setDeleteTarget(null)}
                 onDeleted={projects.refresh}
+                onOptimisticDelete={() => projects.patch(
+                    (items) => items.filter((item) => item.id !== deleteTarget?.id)
+                )}
             />
         </PageBody>
     );

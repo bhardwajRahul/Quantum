@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Chip } from '@heroui/react';
+import { Chip, Table } from '@heroui/react';
 import { Activity } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
 import PageHeader from '@/shared/components/layout/PageHeader';
@@ -15,25 +15,51 @@ import type { ActivityEvent } from '@quantum/contracts/modules/activity/domain';
 
 const copy = errorCopy(activityErrorMessages);
 
-interface EventRowProps{
-    event: ActivityEvent;
+interface EventsTableProps{
+    events: ActivityEvent[];
 }
 
-const EventRow = ({ event }: EventRowProps) => (
-    <li className='flex gap-3 border-b border-foreground/[0.06] py-3 last:border-0'>
-        <Chip size='sm' variant='soft' color={activityLevelColor(event.level)}>
-            {activityLevelLabel(event.level)}
-        </Chip>
+const EventsTable = ({ events }: EventsTableProps) => (
+    <Table>
+        <Table.ScrollContainer>
+            <Table.Content aria-label='Events'>
+                <Table.Header>
+                    <Table.Column>Level</Table.Column>
+                    <Table.Column isRowHeader>Event</Table.Column>
+                    <Table.Column>Source</Table.Column>
+                    <Table.Column>Time</Table.Column>
+                </Table.Header>
 
-        <div className='flex min-w-0 flex-1 flex-col gap-0.5'>
-            <div className='flex items-baseline justify-between gap-3'>
-                <span className='truncate font-medium text-foreground'>{event.title}</span>
-                <span className='shrink-0 text-[0.75rem] text-muted'>{formatDate(event.ts)}</span>
-            </div>
-            <p className='text-[0.875rem] text-muted'>{event.message}</p>
-            {event.source && <span className='text-[0.75rem] text-muted'>{event.source}</span>}
-        </div>
-    </li>
+                <Table.Body>
+                    {events.map((event) => (
+                        <Table.Row key={event.id}>
+                            <Table.Cell>
+                                <Chip size='sm' variant='soft' color={activityLevelColor(event.level)}>
+                                    {activityLevelLabel(event.level)}
+                                </Chip>
+                            </Table.Cell>
+
+                            <Table.Cell>
+                                <div className='flex max-w-[560px] flex-col gap-0.5'>
+                                    <span className='font-medium text-foreground'>{event.title}</span>
+                                    {/* Most steps carry no message; an empty line would just add height. */}
+                                    {event.message !== '' && (
+                                        <span className='break-words text-[0.8125rem] text-muted'>{event.message}</span>
+                                    )}
+                                </div>
+                            </Table.Cell>
+
+                            <Table.Cell>
+                                <span className='text-[0.8125rem] text-muted'>{event.source ?? '—'}</span>
+                            </Table.Cell>
+
+                            <Table.Cell>{formatDate(event.ts)}</Table.Cell>
+                        </Table.Row>
+                    ))}
+                </Table.Body>
+            </Table.Content>
+        </Table.ScrollContainer>
+    </Table>
 );
 
 const Events = () => {
@@ -86,9 +112,7 @@ const Events = () => {
                         description: 'Activity from your organization will show up here as it happens.'
                     }}
                 >
-                    <ul className='flex flex-col'>
-                        {events.map((event) => <EventRow key={event.id} event={event} />)}
-                    </ul>
+                    <EventsTable events={events} />
                 </ListPageShell>
             </div>
         </PageBody>

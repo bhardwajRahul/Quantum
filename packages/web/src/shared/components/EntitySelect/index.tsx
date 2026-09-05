@@ -23,12 +23,19 @@ const EntitySelect = <T,>({
 }: EntitySelectProps<T>) => (
     <Select
         aria-label={ariaLabel}
+        placeholder={placeholder}
         selectedKey={value ?? null}
         isDisabled={isDisabled}
         onSelectionChange={(key) => onChange(key as string | number)}
     >
         <Select.Trigger>
-            <Select.Value>{placeholder}</Select.Value>
+            {/*
+              * `Select.Value` must stay childless. React Aria only falls back to the
+              * selected item when children are null — anything else wins outright, so
+              * putting the placeholder here pinned the trigger to it forever and the
+              * select looked broken. The root's `placeholder` prop is the fallback.
+              */}
+            <Select.Value />
             <Select.Indicator />
         </Select.Trigger>
 

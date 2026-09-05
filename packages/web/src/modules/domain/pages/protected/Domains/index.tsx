@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useRememberedSelection } from '@/shared/hooks/use-remembered-selection';
 import { Button, Chip, Table } from '@heroui/react';
 import { Globe, Plus, RefreshCw } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
@@ -53,9 +54,10 @@ interface DeleteDomainDialogProps{
     domain: Domain | null;
     onClose: () => void;
     onRemoved: () => void;
+    onOptimisticRemove: () => () => void;
 }
 
-const DeleteDomainDialog = ({ domain, onClose, onRemoved }: DeleteDomainDialogProps) => (
+const DeleteDomainDialog = ({ domain, onClose, onRemoved, onOptimisticRemove }: DeleteDomainDialogProps) => (
     <DeleteConfirmDialog
         isOpen={domain !== null}
         title='Delete domain'
@@ -65,6 +67,7 @@ const DeleteDomainDialog = ({ domain, onClose, onRemoved }: DeleteDomainDialogPr
         entityId={domain?.id ?? null}
         remove={(id) => domainApi.remove({ path: { id } })}
         getErrorMessage={copy}
+        optimistic={onOptimisticRemove}
         onClose={onClose}
         onRemoved={onRemoved}
     />
@@ -115,9 +118,10 @@ const DomainRow = ({ domain, isBusy, onUpdate, onRemove }: DomainRowProps) => (
 interface DomainsTableProps{
     domains: Domain[];
     onChanged: () => void;
+    onOptimisticRemove: (id: number) => () => void;
 }
 
-const DomainsTable = ({ domains, onChanged }: DomainsTableProps) => {
+const DomainsTable = ({ domains, onChanged, onOptimisticRemove }: DomainsTableProps) => {
     const updateDomain = useMutation((id: number, body: UpdateDomainInput) => domainApi.update({ path: { id }, body }));
     const [deleteTarget, setDeleteTarget] = useState<Domain | null>(null);
 
@@ -163,6 +167,7 @@ const DomainsTable = ({ domains, onChanged }: DomainsTableProps) => {
                 domain={deleteTarget}
                 onClose={() => setDeleteTarget(null)}
                 onRemoved={onChanged}
+                onOptimisticRemove={() => onOptimisticRemove(deleteTarget?.id ?? -1)}
             />
         </div>
     );
@@ -170,7 +175,8 @@ const DomainsTable = ({ domains, onChanged }: DomainsTableProps) => {
 
 const Domains = () => {
     const repositories = useQuery(repositoryApi.mine, []);
-    const [repositoryId, setRepositoryId] = useState<number | null>(null);
+    const itemsIds = useMemo(() => (repositories.data ?? []).map((entry) => entry.id), [repositories.data]);
+    const [repositoryId, setRepositoryId] = useRememberedSelection<number>('domains.repository', itemsIds);
     const domains = useResource(domainRoutes, {
         list: 'listByRepository',
         request: repositoryId === null ? null : { path: { repositoryId } }
@@ -243,7 +249,11 @@ const Domains = () => {
                         )
                     }}
                 >
-                    <DomainsTable domains={domains.data ?? []} onChanged={domains.refresh} />
+                    <DomainsTable
+                        domains={domains.data ?? []}
+                        onChanged={domains.refresh}
+                        onOptimisticRemove={(id) => domains.patch((items) => items.filter((item) => item.id !== id))}
+                    />
                 </ListPageShell>
             </div>
 

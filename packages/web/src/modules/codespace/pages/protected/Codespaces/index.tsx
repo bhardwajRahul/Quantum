@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useRememberedSelection } from '@/shared/hooks/use-remembered-selection';
 import { Button, Table } from '@heroui/react';
 import { Plus, Terminal } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
@@ -109,7 +110,8 @@ const Codespaces = () => {
         list: 'listByOrganization',
         request: organizationId === null ? null : { path: { orgId: organizationId } }
     });
-    const [projectId, setProjectId] = useState<number | null>(null);
+    const projectItemsIds = useMemo(() => (projects.data ?? []).map((entry) => entry.id), [projects.data]);
+    const [projectId, setProjectId] = useRememberedSelection<number>('codespaces.project', projectItemsIds);
 
     const codespacesQuery = useQuery(
         (codespaceProjectId: number) => codespaceApi.listByProject({ path: { projectId: codespaceProjectId } }),

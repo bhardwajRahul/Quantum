@@ -1,17 +1,15 @@
 import { useState } from 'react';
-import { Card, ListBox, ListBoxItem, Select, Table } from '@heroui/react';
-import { Inbox } from 'lucide-react';
+import { ListBox, ListBoxItem, Select } from '@heroui/react';
 import PageBody from '@/shared/components/layout/PageBody';
 import PageHeader from '@/shared/components/layout/PageHeader';
 import ListPageShell from '@/shared/components/ListPageShell';
-import EmptyState from '@/shared/components/EmptyState';
-import CenterState from '@/shared/components/CenterState';
 import StatTile from '@/shared/components/StatTile';
+import TopList from '@/shared/components/charts/TopList';
 import { formatPercent } from '@/shared/utils/format-percent';
+import { count } from '@/shared/utils/format-metrics';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { usePolledQuery } from '@/shared/hooks/api/use-polled-query';
 import { analyticsApi } from '@/modules/analytics/api/api';
-import type { TopEntry, DomainStat } from '@quantum/contracts/modules/analytics/domain';
 
 const WINDOW_OPTIONS = [
     { id: 60, label: 'Last hour' },
@@ -29,9 +27,11 @@ const WindowSelect = ({ value, onChange }: WindowSelectProps) => (
         aria-label='Time window'
         selectedKey={value}
         onSelectionChange={(key) => onChange(Number(key))}
+        fullWidth
     >
         <Select.Trigger>
-            <Select.Value>Time window</Select.Value>
+            {/* Childless: a static child would pin the trigger to it, hiding the choice. */}
+            <Select.Value />
             <Select.Indicator />
         </Select.Trigger>
 
@@ -45,134 +45,6 @@ const WindowSelect = ({ value, onChange }: WindowSelectProps) => (
             </ListBox>
         </Select.Popover>
     </Select>
-);
-
-interface TopTableProps{
-    title: string;
-    keyLabel: string;
-    entries: TopEntry[];
-}
-
-const TopTable = ({ title, keyLabel, entries }: TopTableProps) => (
-    <Card>
-        <Card.Header>
-            <Card.Title>{title}</Card.Title>
-        </Card.Header>
-        <Card.Content>
-            {entries.length === 0 ? (
-                <CenterState>
-                    <EmptyState icon={Inbox} title='No data yet' compact />
-                </CenterState>
-            ) : (
-                <Table>
-                    <Table.ScrollContainer>
-                        <Table.Content aria-label={title}>
-                            <Table.Header>
-                                <Table.Column isRowHeader>{keyLabel}</Table.Column>
-                                <Table.Column>Count</Table.Column>
-                            </Table.Header>
-                            <Table.Body>
-                                {entries.map((entry) => (
-                                    <Table.Row key={entry.key}>
-                                        <Table.Cell>{entry.key}</Table.Cell>
-                                        <Table.Cell>{entry.value}</Table.Cell>
-                                    </Table.Row>
-                                ))}
-                            </Table.Body>
-                        </Table.Content>
-                    </Table.ScrollContainer>
-                </Table>
-            )}
-        </Card.Content>
-    </Card>
-);
-
-interface UtmTableProps{
-    source: TopEntry[];
-    medium: TopEntry[];
-    campaign: TopEntry[];
-}
-
-const UtmTable = ({ source, medium, campaign }: UtmTableProps) => {
-    const rows = [
-        ...source.map((entry) => ({ type: 'Source', ...entry })),
-        ...medium.map((entry) => ({ type: 'Medium', ...entry })),
-        ...campaign.map((entry) => ({ type: 'Campaign', ...entry }))
-    ];
-
-    return (
-        <Card>
-            <Card.Header>
-                <Card.Title>UTM</Card.Title>
-            </Card.Header>
-            <Card.Content>
-                {rows.length === 0 ? (
-                    <CenterState>
-                    <EmptyState icon={Inbox} title='No data yet' compact />
-                </CenterState>
-                ) : (
-                    <Table>
-                        <Table.ScrollContainer>
-                            <Table.Content aria-label='UTM'>
-                                <Table.Header>
-                                    <Table.Column isRowHeader>Type</Table.Column>
-                                    <Table.Column>Value</Table.Column>
-                                    <Table.Column>Count</Table.Column>
-                                </Table.Header>
-                                <Table.Body>
-                                    {rows.map((row, index) => (
-                                        <Table.Row key={`${row.type}-${row.key}-${index}`}>
-                                            <Table.Cell>{row.type}</Table.Cell>
-                                            <Table.Cell>{row.key}</Table.Cell>
-                                            <Table.Cell>{row.value}</Table.Cell>
-                                        </Table.Row>
-                                    ))}
-                                </Table.Body>
-                            </Table.Content>
-                        </Table.ScrollContainer>
-                    </Table>
-                )}
-            </Card.Content>
-        </Card>
-    );
-};
-
-interface DomainsTableProps{
-    domains: DomainStat[];
-}
-
-const DomainsTable = ({ domains }: DomainsTableProps) => (
-    <Card>
-        <Card.Header>
-            <Card.Title>Domains</Card.Title>
-        </Card.Header>
-        <Card.Content>
-            {domains.length === 0 ? (
-                <CenterState>
-                    <EmptyState icon={Inbox} title='No data yet' compact />
-                </CenterState>
-            ) : (
-                <Table>
-                    <Table.ScrollContainer>
-                        <Table.Content aria-label='Domains'>
-                            <Table.Header>
-                                <Table.Column isRowHeader>Host</Table.Column>
-                                <Table.Column>Pageviews</Table.Column>
-                            </Table.Header>
-                            <Table.Body>
-                                {domains.map((domain) => (
-                                    <Table.Row key={domain.host}>
-                                        <Table.Cell>{domain.host}</Table.Cell>
-                                        <Table.Cell>{domain.pageviews}</Table.Cell>
-                                    </Table.Row>
-                                ))}
-                            </Table.Body>
-                        </Table.Content>
-                    </Table.ScrollContainer>
-                </Table>
-            )}
-        </Card.Content>
-    </Card>
 );
 
 const WebAnalytics = () => {
@@ -225,31 +97,40 @@ const WebAnalytics = () => {
                 )}
             />
 
-            <div className='mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4'>
-                <StatTile label='Pageviews' value={String(summaryData.pageviews)} />
-                <StatTile label='Visitors' value={String(summaryData.visitors)} />
-                <StatTile label='Bounces' value={String(summaryData.bounces)} />
-                <StatTile label='Bounce rate' value={formatPercent(summaryData.bounceRate)} />
-            </div>
+            <section className='mt-6 grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border sm:grid-cols-4 sm:divide-y-0'>
+                <StatTile label='Pageviews' value={count(summaryData.pageviews)} hint='In this window' />
+                <StatTile label='Visitors' value={count(summaryData.visitors)} hint='Unique in this window' />
+                <StatTile label='Bounces' value={count(summaryData.bounces)} hint='Single-page visits' />
+                <StatTile
+                    label='Bounce rate'
+                    value={formatPercent(summaryData.bounceRate)}
+                    hint={`of ${count(summaryData.visitors)} visitors`}
+                />
+            </section>
 
-            <div className='mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'>
-                <TopTable title='Hostnames' keyLabel='Host' entries={topData.hostnames} />
-                <TopTable title='Paths' keyLabel='Path' entries={topData.paths} />
-                <TopTable title='Referrers' keyLabel='Referrer' entries={topData.referrers} />
-                <TopTable title='Countries' keyLabel='Country' entries={topData.countries} />
-                <TopTable title='Devices' keyLabel='Device' entries={topData.devices} />
-                <TopTable title='Browsers' keyLabel='Browser' entries={topData.browsers} />
-                <TopTable title='OS' keyLabel='OS' entries={topData.os} />
-                <UtmTable
-                    source={topData.utm.source}
-                    medium={topData.utm.medium}
-                    campaign={topData.utm.campaign}
+            <div className='mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2'>
+                <TopList title='Pages' entries={topData.paths} />
+                <TopList title='Referrers' entries={topData.referrers} emptyLabel='All traffic was direct' />
+                <TopList title='Countries' entries={topData.countries} />
+                <TopList title='Browsers' entries={topData.browsers} />
+                <TopList title='Devices' entries={topData.devices} />
+                <TopList title='Operating systems' entries={topData.os} />
+                <TopList title='Hostnames' entries={topData.hostnames} />
+                <TopList
+                    title='Domains'
+                    entries={domainsData.map((domain) => ({ key: domain.host, value: domain.pageviews }))}
                 />
             </div>
 
-            <div className='mt-6'>
-                <DomainsTable domains={domainsData} />
-            </div>
+            {/* UTM only earns its space once something has actually been tagged. */}
+            {(topData.utm.source.length > 0 || topData.utm.medium.length > 0 || topData.utm.campaign.length > 0) && (
+                <div className='mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3'>
+                    <TopList title='UTM source' entries={topData.utm.source} />
+                    <TopList title='UTM medium' entries={topData.utm.medium} />
+                    <TopList title='UTM campaign' entries={topData.utm.campaign} />
+                </div>
+            )}
+
         </PageBody>
     );
 };

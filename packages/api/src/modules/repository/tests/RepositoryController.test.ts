@@ -27,6 +27,21 @@ const createRepository = (userId: number, projectId: number, body: Record<string
         body: { name: 'My App', url: 'https://github.com/acme/my-app', projectId, ...body }
     });
 
+/**
+ * Creating a repository requests its first deployment, so a test that asserts on what
+ * a *later* action emitted drains the recorded events once the setup create is done.
+ */
+const createRepositoryThenDrain = async (
+    userId: number,
+    projectId: number,
+    body: Record<string, unknown> = {}
+) => {
+    const created = await createRepository(userId, projectId, body);
+    await flushEvents();
+    deploymentRequests.length = 0;
+    return created;
+};
+
 const sign = (raw: string): string =>
     'sha256=' + createHmac('sha256', config.jwtSecret).update(raw).digest('hex');
 
@@ -70,6 +85,21 @@ describe('repository', () => {
         });
 
         await flushEvents();
+    });
+
+    it('requests the first deployment as soon as the repository is created', async () => {
+        const { user, project } = await seed.orgContext();
+
+        const res = await createRepository(user.id, project.id);
+        await flushEvents();
+
+        expect(res.status).toBe(201);
+        expect(deploymentRequests).toEqual([{
+            repositoryId: res.data().id,
+            reason: 'create',
+            commit: null,
+            userId: user.id
+        }]);
     });
 
     it('uses the provided alias', async () => {
@@ -220,7 +250,7 @@ describe('repository', () => {
 
     it('requests a redeploy when build fields change', async () => {
         const { user, project } = await seed.orgContext();
-        const created = await createRepository(user.id, project.id);
+        const created = await createRepositoryThenDrain(user.id, project.id);
 
         await request(ctx.app, repositoryRoutes.update, {
             as: user.id,
@@ -240,7 +270,7 @@ describe('repository', () => {
 
     it('does not request a redeploy for a port-only change', async () => {
         const { user, project } = await seed.orgContext();
-        const created = await createRepository(user.id, project.id);
+        const created = await createRepositoryThenDrain(user.id, project.id);
 
         await request(ctx.app, repositoryRoutes.update, {
             as: user.id,
@@ -372,7 +402,7 @@ describe('webhook', () => {
 
     it('accepts a signed push and requests a deployment', async () => {
         const { user, project } = await seed.orgContext();
-        const created = await createRepository(user.id, project.id);
+        const created = await createRepositoryThenDrain(user.id, project.id);
         const raw = JSON.stringify({
             pusher: { name: 'acme' },
             ref: 'refs/heads/main',
@@ -396,7 +426,7 @@ describe('webhook', () => {
 
     it('tracks the repository branch', async () => {
         const { user, project } = await seed.orgContext();
-        const created = await createRepository(user.id, project.id, { branch: 'develop' });
+        const created = await createRepositoryThenDrain(user.id, project.id, { branch: 'develop' });
         const raw = JSON.stringify({ pusher: { name: 'acme' }, ref: 'refs/heads/develop', after: 'def456' });
 
         const res = await injectWebhook(created.data().id, raw, sign(raw));
@@ -409,7 +439,7 @@ describe('webhook', () => {
 
     it('skips a push to another branch', async () => {
         const { user, project } = await seed.orgContext();
-        const created = await createRepository(user.id, project.id);
+        const created = await createRepositoryThenDrain(user.id, project.id);
         const raw = JSON.stringify({ pusher: { name: 'acme' }, ref: 'refs/heads/feature', after: 'abc123' });
 
         const res = await injectWebhook(created.data().id, raw, sign(raw));

@@ -2,7 +2,7 @@ export type Theme = 'light' | 'dark';
 
 const STORAGE_KEY = 'quantum.theme';
 
-const resolveInitial = (): Theme => {
+export const readTheme = (): Theme => {
     const fromQuery = new URLSearchParams(window.location.search).get('theme');
     if(fromQuery === 'light' || fromQuery === 'dark') return fromQuery;
 
@@ -19,4 +19,4 @@ export const applyTheme = (theme: Theme) => {
     localStorage.setItem(STORAGE_KEY, theme);
 };
 
-export const initTheme = () => applyTheme(resolveInitial());
+export const initTheme = () => applyTheme(readTheme());

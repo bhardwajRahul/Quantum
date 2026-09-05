@@ -3,6 +3,8 @@ import { LogOut } from 'lucide-react';
 import { sections } from '@/app/navigation/sections';
 import { endSession } from '@/shared/services/end-session';
 import OrganizationSwitcher from '@/modules/organization/components/OrganizationSwitcher';
+import ThemeToggle from '@/shared/components/layout/ThemeToggle';
+import SessionAvatar from '@/modules/auth/components/SessionAvatar';
 
 const panelFor = (pathname: string): 'app' | 'settings' => {
     if(pathname.startsWith('/settings')) return 'settings';
@@ -45,8 +47,13 @@ const DashboardLayout = () => {
 
             <div className='chrome-frame flex min-w-0 flex-1'>
                 <div className='chrome-surface flex min-w-0 flex-1 flex-col overflow-hidden bg-[var(--dashboard-surface)]'>
-                    <header className='flex h-[var(--app-header-height)] shrink-0 items-center px-6'>
+                    <header className='flex h-[var(--app-header-height)] shrink-0 items-center justify-between gap-4 px-6'>
                         <OrganizationSwitcher />
+
+                        <div className='flex shrink-0 items-center gap-2'>
+                            <ThemeToggle />
+                            <SessionAvatar />
+                        </div>
                     </header>
 
                     <main className='page-view animate-enter flex-1 overflow-y-auto px-4'>

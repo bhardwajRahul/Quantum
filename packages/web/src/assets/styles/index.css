@@ -22,10 +22,17 @@
     --dashboard-surface: #f4f4f5;
 }
 
+/**
+ * In dark the content surface is the page: `--dashboard-surface` resolves to the same
+ * value the sidebar shows, so the two sit flush and the seam between them disappears.
+ * Light keeps them apart — the surface lifting off a near-white page is what separates
+ * content from chrome there, and matching them would lose the distinction rather than
+ * simplify it.
+ */
 .dark,
 [data-theme="dark"] {
     --background: #090909;
-    --dashboard-surface: #101011;
+    --dashboard-surface: var(--background);
     --field-background: #171719;
 }
 

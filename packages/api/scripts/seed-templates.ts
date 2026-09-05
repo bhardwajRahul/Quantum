@@ -41,7 +41,7 @@ interface LegacyTemplate{
     dependencies?: Record<string, LegacyDependency>;
 }
 
-// Straight port of the legacy catalog (server/… template fixtures). `command: "/bin/sh"` and
+// Straight port of the legacy catalog (legacy template fixtures). `command: "/bin/sh"` and
 // per-service `notification` blocks were boilerplate/unused in the legacy data and have no
 // equivalent in TemplateSpec, so they're intentionally dropped rather than carried over.
 // `{server_ip}` / `${Service.externalPort}` interpolation is resolved below to the dependency's

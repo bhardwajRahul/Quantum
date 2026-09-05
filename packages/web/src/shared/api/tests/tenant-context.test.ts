@@ -1,33 +1,20 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { invalidateCache } from 'alova';
 import { organizationApi } from '@/modules/organization/api/api';
 import { useTenantStore } from '@/shared/store/tenant';
 import { useSessionStore } from '@/shared/store/session';
-
-const captured: Request[] = [];
-
-const respondWith = (status: number, body: unknown) => {
-    vi.stubGlobal('fetch', vi.fn(async (input: unknown, init?: RequestInit) => {
-        const request = input instanceof Request
-            ? input
-            : new Request(new URL(String(input), 'http://localhost/'), init);
-
-        captured.push(request);
-
-        return new Response(JSON.stringify(body), { status });
-    }));
-};
+import { capturedRequests as captured, respondWith, resetFetchStub } from '@/shared/tests/fetch-stub';
+import { resetStores } from '@/shared/tests/store-reset';
 
 beforeEach(async () => {
-    captured.length = 0;
-    useTenantStore.getState().clear();
+    resetFetchStub();
+    resetStores();
     await invalidateCache();
 });
 
 afterEach(() => {
-    useTenantStore.getState().clear();
-    useSessionStore.getState().clear();
-    vi.unstubAllGlobals();
+    resetStores();
+    resetFetchStub();
 });
 
 describe('the organization header', () => {

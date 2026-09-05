@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { resetStores } from '@/shared/tests/store-reset';
 
 const KEY = 'quantum.session';
 
@@ -9,7 +10,7 @@ const load = async () => {
 
 describe('session store', () => {
     beforeEach(() => {
-        localStorage.removeItem(KEY);
+        resetStores();
     });
 
     it('hydrates the persisted token on the first render', async () => {

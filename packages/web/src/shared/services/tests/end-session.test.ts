@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { endSession, isSessionExpired } from '@/shared/services/end-session';
 import { useSessionStore } from '@/shared/store/session';
+import { resetStores } from '@/shared/tests/store-reset';
 
 describe('isSessionExpired', () => {
     it('ends the session when the token is missing or malformed', () => {
@@ -24,7 +25,7 @@ describe('isSessionExpired', () => {
 
 describe('endSession', () => {
     beforeEach(() => {
-        localStorage.removeItem('quantum.session');
+        resetStores();
     });
 
     it('clears the store and the persisted token', async () => {

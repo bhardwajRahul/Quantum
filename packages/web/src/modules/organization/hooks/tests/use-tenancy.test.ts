@@ -4,6 +4,7 @@ import { organizationApi } from '@/modules/organization/api/api';
 import { useTenantStore } from '@/shared/store/tenant';
 import { ApiError } from '@/shared/services/ApiError';
 import { renderHook } from '@/shared/tests/render-hook';
+import { resetStores } from '@/shared/tests/store-reset';
 import { OrganizationRole } from '@quantum/contracts/modules/organization/domain';
 import type { HookHarness } from '@/shared/tests/render-hook';
 import type { Tenancy } from '@/modules/organization/hooks/use-tenancy';
@@ -46,8 +47,7 @@ describe('useTenancy', () => {
     afterEach(async () => {
         await harness?.unmount();
         harness = undefined;
-        useTenantStore.getState().clear();
-        vi.restoreAllMocks();
+        resetStores();
     });
 
     it('keeps the stored organization when it is in the list', async () => {

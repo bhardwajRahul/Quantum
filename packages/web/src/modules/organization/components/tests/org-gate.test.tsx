@@ -5,6 +5,7 @@ import OrgGate from '@/modules/organization/components/OrgGate';
 import { organizationApi } from '@/modules/organization/api/api';
 import { useTenantStore } from '@/shared/store/tenant';
 import { ApiError } from '@/shared/services/ApiError';
+import { resetStores } from '@/shared/tests/store-reset';
 import { OrganizationRole } from '@quantum/contracts/modules/organization/domain';
 import type { ReactElement } from 'react';
 import type { Root } from 'react-dom/client';
@@ -51,8 +52,7 @@ afterEach(async () => {
     root = undefined;
     container?.remove();
     container = undefined;
-    useTenantStore.getState().clear();
-    vi.restoreAllMocks();
+    resetStores();
 });
 
 describe('OrgGate', () => {

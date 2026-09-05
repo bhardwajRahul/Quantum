@@ -4,6 +4,7 @@ import { authApi } from '@/modules/auth/api/api';
 import { useSessionStore } from '@/shared/store/session';
 import { ApiError } from '@/shared/services/ApiError';
 import { renderHook } from '@/shared/tests/render-hook';
+import { resetStores } from '@/shared/tests/store-reset';
 import type { HookHarness } from '@/shared/tests/render-hook';
 import type { Session } from '@/shared/contracts/routing/session';
 import type { User } from '@quantum/contracts/modules/user/domain';
@@ -31,8 +32,7 @@ describe('useSession', () => {
         // a probe left mounted re-renders on the next test's setToken and fires a real request
         await harness?.unmount();
         harness = undefined;
-        useSessionStore.getState().clear();
-        vi.restoreAllMocks();
+        resetStores();
     });
 
     it('is authenticated once the identity resolves', async () => {

@@ -3,6 +3,7 @@ import { act } from 'react';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { usePolledQuery } from '@/shared/hooks/api/use-polled-query';
 import { renderHook } from '@/shared/tests/render-hook';
+import { resetStores } from '@/shared/tests/store-reset';
 
 interface Progress{
     pending: number;
@@ -21,7 +22,7 @@ const poll = (request: () => Promise<Progress>) => renderHook(() => usePolledQue
 describe('usePolledQuery', () => {
     afterEach(() => {
         vi.useRealTimers();
-        vi.restoreAllMocks();
+        resetStores();
     });
 
     it('reads once when the payload reports nothing pending', async () => {

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { resetStores } from '@/shared/tests/store-reset';
 
 const KEY = 'qt-org';
 
@@ -9,7 +10,7 @@ const loadStore = async () => {
 };
 
 afterEach(() => {
-    localStorage.clear();
+    resetStores();
     vi.resetModules();
 });
 

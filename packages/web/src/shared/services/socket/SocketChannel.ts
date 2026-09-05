@@ -37,7 +37,7 @@ export default class SocketChannel{
 
     send(type: string, data?: unknown): boolean{
         if(this.#socket?.readyState !== WebSocket.OPEN) return false;
-        this.#socket.send(JSON.stringify({ type, ...(data as object) }));
+        this.#socket.send(JSON.stringify({ type, data }));
         return true;
     }
 

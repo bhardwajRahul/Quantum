@@ -6,16 +6,16 @@ export const PAYLOAD = Symbol('gateway.payload');
 
 export interface GatewayContext extends FastifyRequest{
     [SOCKET]: GatewaySocket;
-    [PAYLOAD]: InboundFrame | undefined;
+    [PAYLOAD]: unknown;
 }
 
 export const createContext = (
     req: FastifyRequest,
     socket: GatewaySocket,
-    payload: InboundFrame | undefined
+    frame: InboundFrame | undefined
 ): GatewayContext => {
     const ctx = Object.create(req) as GatewayContext;
     ctx[SOCKET] = socket;
-    ctx[PAYLOAD] = payload;
+    ctx[PAYLOAD] = frame?.data;
     return ctx;
 };

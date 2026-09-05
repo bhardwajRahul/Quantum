@@ -11,11 +11,13 @@ import type { QueryKey } from '@/shared/hooks/api/query-cache';
 import type { Endpoint, InputOf, OutputOf } from '@quantum/contracts/shared/routing';
 
 export type ListNames<T extends EndpointTable> = {
-    readonly [K in keyof T & string]: InputOf<T[K]> extends never ? (T[K]['method'] extends 'GET' ? K : never) : never;
+    readonly [K in keyof T & string]: InputOf<T[K]> extends never
+        ? (Awaited<OutputOf<T[K]>> extends unknown[] ? K : never)
+        : never;
 }[keyof T & string];
 
-export interface UseResourceOptions<T extends EndpointTable>{
-    list?: ListNames<T>;
+export interface UseResourceOptions<T extends EndpointTable, L extends ListNames<T>>{
+    list: L;
     request?: object | null;
     enabled?: boolean;
 }
@@ -36,26 +38,25 @@ export type Resource<T extends EndpointTable, L extends ListNames<T>> = Resource
         pending: boolean;
     };
 
-const pendingSegment = (segment: string, changed: boolean): Promise<void> =>
+const refreshSegment = (segment: string, changed: boolean): Promise<void> =>
     changed ? queryCache.invalidateSegment(segment) : Promise.resolve();
 
-export function useResource<T extends EndpointTable, L extends ListNames<T> = ListNames<T>>(
+export function useResource<T extends EndpointTable, L extends ListNames<T>>(
     routes: T,
-    options: UseResourceOptions<T> = {}
+    options: UseResourceOptions<T, L>
 ): Resource<T, L>{
     const { list, request, enabled } = options;
-    const listName = list ?? ('list' as L);
     const api = useMemo(() => createApi(routes), [routes]);
     const segment = useMemo(() => segmentOf(routes), [routes]);
-    const requestJson = request === null || request === undefined ? null : JSON.stringify(request);
+    const requestJson = request === undefined ? null : JSON.stringify(request);
 
     const disabled = enabled === false || request === null;
     const key = useMemo<QueryKey | null>(() => {
         if(disabled) return null;
-        return requestJson === null ? [segment, listName] : [segment, listName, JSON.parse(requestJson) as unknown];
-    }, [disabled, segment, listName, requestJson]);
+        return requestJson === null ? [segment, list] : [segment, list, JSON.parse(requestJson) as unknown];
+    }, [disabled, segment, list, requestJson]);
 
-    useRegisteredLoader(key, key === null ? null : (force) => (api[listName] as (request?: object) => Promise<unknown>)(force ? { ...(request ?? {}), fresh: true } : { ...(request ?? {}) }));
+    useRegisteredLoader(key, key === null ? null : (force) => (api[list] as (request?: object) => Promise<unknown>)(force ? { ...(request ?? {}), fresh: true } : { ...(request ?? {}) }));
 
     useEffect(() => {
         if(key === null) return;
@@ -71,7 +72,7 @@ export function useResource<T extends EndpointTable, L extends ListNames<T> = Li
         const table: Record<string, (request?: object) => Promise<unknown>> = {};
 
         for(const [name, endpoint] of Object.entries(routes)){
-            if(name === listName) continue;
+            if(name === list) continue;
 
             const changed = (endpoint as Endpoint).method !== 'GET';
             table[name] = async (request?: object) => {
@@ -79,7 +80,7 @@ export function useResource<T extends EndpointTable, L extends ListNames<T> = Li
 
                 try{
                     const data = await (api[name] as (request?: object) => Promise<unknown>)(request);
-                    await pendingSegment(segment, changed);
+                    await refreshSegment(segment, changed);
                     return data;
                 }catch(cause){
                     setActionState((state) => ({ ...state, error: toError(cause) }));
@@ -91,7 +92,7 @@ export function useResource<T extends EndpointTable, L extends ListNames<T> = Li
         }
 
         return table;
-    }, [api, listName, segment, routes]);
+    }, [api, list, segment, routes]);
 
     const snapshot = useQueryStore(key);
 

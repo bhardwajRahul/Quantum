@@ -52,7 +52,7 @@ describe('useResource', () => {
             throw new Error(`unexpected ${endpoint.path}`);
         });
 
-        const harness = await renderHook(() => useResource(routes));
+        const harness = await renderHook(() => useResource(routes, { list: 'list' }));
         await settle(harness, (state) => !state.loading);
 
         expect(callMock).toHaveBeenCalledTimes(1);
@@ -73,7 +73,7 @@ describe('useResource', () => {
         });
         callMock.mockClear();
 
-        const harness = await renderHook(() => useResource(routes));
+        const harness = await renderHook(() => useResource(routes, { list: 'list' }));
         await settle(harness, (current) => !current.loading);
         expect(harness.current.data).toEqual([{ id: 1, name: 'a' }]);
 
@@ -94,7 +94,7 @@ describe('useResource', () => {
             return ['scoped'];
         });
 
-        const harness = await renderHook(() => useResource(routes, { request: { path: { orgId: 9 } } }));
+        const harness = await renderHook(() => useResource(routes, { list: 'list', request: { path: { orgId: 9 } } }));
         await settle(harness, (current) => !current.loading);
 
         expect(seen[0]).toEqual({ path: { orgId: 9 } });
@@ -111,7 +111,7 @@ describe('useResource', () => {
             throw new Error(`unexpected ${endpoint.path}`);
         });
 
-        const harness = await renderHook(() => useResource(routes, { request: null }));
+        const harness = await renderHook(() => useResource(routes, { list: 'list', request: null }));
         let actionError: unknown;
 
         try{

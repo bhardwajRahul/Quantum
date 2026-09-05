@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Card } from '@heroui/react';
+import { Button } from '@heroui/react';
 import typia from 'typia';
 import PageBody from '@/shared/components/layout/PageBody';
 import Form from '@/shared/components/forms/Form';
@@ -35,11 +35,9 @@ const ChangePassword = () => {
 
     return (
         <PageBody>
-            <h1 className='text-lg font-medium text-foreground'>Change password</h1>
-            <p className='mt-1.5 text-sm text-muted'>Update the password used to sign in to your account.</p>
+            <h1 className='mb-6 text-2xl font-semibold text-foreground'>Change password</h1>
 
-            <Card className='mt-6'>
-                <Card.Content>
+            <div className='rounded-2xl bg-foreground/[0.04] p-5'>
                     <Form form={form} className='flex flex-col gap-4'>
                         <Field
                             form={form}
@@ -75,8 +73,7 @@ const ChangePassword = () => {
                             {saved && <span className='text-[0.8125rem] text-muted'>Password updated.</span>}
                         </div>
                     </Form>
-                </Card.Content>
-            </Card>
+            </div>
         </PageBody>
     );
 };

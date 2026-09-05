@@ -151,9 +151,10 @@ interface RemoveMemberDialogProps{
     member: Member | null;
     onClose: () => void;
     onRemoved: () => void;
+    onOptimisticRemove: () => () => void;
 }
 
-const RemoveMemberDialog = ({ organizationId, member, onClose, onRemoved }: RemoveMemberDialogProps) => (
+const RemoveMemberDialog = ({ organizationId, member, onClose, onRemoved, onOptimisticRemove }: RemoveMemberDialogProps) => (
     <DeleteConfirmDialog
         isOpen={member !== null}
         title='Remove member'
@@ -164,6 +165,7 @@ const RemoveMemberDialog = ({ organizationId, member, onClose, onRemoved }: Remo
         entityId={member?.id ?? null}
         remove={(memberId) => organizationApi.removeMember({ path: { orgId: organizationId, id: memberId } })}
         getErrorMessage={copy}
+        optimistic={onOptimisticRemove}
         onClose={onClose}
         onRemoved={onRemoved}
     />
@@ -173,9 +175,10 @@ interface TeamTableProps{
     organizationId: number;
     members: Member[];
     onChanged: () => void;
+    onOptimisticRemove: (id: number) => () => void;
 }
 
-const TeamTable = ({ organizationId, members, onChanged }: TeamTableProps) => {
+const TeamTable = ({ organizationId, members, onChanged, onOptimisticRemove }: TeamTableProps) => {
     const updateRole = useMutation((memberId: number, body: UpdateMemberInput) =>
         organizationApi.updateMember({ path: { orgId: organizationId, id: memberId }, body }));
     const [removeTarget, setRemoveTarget] = useState<Member | null>(null);
@@ -218,6 +221,7 @@ const TeamTable = ({ organizationId, members, onChanged }: TeamTableProps) => {
                 member={removeTarget}
                 onClose={() => setRemoveTarget(null)}
                 onRemoved={onChanged}
+                onOptimisticRemove={() => onOptimisticRemove(removeTarget?.id ?? -1)}
             />
         </div>
     );
@@ -271,7 +275,12 @@ const Team = () => {
                         )
                     }}
                 >
-                    <TeamTable organizationId={organizationId} members={items} onChanged={members.refresh} />
+                    <TeamTable
+                        organizationId={organizationId}
+                        members={items}
+                        onChanged={members.refresh}
+                        onOptimisticRemove={(id) => members.patch((list) => list.filter((item) => item.id !== id))}
+                    />
                 </ListPageShell>
             </div>
 

@@ -1,6 +1,5 @@
 import path from 'node:path';
 import Dockerode from 'dockerode';
-import { config } from '@/shared/config';
 import RuntimeError from '@/shared/errors/RuntimeError';
 import DockerContainer from '@/modules/docker/models/DockerContainer';
 import Repository from '../models/Repository';
@@ -24,25 +23,21 @@ export default class TerminalSessionService{
     #docker = new Dockerode();
 
     async open(repository: Repository, sink: TerminalSink): Promise<TerminalSession>{
-        if(repository.containerId === null) throw RepositoryError.NotFound();
+        const container = await DockerContainer.findOneBy({ repositoryId: repository.id });
+        if(container === null || !container.dockerContainerName) throw RepositoryError.NotFound();
 
         try{
-            return await this.#spawn(
-                repository.containerId,
-                await this.#shell(repository.containerId),
-                this.#workDir(repository),
-                sink
-            );
+            return await this.#spawn(container, this.#workDir(repository), sink);
         }catch(error){
             if(error instanceof RuntimeError) throw error;
             throw RepositoryError.OperationFailed();
         }
     }
 
-    async #spawn(containerId: number, shell: string, workDir: string, sink: TerminalSink): Promise<TerminalSession>{
-        const container = await this.#container(containerId);
-        const exec = await container.exec({
-            Cmd: [shell],
+    async #spawn(container: DockerContainer, workDir: string, sink: TerminalSink): Promise<TerminalSession>{
+        const live = await this.#live(container);
+        const exec = await live.exec({
+            Cmd: [container.command || DEFAULT_SHELL],
             AttachStdin: true,
             AttachStdout: true,
             AttachStderr: true,
@@ -55,16 +50,16 @@ export default class TerminalSessionService{
         return this.#session(exec, stream);
     }
 
-    async #container(containerId: number): Promise<Dockerode.Container>{
-        const container = this.#docker.getContainer(`quantum-container-${config.nodeEnv}-${containerId}`);
-        const { State } = await container.inspect();
-        if(!State.Running) await container.start();
-        return container;
-    }
-
-    async #shell(containerId: number): Promise<string>{
-        const container = await DockerContainer.findOneBy({ id: containerId });
-        return container?.command || DEFAULT_SHELL;
+    /**
+     * Addressed by the name the container was actually created under, not one rebuilt
+     * from its id. Recomposing the name is how the network reference drifted: the rule
+     * lived in two places and only one of them ever created anything.
+     */
+    async #live(container: DockerContainer): Promise<Dockerode.Container>{
+        const live = this.#docker.getContainer(container.dockerContainerName);
+        const { State } = await live.inspect();
+        if(!State.Running) await live.start();
+        return live;
     }
 
     #workDir(repository: Repository): string{

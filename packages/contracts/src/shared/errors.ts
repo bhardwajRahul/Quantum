@@ -12,6 +12,7 @@ export const GatewayErrors = {
         MissingChannel: 500,
         MalformedFrame: 400,
         UnknownMessageType: 400,
+        NotJoined: 409,
         Internal: 500
     }
 } as const satisfies ErrorTable;

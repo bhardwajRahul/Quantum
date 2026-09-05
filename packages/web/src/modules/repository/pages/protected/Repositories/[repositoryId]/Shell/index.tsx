@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
@@ -23,7 +23,19 @@ const Shell = () => {
     const terminalRef = useRef<Terminal | null>(null);
     const joinedRef = useRef(false);
 
+    /*
+     * `joined` is set by the server's acknowledgement, never by having sent the request.
+     * `terminal.join` attaches the session asynchronously, so anything sent on the same
+     * tick — the initial resize did exactly this — reached a socket that had no session
+     * yet and came back rejected.
+     */
+    const [joined, setJoined] = useState(false);
+
     const channel = useChannel(`/repository/${repositoryId ?? ''}/terminal`, {
+        'terminal.join': () => {
+            joinedRef.current = true;
+            setJoined(true);
+        },
         'terminal.output': (data) => terminalRef.current?.write(data as string),
         'terminal.exit': (data) => {
             const { code } = data as TerminalExit;
@@ -39,18 +51,31 @@ const Shell = () => {
         channelRef.current = channel;
     });
 
+    const { status, send } = channel;
+
+    /*
+     * Depends on the connection, not on the whole channel object. `lastError` lives on
+     * that object too, so re-joining on any change meant an error banner re-sent
+     * `terminal.join`, and the server replaced the working session with a new one —
+     * which is what printed "Process exited with code 0" over a healthy terminal.
+     */
     useEffect(() => {
-        if(channel.status !== 'open'){
+        if(status !== 'open'){
             joinedRef.current = false;
+            setJoined(false);
             return;
         }
 
-        channel.send('terminal.join', {});
-        joinedRef.current = true;
+        send('terminal.join', {});
+    }, [status, send]);
 
+    // The size is only worth sending once there is a session on the other end to resize.
+    useEffect(() => {
         const term = terminalRef.current;
-        if(term) channel.send('terminal.resize', { cols: term.cols, rows: term.rows });
-    }, [channel]);
+        if(!joined || !term) return;
+
+        send('terminal.resize', { cols: term.cols, rows: term.rows });
+    }, [joined, send]);
 
     useEffect(() => {
         if(!containerRef.current) return;

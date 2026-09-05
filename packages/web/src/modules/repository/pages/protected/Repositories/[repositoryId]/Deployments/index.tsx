@@ -12,11 +12,12 @@ import {
     XCircle
 } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
-import LoadingState from '@/shared/components/LoadingState';
-import ErrorState from '@/shared/components/ErrorState';
+import PageHeader from '@/shared/components/layout/PageHeader';
+import ListPageShell from '@/shared/components/ListPageShell';
 import EmptyState from '@/shared/components/EmptyState';
 import CenterState from '@/shared/components/CenterState';
 import InlineError from '@/shared/components/InlineError';
+import DeleteConfirmDialog from '@/shared/components/DeleteConfirmDialog';
 import ConfirmDialog from '@/shared/components/ConfirmDialog';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { useResource } from '@/shared/hooks/api/use-resource';
@@ -27,7 +28,7 @@ import { deploymentApi } from '@/modules/repository/api/deployment-api';
 import { deploymentRoutes } from '@quantum/contracts/modules/deployment/routes';
 import { activityApi } from '@/modules/activity/api/api';
 import { deploymentStatusColor, deploymentStatusLabel, isDeploymentInProgress } from '@/modules/repository/utils/deployment-status';
-import { formatDate } from '@/modules/repository/utils/format-date';
+import { formatDate } from '@/shared/utils/format-date';
 import { repositoryDetailErrorMessages } from '@/modules/repository/utils/error-messages';
 import { errorCopy } from '@/shared/utils/error-copy';
 import { RepositoryOperation } from '@quantum/contracts/modules/repository/domain';
@@ -51,35 +52,34 @@ const DeploymentsHeader = ({ repository, isOperating, onOperate }: DeploymentsHe
     const isRunning = repository.containerId !== null;
 
     return (
-        <div className='flex items-center justify-between gap-4'>
-            <div>
-                <h1 className='text-lg font-medium text-foreground'>Deployments</h1>
-                <p className='mt-1.5 text-sm text-muted'>Continuously generated from {repository.alias}.</p>
-            </div>
-
-            <div className='flex gap-2'>
-                <Button
-                    variant='secondary'
-                    isDisabled={isRunning || isOperating}
-                    onPress={() => onOperate(RepositoryOperation.Start)}
-                >
-                    <Play aria-hidden='true' className='size-4' />
-                    Start
-                </Button>
-                <Button
-                    variant='secondary'
-                    isDisabled={!isRunning || isOperating}
-                    onPress={() => onOperate(RepositoryOperation.Stop)}
-                >
-                    <Square aria-hidden='true' className='size-4' />
-                    Stop
-                </Button>
-                <Button variant='secondary' isDisabled={isOperating} onPress={() => onOperate(RepositoryOperation.Restart)}>
-                    <RotateCw aria-hidden='true' className='size-4' />
-                    Restart
-                </Button>
-            </div>
-        </div>
+        <PageHeader
+            title='Deployments'
+            description={`Continuously generated from ${repository.alias}.`}
+            actions={(
+                <div className='flex gap-2'>
+                    <Button
+                        variant='secondary'
+                        isDisabled={isRunning || isOperating}
+                        onPress={() => onOperate(RepositoryOperation.Start)}
+                    >
+                        <Play aria-hidden='true' className='size-4' />
+                        Start
+                    </Button>
+                    <Button
+                        variant='secondary'
+                        isDisabled={!isRunning || isOperating}
+                        onPress={() => onOperate(RepositoryOperation.Stop)}
+                    >
+                        <Square aria-hidden='true' className='size-4' />
+                        Stop
+                    </Button>
+                    <Button variant='secondary' isDisabled={isOperating} onPress={() => onOperate(RepositoryOperation.Restart)}>
+                        <RotateCw aria-hidden='true' className='size-4' />
+                        Restart
+                    </Button>
+                </div>
+            )}
+        />
     );
 };
 
@@ -189,32 +189,18 @@ interface DeleteDeploymentDialogProps{
     onDeleted: () => void;
 }
 
-const DeleteDeploymentDialog = ({ deployment, onClose, onDeleted }: DeleteDeploymentDialogProps) => {
-    const remove = useMutation((id: number) => deploymentApi.remove({ path: { id } }));
-
-    const handleDelete = async () => {
-        if(deployment === null) return;
-
-        const deleted = await remove.run(deployment.id).then(() => true, () => false);
-        if(!deleted) return;
-
-        onClose();
-        onDeleted();
-    };
-
-    return (
-        <ConfirmDialog
-            isOpen={deployment !== null}
-            onOpenChange={(isOpen) => { if(!isOpen) onClose(); }}
-            title='Delete deployment'
-            description='This permanently deletes this deployment record. This action cannot be undone.'
-            confirmLabel='Delete'
-            isPending={remove.loading}
-            error={copy(remove.error)}
-            onConfirm={() => { void handleDelete(); }}
-        />
-    );
-};
+const DeleteDeploymentDialog = ({ deployment, onClose, onDeleted }: DeleteDeploymentDialogProps) => (
+    <DeleteConfirmDialog
+        isOpen={deployment !== null}
+        title='Delete deployment'
+        description='This permanently deletes this deployment record. This action cannot be undone.'
+        entityId={deployment?.id ?? null}
+        remove={(id) => deploymentApi.remove({ path: { id } })}
+        getErrorMessage={copy}
+        onClose={onClose}
+        onRemoved={onDeleted}
+    />
+);
 
 const stepIcon = (level: ActivityLevel) => {
     switch(level){
@@ -408,26 +394,19 @@ const Deployments = () => {
         }, { replace: true });
     };
 
-    if(id === undefined || repository.loading || deploymentsQuery.loading){
-        return <CenterState className='h-full'><LoadingState title='Loading deployments' compact /></CenterState>;
-    }
+    if(id === undefined || repository.loading || deploymentsQuery.loading || repository.error !== undefined || deploymentsQuery.error !== undefined){
+        const failedRepository = id !== undefined && repository.error !== undefined;
 
-    if(repository.error !== undefined){
         return (
-            <CenterState className='h-full'>
-                <ErrorState title='Could not load repository' description={copy(repository.error)} onRetry={repository.reload} />
-            </CenterState>
-        );
-    }
-    if(deploymentsQuery.error !== undefined){
-        return (
-            <CenterState className='h-full'>
-                <ErrorState
-                    title='Could not load deployments'
-                    description={copy(deploymentsQuery.error)}
-                    onRetry={deploymentsQuery.refresh}
-                />
-            </CenterState>
+            <ListPageShell
+                fill
+                loading={id === undefined || repository.loading || deploymentsQuery.loading}
+                loadingTitle='Loading deployments'
+                error={id === undefined ? undefined : repository.error ?? deploymentsQuery.error}
+                errorTitle={failedRepository ? 'Could not load repository' : 'Could not load deployments'}
+                getErrorDescription={copy}
+                onRetry={failedRepository ? repository.reload : deploymentsQuery.refresh}
+            />
         );
     }
     if(repository.data === null) return null;

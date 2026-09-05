@@ -1,22 +1,16 @@
 import { CodespaceStatus } from '@quantum/contracts/modules/codespace/domain';
-import type { ChipVariants } from '@heroui/react';
+import { makeStatusMeta, type StatusColor } from '@/shared/utils/status';
 
-const STATUS_COPY: Record<CodespaceStatus, { label: string; color: NonNullable<ChipVariants['color']> }> = {
+const meta = makeStatusMeta<CodespaceStatus, StatusColor>({
     [CodespaceStatus.Pending]: { label: 'Pending', color: 'warning' },
     [CodespaceStatus.Provisioning]: { label: 'Provisioning', color: 'warning' },
     [CodespaceStatus.Running]: { label: 'Running', color: 'success' },
     [CodespaceStatus.Stopped]: { label: 'Stopped', color: 'default' },
     [CodespaceStatus.Error]: { label: 'Error', color: 'danger' }
-};
+}, [CodespaceStatus.Pending, CodespaceStatus.Provisioning]);
 
-const TRANSIENT: CodespaceStatus[] = [
-    CodespaceStatus.Pending,
-    CodespaceStatus.Provisioning
-];
+export const codespaceStatusLabel = meta.label;
 
-export const codespaceStatusLabel = (status: CodespaceStatus): string => STATUS_COPY[status].label;
+export const codespaceStatusColor = meta.color;
 
-export const codespaceStatusColor = (status: CodespaceStatus): NonNullable<ChipVariants['color']> =>
-    STATUS_COPY[status].color;
-
-export const isCodespaceTransient = (status: CodespaceStatus): boolean => TRANSIENT.includes(status);
+export const isCodespaceTransient = meta.isTransient;

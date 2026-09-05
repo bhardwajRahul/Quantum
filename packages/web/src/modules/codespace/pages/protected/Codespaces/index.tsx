@@ -2,18 +2,15 @@ import { useState } from 'react';
 import { Button, Table } from '@heroui/react';
 import { Plus, Terminal } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
-import LoadingState from '@/shared/components/LoadingState';
-import ErrorState from '@/shared/components/ErrorState';
-import EmptyState from '@/shared/components/EmptyState';
-import CenterState from '@/shared/components/CenterState';
-import ConfirmDialog from '@/shared/components/ConfirmDialog';
-import ProjectSelect from '@/modules/codespace/components/ProjectSelect';
+import PageHeader from '@/shared/components/layout/PageHeader';
+import ListPageShell from '@/shared/components/ListPageShell';
+import DeleteConfirmDialog from '@/shared/components/DeleteConfirmDialog';
+import EntitySelect from '@/shared/components/EntitySelect';
 import CodespaceStatusChip from '@/modules/codespace/components/CodespaceStatus';
 import CreateCodespaceDialog from '@/modules/codespace/components/CreateCodespaceDialog';
 import CodespaceAccessDialog from '@/modules/codespace/components/CodespaceAccessDialog';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { useResource } from '@/shared/hooks/api/use-resource';
-import { useMutation } from '@/shared/hooks/api/use-mutation';
 import { usePolledQuery } from '@/shared/hooks/api/use-polled-query';
 import { codespaceApi } from '@/modules/codespace/api/api';
 import { projectRoutes } from '@quantum/contracts/modules/project/routes';
@@ -31,17 +28,16 @@ interface CodespacesHeaderProps{
 }
 
 const CodespacesHeader = ({ canAdd, onAdd }: CodespacesHeaderProps) => (
-    <div className='flex items-center justify-between gap-4'>
-        <div>
-            <h1 className='text-lg font-medium text-foreground'>Codespaces</h1>
-            <p className='mt-1.5 text-sm text-muted'>Cloud dev environments for a project.</p>
-        </div>
-
-        <Button isDisabled={!canAdd} onPress={onAdd}>
-            <Plus aria-hidden='true' className='size-4' />
-            New codespace
-        </Button>
-    </div>
+    <PageHeader
+        title='Codespaces'
+        description='Cloud dev environments for a project.'
+        actions={(
+            <Button isDisabled={!canAdd} onPress={onAdd}>
+                <Plus aria-hidden='true' className='size-4' />
+                New codespace
+            </Button>
+        )}
+    />
 );
 
 interface DeleteCodespaceDialogProps{
@@ -50,34 +46,20 @@ interface DeleteCodespaceDialogProps{
     onRemoved: () => void;
 }
 
-const DeleteCodespaceDialog = ({ codespace, onClose, onRemoved }: DeleteCodespaceDialogProps) => {
-    const removeCodespace = useMutation((id: number) => codespaceApi.remove({ path: { id } }));
-
-    const handleRemove = async () => {
-        if(codespace === null) return;
-
-        const removed = await removeCodespace.run(codespace.id).then(() => true, () => false);
-        if(!removed) return;
-
-        onClose();
-        onRemoved();
-    };
-
-    return (
-        <ConfirmDialog
-            isOpen={codespace !== null}
-            onOpenChange={(isOpen) => { if(!isOpen) onClose(); }}
-            title='Delete codespace'
-            description={codespace === null
-                ? ''
-                : `This permanently removes "${codespace.name}" and its container. This action cannot be undone.`}
-            confirmLabel='Delete'
-            isPending={removeCodespace.loading}
-            error={copy(removeCodespace.error)}
-            onConfirm={() => { void handleRemove(); }}
-        />
-    );
-};
+const DeleteCodespaceDialog = ({ codespace, onClose, onRemoved }: DeleteCodespaceDialogProps) => (
+    <DeleteConfirmDialog
+        isOpen={codespace !== null}
+        title='Delete codespace'
+        description={codespace === null
+            ? ''
+            : `This permanently removes "${codespace.name}" and its container. This action cannot be undone.`}
+        entityId={codespace?.id ?? null}
+        remove={(id) => codespaceApi.remove({ path: { id } })}
+        getErrorMessage={copy}
+        onClose={onClose}
+        onRemoved={onRemoved}
+    />
+);
 
 interface CodespacesTableProps{
     codespaces: Codespace[];
@@ -143,10 +125,18 @@ const Codespaces = () => {
     const [accessTarget, setAccessTarget] = useState<Codespace | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<Codespace | null>(null);
 
-    if(organizationId === null) return <LoadingState title='Loading codespaces' compact />;
-    if(projects.loading) return <LoadingState title='Loading projects' compact />;
-    if(projects.error !== undefined){
-        return <ErrorState title='Could not load projects' description={copy(projects.error)} onRetry={projects.refresh} />;
+    if(organizationId === null || projects.loading || projects.error !== undefined){
+        return (
+            <ListPageShell
+                bare
+                loading={organizationId === null || projects.loading}
+                loadingTitle={organizationId === null ? 'Loading codespaces' : 'Loading projects'}
+                error={organizationId === null ? undefined : projects.error}
+                errorTitle='Could not load projects'
+                getErrorDescription={copy}
+                onRetry={projects.refresh}
+            />
+        );
     }
 
     const projectItems = projects.data ?? [];
@@ -156,52 +146,50 @@ const Codespaces = () => {
             <CodespacesHeader canAdd={projectId !== null} onAdd={() => setCreateOpen(true)} />
 
             <div className='mt-6 max-w-sm'>
-                <ProjectSelect
-                    projects={projectItems}
+                <EntitySelect
+                    items={projectItems}
+                    getKey={(project) => project.id}
+                    getLabel={(project) => project.name}
                     value={projectId}
-                    onChange={setProjectId}
+                    onChange={(key) => setProjectId(Number(key))}
+                    placeholder='Select a project'
+                    ariaLabel='Project'
                 />
             </div>
 
             <div className='mt-6 flex flex-1 flex-col'>
-                {projectId === null ? (
-                    <CenterState>
-                        <EmptyState
-                            icon={Terminal}
-                            title='Select a project'
-                            description='Choose one of your projects above to view and manage its codespaces.'
-                        />
-                    </CenterState>
-                ) : codespaces.loading ? (
-                    <CenterState><LoadingState title='Loading codespaces' compact /></CenterState>
-                ) : codespaces.error !== undefined ? (
-                    <CenterState>
-                        <ErrorState
-                            title='Could not load codespaces'
-                            description={copy(codespaces.error)}
-                            onRetry={codespaces.reload}
-                        />
-                    </CenterState>
-                ) : (codespaces.data ?? []).length === 0 ? (
-                    <CenterState>
-                        <EmptyState
-                            icon={Terminal}
-                            title='No codespaces yet'
-                            description='This project has no codespaces. Create one to get a cloud dev environment.'
-                        >
+                <ListPageShell
+                    loading={codespaces.loading}
+                    loadingTitle='Loading codespaces'
+                    error={codespaces.error}
+                    errorTitle='Could not load codespaces'
+                    getErrorDescription={copy}
+                    onRetry={codespaces.reload}
+                    showPrompt={projectId === null}
+                    prompt={{
+                        icon: Terminal,
+                        title: 'Select a project',
+                        description: 'Choose one of your projects above to view and manage its codespaces.'
+                    }}
+                    isEmpty={(codespaces.data ?? []).length === 0}
+                    empty={{
+                        icon: Terminal,
+                        title: 'No codespaces yet',
+                        description: 'This project has no codespaces. Create one to get a cloud dev environment.',
+                        action: (
                             <Button onPress={() => setCreateOpen(true)}>
                                 <Plus aria-hidden='true' className='size-4' />
                                 New codespace
                             </Button>
-                        </EmptyState>
-                    </CenterState>
-                ) : (
+                        )
+                    }}
+                >
                     <CodespacesTable
                         codespaces={codespaces.data ?? []}
                         onAccess={setAccessTarget}
                         onDelete={setDeleteTarget}
                     />
-                )}
+                </ListPageShell>
             </div>
 
             {projectId !== null && (

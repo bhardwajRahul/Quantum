@@ -2,14 +2,12 @@ import { useState } from 'react';
 import { Button, Chip, Table } from '@heroui/react';
 import { Globe, Plus, RefreshCw } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
-import LoadingState from '@/shared/components/LoadingState';
-import ErrorState from '@/shared/components/ErrorState';
-import EmptyState from '@/shared/components/EmptyState';
-import CenterState from '@/shared/components/CenterState';
+import PageHeader from '@/shared/components/layout/PageHeader';
+import ListPageShell from '@/shared/components/ListPageShell';
 import InlineError from '@/shared/components/InlineError';
-import ConfirmDialog from '@/shared/components/ConfirmDialog';
+import DeleteConfirmDialog from '@/shared/components/DeleteConfirmDialog';
 import DomainStatusChip from '@/modules/domain/components/DomainStatus';
-import RepositorySelect from '@/modules/domain/components/RepositorySelect';
+import EntitySelect from '@/shared/components/EntitySelect';
 import CreateDomainDialog from '@/modules/domain/components/CreateDomainDialog';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { useResource } from '@/shared/hooks/api/use-resource';
@@ -33,25 +31,22 @@ interface DomainsHeaderProps{
 }
 
 const DomainsHeader = ({ canRefresh, canAdd, refreshing, onRefresh, onAdd }: DomainsHeaderProps) => (
-    <div className='flex items-center justify-between gap-4'>
-        <div>
-            <h1 className='text-lg font-medium text-foreground'>Domains</h1>
-            <p className='mt-1.5 text-sm text-muted'>
-                Bind custom domains to a repository. TLS is provisioned automatically.
-            </p>
-        </div>
-
-        <div className='flex gap-2'>
-            <Button variant='secondary' isDisabled={!canRefresh} isPending={refreshing} onPress={onRefresh}>
-                <RefreshCw aria-hidden='true' className='size-4' />
-                Refresh
-            </Button>
-            <Button isDisabled={!canAdd} onPress={onAdd}>
-                <Plus aria-hidden='true' className='size-4' />
-                Add domain
-            </Button>
-        </div>
-    </div>
+    <PageHeader
+        title='Domains'
+        description='Bind custom domains to a repository. TLS is provisioned automatically.'
+        actions={(
+            <div className='flex gap-2'>
+                <Button variant='secondary' isDisabled={!canRefresh} isPending={refreshing} onPress={onRefresh}>
+                    <RefreshCw aria-hidden='true' className='size-4' />
+                    Refresh
+                </Button>
+                <Button isDisabled={!canAdd} onPress={onAdd}>
+                    <Plus aria-hidden='true' className='size-4' />
+                    Add domain
+                </Button>
+            </div>
+        )}
+    />
 );
 
 interface DeleteDomainDialogProps{
@@ -60,34 +55,20 @@ interface DeleteDomainDialogProps{
     onRemoved: () => void;
 }
 
-const DeleteDomainDialog = ({ domain, onClose, onRemoved }: DeleteDomainDialogProps) => {
-    const removeDomain = useMutation((id: number) => domainApi.remove({ path: { id } }));
-
-    const handleRemove = async () => {
-        if(domain === null) return;
-
-        const removed = await removeDomain.run(domain.id).then(() => true, () => false);
-        if(!removed) return;
-
-        onClose();
-        onRemoved();
-    };
-
-    return (
-        <ConfirmDialog
-            isOpen={domain !== null}
-            onOpenChange={(isOpen) => { if(!isOpen) onClose(); }}
-            title='Delete domain'
-            description={domain === null
-                ? ''
-                : `Remove ${domain.host}? This stops routing traffic to it and releases its TLS certificate.`}
-            confirmLabel='Delete'
-            isPending={removeDomain.loading}
-            error={copy(removeDomain.error)}
-            onConfirm={() => { void handleRemove(); }}
-        />
-    );
-};
+const DeleteDomainDialog = ({ domain, onClose, onRemoved }: DeleteDomainDialogProps) => (
+    <DeleteConfirmDialog
+        isOpen={domain !== null}
+        title='Delete domain'
+        description={domain === null
+            ? ''
+            : `Remove ${domain.host}? This stops routing traffic to it and releases its TLS certificate.`}
+        entityId={domain?.id ?? null}
+        remove={(id) => domainApi.remove({ path: { id } })}
+        getErrorMessage={copy}
+        onClose={onClose}
+        onRemoved={onRemoved}
+    />
+);
 
 interface DomainRowProps{
     domain: Domain;
@@ -196,12 +177,15 @@ const Domains = () => {
     });
     const [createOpen, setCreateOpen] = useState(false);
 
-    if(repositories.loading) return <LoadingState title='Loading repositories' compact />;
-    if(repositories.error !== undefined){
+    if(repositories.loading || repositories.error !== undefined){
         return (
-            <ErrorState
-                title='Could not load repositories'
-                description={copy(repositories.error)}
+            <ListPageShell
+                bare
+                loading={repositories.loading}
+                loadingTitle='Loading repositories'
+                error={repositories.error}
+                errorTitle='Could not load repositories'
+                getErrorDescription={copy}
                 onRetry={repositories.reload}
             />
         );
@@ -221,48 +205,46 @@ const Domains = () => {
             />
 
             <div className='mt-6 max-w-sm'>
-                <RepositorySelect
-                    repositories={items}
+                <EntitySelect
+                    items={items}
+                    getKey={(repository) => repository.id}
+                    getLabel={(repository) => repository.name !== '' ? repository.name : repository.alias}
                     value={repositoryId}
-                    onChange={setRepositoryId}
+                    onChange={(key) => setRepositoryId(Number(key))}
+                    placeholder='Select a repository'
+                    ariaLabel='Repository'
                 />
             </div>
 
             <div className='mt-6 flex flex-1 flex-col'>
-                {repositoryId === null ? (
-                    <CenterState>
-                        <EmptyState
-                            icon={Globe}
-                            title='Select a repository'
-                            description='Choose one of your repositories above to view and manage its custom domains.'
-                        />
-                    </CenterState>
-                ) : domains.loading ? (
-                    <CenterState><LoadingState title='Loading domains' compact /></CenterState>
-                ) : domains.error !== undefined ? (
-                    <CenterState>
-                        <ErrorState
-                            title='Could not load domains'
-                            description={copy(domains.error)}
-                            onRetry={domains.refresh}
-                        />
-                    </CenterState>
-                ) : (domains.data ?? []).length === 0 ? (
-                    <CenterState>
-                        <EmptyState
-                            icon={Globe}
-                            title='No domains yet'
-                            description='This repository has no custom domains. Add one to route traffic and provision TLS.'
-                        >
+                <ListPageShell
+                    loading={domains.loading}
+                    loadingTitle='Loading domains'
+                    error={domains.error}
+                    errorTitle='Could not load domains'
+                    getErrorDescription={copy}
+                    onRetry={domains.refresh}
+                    showPrompt={repositoryId === null}
+                    prompt={{
+                        icon: Globe,
+                        title: 'Select a repository',
+                        description: 'Choose one of your repositories above to view and manage its custom domains.'
+                    }}
+                    isEmpty={(domains.data ?? []).length === 0}
+                    empty={{
+                        icon: Globe,
+                        title: 'No domains yet',
+                        description: 'This repository has no custom domains. Add one to route traffic and provision TLS.',
+                        action: (
                             <Button onPress={openCreate}>
                                 <Plus aria-hidden='true' className='size-4' />
                                 Add domain
                             </Button>
-                        </EmptyState>
-                    </CenterState>
-                ) : (
+                        )
+                    }}
+                >
                     <DomainsTable domains={domains.data ?? []} onChanged={domains.refresh} />
-                )}
+                </ListPageShell>
             </div>
 
             {createOpen && (

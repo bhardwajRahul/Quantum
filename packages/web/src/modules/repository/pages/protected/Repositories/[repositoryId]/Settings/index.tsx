@@ -4,14 +4,13 @@ import { Button, Card, Label, ListBox, ListBoxItem, Select } from '@heroui/react
 import { Trash2 } from 'lucide-react';
 import typia from 'typia';
 import PageBody from '@/shared/components/layout/PageBody';
-import LoadingState from '@/shared/components/LoadingState';
+import EmptyState from '@/shared/components/EmptyState';
 import ErrorState from '@/shared/components/ErrorState';
-import ConfirmDialog from '@/shared/components/ConfirmDialog';
+import DeleteConfirmDialog from '@/shared/components/DeleteConfirmDialog';
 import Form from '@/shared/components/forms/Form';
 import Field from '@/shared/components/forms/Field';
 import { useForm } from '@/shared/hooks/forms/use-form';
 import { useQuery } from '@/shared/hooks/api/use-query';
-import { useMutation } from '@/shared/hooks/api/use-mutation';
 import { repositoryApi } from '@/modules/repository/api/api';
 import { repositoryErrorMessages } from '@/modules/repository/utils/error-messages';
 import { errorCopy } from '@/shared/utils/error-copy';
@@ -241,34 +240,24 @@ interface DeleteRepositoryDialogProps{
     repository: Repository;
     isOpen: boolean;
     onClose: (isOpen: boolean) => void;
+    onRemoved: () => void;
 }
 
-const DeleteRepositoryDialog = ({ repository, isOpen, onClose }: DeleteRepositoryDialogProps) => {
-    const navigate = useNavigate();
-    const remove = useMutation((repositoryId: number) => repositoryApi.remove({ path: { id: repositoryId } }));
-
-    const handleDelete = async () => {
-        const deleted = await remove.run(repository.id).then(() => true, () => false);
-        if(!deleted) return;
-
-        navigate('/applications');
-    };
-
-    return (
-        <ConfirmDialog
-            isOpen={isOpen}
-            onOpenChange={onClose}
-            title='Delete repository'
-            description={`This permanently removes ${repository.alias} and its deployments. This action cannot be undone.`}
-            confirmLabel='Delete'
-            isPending={remove.loading}
-            error={copy(remove.error)}
-            onConfirm={() => { void handleDelete(); }}
-        />
-    );
-};
+const DeleteRepositoryDialog = ({ repository, isOpen, onClose, onRemoved }: DeleteRepositoryDialogProps) => (
+    <DeleteConfirmDialog
+        isOpen={isOpen}
+        title='Delete repository'
+        description={`This permanently removes ${repository.alias} and its deployments. This action cannot be undone.`}
+        entityId={repository.id}
+        remove={(repositoryId) => repositoryApi.remove({ path: { id: repositoryId } })}
+        getErrorMessage={copy}
+        onClose={() => onClose(false)}
+        onRemoved={onRemoved}
+    />
+);
 
 const DangerZone = ({ repository }: { repository: Repository }) => {
+    const navigate = useNavigate();
     const [deleteOpen, setDeleteOpen] = useState(false);
 
     return (
@@ -287,7 +276,12 @@ const DangerZone = ({ repository }: { repository: Repository }) => {
                 </Button>
             </Card.Content>
 
-            <DeleteRepositoryDialog repository={repository} isOpen={deleteOpen} onClose={setDeleteOpen} />
+            <DeleteRepositoryDialog
+                repository={repository}
+                isOpen={deleteOpen}
+                onClose={setDeleteOpen}
+                onRemoved={() => navigate('/applications')}
+            />
         </Card>
     );
 };
@@ -298,7 +292,7 @@ const RepositorySettings = () => {
 
     const repository = useQuery((repositoryId: number) => repositoryApi.get({ path: { id: repositoryId } }), [id]);
 
-    if(repository.loading) return <LoadingState title='Loading repository' compact />;
+    if(repository.loading) return <EmptyState title='Loading repository' compact />;
     if(repository.error !== undefined){
         return (
             <ErrorState

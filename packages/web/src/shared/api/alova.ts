@@ -1,14 +1,21 @@
-import { createAlova } from 'alova';
+import { createAlova, invalidateCache } from 'alova';
 import type { ApiError as ApiErrorPayload } from '@quantum/contracts/shared/http';
 import { env } from '@/shared/config/env';
 import { useSessionStore } from '@/shared/store/session';
 import { useTenantStore } from '@/shared/store/tenant';
 import { ApiError } from '@/shared/services/ApiError';
 import { endSession, isSessionExpired } from '@/shared/services/end-session';
-import { isTenantReconfigure, reconfigureTenant } from '@/shared/services/tenant-reconfigure';
 import { unwrap } from '@/shared/api/unwrap';
 import adapterFetch from 'alova/fetch';
 import ReactHook from 'alova/react';
+
+const isTenantReconfigure = (status: number, code: string): boolean =>
+    status === 409 && code === 'Tenancy::OrganizationReconfigure';
+
+const reconfigureTenant = async () => {
+    await invalidateCache();
+    useTenantStore.getState().clear();
+};
 
 export const alova = createAlova({
     baseURL: env.apiUrl,

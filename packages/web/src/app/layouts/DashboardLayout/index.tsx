@@ -1,9 +1,14 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
 import { sections } from '@/app/navigation/sections';
-import { panelFor } from '@/app/navigation/panels';
 import { endSession } from '@/shared/services/end-session';
 import OrganizationSwitcher from '@/modules/organization/components/OrganizationSwitcher';
+
+const panelFor = (pathname: string): 'app' | 'settings' => {
+    if(pathname.startsWith('/settings')) return 'settings';
+
+    return 'app';
+};
 
 const navItemClass = (active: boolean): string =>
     `flex h-8 w-full items-center gap-2.5 rounded-md px-2 text-[0.875rem] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground motion-reduce:transition-none ${

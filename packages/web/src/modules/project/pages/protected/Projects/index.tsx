@@ -2,17 +2,14 @@ import { useState } from 'react';
 import { Button } from '@heroui/react';
 import { FolderKanban, Plus } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
-import LoadingState from '@/shared/components/LoadingState';
-import ErrorState from '@/shared/components/ErrorState';
-import EmptyState from '@/shared/components/EmptyState';
-import CenterState from '@/shared/components/CenterState';
-import ConfirmDialog from '@/shared/components/ConfirmDialog';
+import PageHeader from '@/shared/components/layout/PageHeader';
+import ListPageShell from '@/shared/components/ListPageShell';
+import DeleteConfirmDialog from '@/shared/components/DeleteConfirmDialog';
 import ProjectCard from '@/modules/project/components/ProjectCard';
 import CreateProjectDialog from '@/modules/project/components/CreateProjectDialog';
 import RenameProjectDialog from '@/modules/project/components/RenameProjectDialog';
 import ManageEnvironmentsDialog from '@/modules/project/components/ManageEnvironmentsDialog';
 import { useResource } from '@/shared/hooks/api/use-resource';
-import { useMutation } from '@/shared/hooks/api/use-mutation';
 import { projectApi } from '@/modules/project/api/api';
 import { projectRoutes } from '@quantum/contracts/modules/project/routes';
 import { useCurrentOrganizationId } from '@/modules/organization/hooks/use-current-organization-id';
@@ -27,17 +24,16 @@ interface ProjectsHeaderProps{
 }
 
 const ProjectsHeader = ({ onCreate }: ProjectsHeaderProps) => (
-    <div className='flex items-center justify-between gap-4'>
-        <div>
-            <h1 className='text-lg font-medium text-foreground'>Projects</h1>
-            <p className='mt-1.5 text-sm text-muted'>Group related deployments by organization.</p>
-        </div>
-
-        <Button onPress={onCreate}>
-            <Plus aria-hidden='true' className='size-4' />
-            New project
-        </Button>
-    </div>
+    <PageHeader
+        title='Projects'
+        description='Group related deployments by organization.'
+        actions={(
+            <Button onPress={onCreate}>
+                <Plus aria-hidden='true' className='size-4' />
+                New project
+            </Button>
+        )}
+    />
 );
 
 interface DeleteProjectDialogProps{
@@ -46,34 +42,20 @@ interface DeleteProjectDialogProps{
     onDeleted: () => void;
 }
 
-const DeleteProjectDialog = ({ project, onClose, onDeleted }: DeleteProjectDialogProps) => {
-    const remove = useMutation((projectId: number) => projectApi.remove({ path: { id: projectId } }));
-
-    const handleDelete = async () => {
-        if(project === null) return;
-
-        const deleted = await remove.run(project.id).then(() => true, () => false);
-        if(!deleted) return;
-
-        onClose();
-        onDeleted();
-    };
-
-    return (
-        <ConfirmDialog
-            isOpen={project !== null}
-            onOpenChange={(isOpen) => { if(!isOpen) onClose(); }}
-            title='Delete project'
-            description={project === null
-                ? ''
-                : `This permanently removes "${project.name}" and its environments. This action cannot be undone.`}
-            confirmLabel='Delete'
-            isPending={remove.loading}
-            error={copy(remove.error)}
-            onConfirm={() => { void handleDelete(); }}
-        />
-    );
-};
+const DeleteProjectDialog = ({ project, onClose, onDeleted }: DeleteProjectDialogProps) => (
+    <DeleteConfirmDialog
+        isOpen={project !== null}
+        title='Delete project'
+        description={project === null
+            ? ''
+            : `This permanently removes "${project.name}" and its environments. This action cannot be undone.`}
+        entityId={project?.id ?? null}
+        remove={(projectId) => projectApi.remove({ path: { id: projectId } })}
+        getErrorMessage={copy}
+        onClose={onClose}
+        onRemoved={onDeleted}
+    />
+);
 
 const Projects = () => {
     const organizationId = useCurrentOrganizationId();
@@ -86,13 +68,17 @@ const Projects = () => {
     const [environmentsTarget, setEnvironmentsTarget] = useState<Project | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
 
-    if(organizationId === null) return <CenterState className='h-full'><LoadingState title='Loading projects' compact /></CenterState>;
-    if(projects.loading) return <CenterState className='h-full'><LoadingState title='Loading projects' compact /></CenterState>;
-    if(projects.error !== undefined){
+    if(organizationId === null || projects.loading || projects.error !== undefined){
         return (
-            <CenterState className='h-full'>
-                <ErrorState title='Could not load projects' description={copy(projects.error)} onRetry={projects.refresh} />
-            </CenterState>
+            <ListPageShell
+                fill
+                loading={organizationId === null || projects.loading}
+                loadingTitle='Loading projects'
+                error={organizationId === null ? undefined : projects.error}
+                errorTitle='Could not load projects'
+                getErrorDescription={copy}
+                onRetry={projects.refresh}
+            />
         );
     }
 
@@ -103,20 +89,24 @@ const Projects = () => {
             <ProjectsHeader onCreate={() => setCreateOpen(true)} />
 
             <div className='mt-6 flex flex-1 flex-col'>
-                {items.length === 0 ? (
-                    <CenterState>
-                        <EmptyState
-                            icon={FolderKanban}
-                            title='No projects yet'
-                            description='Projects group related deployments. Create your first one to get started.'
-                        >
+                <ListPageShell
+                    loadingTitle='Loading projects'
+                    errorTitle='Could not load projects'
+                    getErrorDescription={copy}
+                    onRetry={projects.refresh}
+                    isEmpty={items.length === 0}
+                    empty={{
+                        icon: FolderKanban,
+                        title: 'No projects yet',
+                        description: 'Projects group related deployments. Create your first one to get started.',
+                        action: (
                             <Button onPress={() => setCreateOpen(true)}>
                                 <Plus aria-hidden='true' className='size-4' />
                                 New project
                             </Button>
-                        </EmptyState>
-                    </CenterState>
-                ) : (
+                        )
+                    }}
+                >
                     <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'>
                         {items.map((project) => (
                             <ProjectCard
@@ -128,7 +118,7 @@ const Projects = () => {
                             />
                         ))}
                     </div>
-                )}
+                </ListPageShell>
             </div>
 
             <CreateProjectDialog

@@ -2,25 +2,18 @@ import { useEffect, useState } from 'react';
 import { Chip } from '@heroui/react';
 import { Activity } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
-import LoadingState from '@/shared/components/LoadingState';
-import ErrorState from '@/shared/components/ErrorState';
-import EmptyState from '@/shared/components/EmptyState';
-import CenterState from '@/shared/components/CenterState';
+import PageHeader from '@/shared/components/layout/PageHeader';
+import ListPageShell from '@/shared/components/ListPageShell';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { useChannel } from '@/shared/hooks/socket/use-channel';
 import { activityApi } from '@/modules/activity/api/api';
 import { activityLevelColor, activityLevelLabel } from '@/modules/activity/utils/level';
+import { activityErrorMessages } from '@/modules/activity/utils/error-messages';
+import { formatDate } from '@/shared/utils/format-date';
 import { errorCopy } from '@/shared/utils/error-copy';
 import type { ActivityEvent } from '@quantum/contracts/modules/activity/domain';
 
-const copy = errorCopy({});
-
-const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' });
-
-const formatTimestamp = (iso: string): string => {
-    const date = new Date(iso);
-    return Number.isNaN(date.getTime()) ? '—' : dateFormatter.format(date);
-};
+const copy = errorCopy(activityErrorMessages);
 
 interface EventRowProps{
     event: ActivityEvent;
@@ -35,7 +28,7 @@ const EventRow = ({ event }: EventRowProps) => (
         <div className='flex min-w-0 flex-1 flex-col gap-0.5'>
             <div className='flex items-baseline justify-between gap-3'>
                 <span className='truncate font-medium text-foreground'>{event.title}</span>
-                <span className='shrink-0 text-[0.75rem] text-muted'>{formatTimestamp(event.ts)}</span>
+                <span className='shrink-0 text-[0.75rem] text-muted'>{formatDate(event.ts)}</span>
             </div>
             <p className='text-[0.875rem] text-muted'>{event.message}</p>
             {event.source && <span className='text-[0.75rem] text-muted'>{event.source}</span>}
@@ -59,40 +52,44 @@ const Events = () => {
         if(channel.status === 'open') channel.send('subscribe', {});
     }, [channel]);
 
-    if(history.loading) return <CenterState className='h-full'><LoadingState title='Loading events' compact /></CenterState>;
-    if(history.error !== undefined){
+    if(history.loading || history.error !== undefined){
         return (
-            <CenterState className='h-full'>
-                <ErrorState
-                    title='Could not load events'
-                    description={copy(history.error)}
-                    onRetry={history.reload}
-                />
-            </CenterState>
+            <ListPageShell
+                fill
+                loading={history.loading}
+                loadingTitle='Loading events'
+                error={history.error}
+                errorTitle='Could not load events'
+                getErrorDescription={copy}
+                onRetry={history.reload}
+            />
         );
     }
 
     return (
         <PageBody width='wide' height='full'>
-            <div>
-                <h1 className='text-lg font-medium text-foreground'>Events</h1>
-                <p className='mt-1.5 text-sm text-muted'>Live activity across your organization, updated in real time.</p>
-            </div>
+            <PageHeader
+                title='Events'
+                description='Live activity across your organization, updated in real time.'
+            />
 
             <div className='mt-6 flex flex-1 flex-col'>
-                {events.length === 0 ? (
-                    <CenterState>
-                        <EmptyState
-                            icon={Activity}
-                            title='No events yet'
-                            description='Activity from your organization will show up here as it happens.'
-                        />
-                    </CenterState>
-                ) : (
+                <ListPageShell
+                    loadingTitle='Loading events'
+                    errorTitle='Could not load events'
+                    getErrorDescription={copy}
+                    onRetry={history.reload}
+                    isEmpty={events.length === 0}
+                    empty={{
+                        icon: Activity,
+                        title: 'No events yet',
+                        description: 'Activity from your organization will show up here as it happens.'
+                    }}
+                >
                     <ul className='flex flex-col'>
                         {events.map((event) => <EventRow key={event.id} event={event} />)}
                     </ul>
-                )}
+                </ListPageShell>
             </div>
         </PageBody>
     );

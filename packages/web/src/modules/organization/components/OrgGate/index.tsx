@@ -1,5 +1,4 @@
 import { Building2 } from 'lucide-react';
-import LoadingState from '@/shared/components/LoadingState';
 import ErrorState from '@/shared/components/ErrorState';
 import EmptyState from '@/shared/components/EmptyState';
 import CenterState from '@/shared/components/CenterState';
@@ -21,7 +20,7 @@ const OrgGate = ({ children }: OrgGateProps) => {
     if(loading){
         return (
             <CenterState className='h-full'>
-                <LoadingState title='Preparing your workspace' description='Loading your organizations.' />
+                <EmptyState title='Preparing your workspace' description='Loading your organizations.' />
             </CenterState>
         );
     }

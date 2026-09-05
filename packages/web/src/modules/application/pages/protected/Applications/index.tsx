@@ -13,15 +13,16 @@ import {
     Plus
 } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
-import LoadingState from '@/shared/components/LoadingState';
+import PageHeader from '@/shared/components/layout/PageHeader';
+import ListPageShell from '@/shared/components/ListPageShell';
 import ErrorState from '@/shared/components/ErrorState';
 import EmptyState from '@/shared/components/EmptyState';
 import CenterState from '@/shared/components/CenterState';
-import ConfirmDialog from '@/shared/components/ConfirmDialog';
+import DeleteConfirmDialog from '@/shared/components/DeleteConfirmDialog';
 import Modal from '@/shared/components/Modal';
 import InlineError from '@/shared/components/InlineError';
 import { Dropdown } from '@heroui/react';
-import ProjectSelect from '@/modules/application/components/ProjectSelect';
+import EntitySelect from '@/shared/components/EntitySelect';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { useResource } from '@/shared/hooks/api/use-resource';
 import { useMutation } from '@/shared/hooks/api/use-mutation';
@@ -34,8 +35,8 @@ import { repositoryRoutes } from '@quantum/contracts/modules/repository/routes';
 import { templateInstallRoutes } from '@quantum/contracts/modules/template/routes';
 import { useCurrentOrganizationId } from '@/modules/organization/hooks/use-current-organization-id';
 import { databaseStatusColor, databaseStatusLabel, isDatabaseTransient } from '@/modules/application/utils/status';
-import { formatDate } from '@/modules/application/utils/format-date';
-import { copyText } from '@/modules/application/utils/clipboard';
+import { formatDate } from '@/shared/utils/format-date';
+import { copyText } from '@/shared/utils/clipboard';
 import { applicationErrorMessages } from '@/modules/application/utils/error-messages';
 import { errorCopy } from '@/shared/utils/error-copy';
 import { DatabaseEngine } from '@quantum/contracts/modules/database/domain';
@@ -95,23 +96,22 @@ interface ApplicationsHeaderProps{
 }
 
 const ApplicationsHeader = ({ canAddDatabase, onAddApplication, onAddDatabase }: ApplicationsHeaderProps) => (
-    <div className='flex items-center justify-between gap-4'>
-        <div>
-            <h1 className='text-lg font-medium text-foreground'>Applications</h1>
-            <p className='mt-1.5 text-sm text-muted'>Repositories, databases, and template installs for this organization.</p>
-        </div>
-
-        <div className='flex gap-2'>
-            <Button variant='secondary' isDisabled={!canAddDatabase} onPress={onAddDatabase}>
-                <DatabaseIcon aria-hidden='true' className='size-4' />
-                New database
-            </Button>
-            <Button onPress={onAddApplication}>
-                <Plus aria-hidden='true' className='size-4' />
-                New application
-            </Button>
-        </div>
-    </div>
+    <PageHeader
+        title='Applications'
+        description='Repositories, databases, and template installs for this organization.'
+        actions={(
+            <div className='flex gap-2'>
+                <Button variant='secondary' isDisabled={!canAddDatabase} onPress={onAddDatabase}>
+                    <DatabaseIcon aria-hidden='true' className='size-4' />
+                    New database
+                </Button>
+                <Button onPress={onAddApplication}>
+                    <Plus aria-hidden='true' className='size-4' />
+                    New application
+                </Button>
+            </div>
+        )}
+    />
 );
 
 interface RowActionHandlers{
@@ -254,34 +254,20 @@ interface DeleteApplicationDialogProps{
     onRemoved: () => void;
 }
 
-const DeleteApplicationDialog = ({ repository, onClose, onRemoved }: DeleteApplicationDialogProps) => {
-    const remove = useMutation((id: number) => repositoryApi.remove({ path: { id } }));
-
-    const handleRemove = async () => {
-        if(repository === null) return;
-
-        const removed = await remove.run(repository.id).then(() => true, () => false);
-        if(!removed) return;
-
-        onClose();
-        onRemoved();
-    };
-
-    return (
-        <ConfirmDialog
-            isOpen={repository !== null}
-            onOpenChange={(isOpen) => { if(!isOpen) onClose(); }}
-            title='Delete application'
-            description={repository === null
-                ? ''
-                : `This permanently removes "${repository.name}" and its deployments. This action cannot be undone.`}
-            confirmLabel='Delete'
-            isPending={remove.loading}
-            error={copy(remove.error)}
-            onConfirm={() => { void handleRemove(); }}
-        />
-    );
-};
+const DeleteApplicationDialog = ({ repository, onClose, onRemoved }: DeleteApplicationDialogProps) => (
+    <DeleteConfirmDialog
+        isOpen={repository !== null}
+        title='Delete application'
+        description={repository === null
+            ? ''
+            : `This permanently removes "${repository.name}" and its deployments. This action cannot be undone.`}
+        entityId={repository?.id ?? null}
+        remove={(id) => repositoryApi.remove({ path: { id } })}
+        getErrorMessage={copy}
+        onClose={onClose}
+        onRemoved={onRemoved}
+    />
+);
 
 interface CreateDatabaseDialogProps{
     projectId: number | null;
@@ -423,7 +409,7 @@ const ConnectionStringDialog = ({ database, onClose }: ConnectionStringDialogPro
             title={database === null ? 'Connection string' : `Connection string · ${database.name}`}
         >
             <div className='flex flex-col gap-4'>
-                {connectionString.loading && <LoadingState title='Loading connection string' compact />}
+                {connectionString.loading && <EmptyState title='Loading connection string' compact />}
 
                 {!connectionString.loading && connectionString.error !== undefined && (
                     <div className='flex flex-col gap-2'>
@@ -532,34 +518,20 @@ interface DeleteDatabaseDialogProps{
     onRemoved: () => void;
 }
 
-const DeleteDatabaseDialog = ({ database, onClose, onRemoved }: DeleteDatabaseDialogProps) => {
-    const remove = useMutation((id: number) => databaseApi.remove({ path: { id } }));
-
-    const handleRemove = async () => {
-        if(database === null) return;
-
-        const removed = await remove.run(database.id).then(() => true, () => false);
-        if(!removed) return;
-
-        onClose();
-        onRemoved();
-    };
-
-    return (
-        <ConfirmDialog
-            isOpen={database !== null}
-            onOpenChange={(isOpen) => { if(!isOpen) onClose(); }}
-            title='Delete database'
-            description={database === null
-                ? ''
-                : `This permanently removes "${database.name}" and its backups. This action cannot be undone.`}
-            confirmLabel='Delete'
-            isPending={remove.loading}
-            error={copy(remove.error)}
-            onConfirm={() => { void handleRemove(); }}
-        />
-    );
-};
+const DeleteDatabaseDialog = ({ database, onClose, onRemoved }: DeleteDatabaseDialogProps) => (
+    <DeleteConfirmDialog
+        isOpen={database !== null}
+        title='Delete database'
+        description={database === null
+            ? ''
+            : `This permanently removes "${database.name}" and its backups. This action cannot be undone.`}
+        entityId={database?.id ?? null}
+        remove={(id) => databaseApi.remove({ path: { id } })}
+        getErrorMessage={copy}
+        onClose={onClose}
+        onRemoved={onRemoved}
+    />
+);
 
 interface UninstallDialogProps{
     install: TemplateInstall | null;
@@ -567,34 +539,21 @@ interface UninstallDialogProps{
     onRemoved: () => void;
 }
 
-const UninstallDialog = ({ install, onClose, onRemoved }: UninstallDialogProps) => {
-    const remove = useMutation((id: number) => templateInstallApi.remove({ path: { id } }));
-
-    const handleRemove = async () => {
-        if(install === null) return;
-
-        const removed = await remove.run(install.id).then(() => true, () => false);
-        if(!removed) return;
-
-        onClose();
-        onRemoved();
-    };
-
-    return (
-        <ConfirmDialog
-            isOpen={install !== null}
-            onOpenChange={(isOpen) => { if(!isOpen) onClose(); }}
-            title='Uninstall template'
-            description={install === null
-                ? ''
-                : `This permanently removes "${install.name}" and its services. This action cannot be undone.`}
-            confirmLabel='Uninstall'
-            isPending={remove.loading}
-            error={copy(remove.error)}
-            onConfirm={() => { void handleRemove(); }}
-        />
-    );
-};
+const UninstallDialog = ({ install, onClose, onRemoved }: UninstallDialogProps) => (
+    <DeleteConfirmDialog
+        isOpen={install !== null}
+        title='Uninstall template'
+        description={install === null
+            ? ''
+            : `This permanently removes "${install.name}" and its services. This action cannot be undone.`}
+        confirmLabel='Uninstall'
+        entityId={install?.id ?? null}
+        remove={(id) => templateInstallApi.remove({ path: { id } })}
+        getErrorMessage={copy}
+        onClose={onClose}
+        onRemoved={onRemoved}
+    />
+);
 
 const Applications = () => {
     const navigate = useNavigate();
@@ -631,7 +590,7 @@ const Applications = () => {
     };
 
     if(organizationId === null || projects.loading || repositoriesQuery.loading){
-        return <CenterState className='h-full'><LoadingState title='Loading applications' compact /></CenterState>;
+        return <CenterState className='h-full'><EmptyState title='Loading applications' compact /></CenterState>;
     }
 
     if(projects.error !== undefined){
@@ -676,7 +635,15 @@ const Applications = () => {
 
             <div className='mt-6 flex flex-wrap items-center gap-3'>
                 <div className='max-w-xs flex-1'>
-                    <ProjectSelect projects={projects.data ?? []} value={projectId} onChange={setProjectId} />
+                    <EntitySelect
+                        items={projects.data ?? []}
+                        getKey={(project) => project.id}
+                        getLabel={(project) => project.name}
+                        value={projectId}
+                        onChange={(key) => setProjectId(Number(key))}
+                        placeholder='Select a project'
+                        ariaLabel='Project'
+                    />
                 </div>
 
                 <TextField value={search} onChange={setSearch} validationBehavior='aria' className='max-w-xs flex-1'>
@@ -689,26 +656,27 @@ const Applications = () => {
             {scopedError !== undefined && <InlineError className='mt-4'>{copy(scopedError)}</InlineError>}
 
             <div className='mt-6 flex flex-1 flex-col'>
-                {scopedLoading ? (
-                    <CenterState><LoadingState title='Loading applications' compact /></CenterState>
-                ) : filtered.length === 0 ? (
-                    <CenterState>
-                        <EmptyState
-                            icon={AppWindow}
-                            title={query !== '' ? 'No matches' : 'No applications yet'}
-                            description={query !== ''
-                                ? 'Try a different search term.'
-                                : 'Create an application, or pick a project above to see its databases and template installs.'}
-                        >
-                            {query === '' && (
-                                <Button onPress={() => navigate('/repositories/create')}>
-                                    <Plus aria-hidden='true' className='size-4' />
-                                    New application
-                                </Button>
-                            )}
-                        </EmptyState>
-                    </CenterState>
-                ) : (
+                <ListPageShell
+                    loading={scopedLoading}
+                    loadingTitle='Loading applications'
+                    errorTitle='Could not load applications'
+                    getErrorDescription={copy}
+                    onRetry={databases.reload}
+                    isEmpty={filtered.length === 0}
+                    empty={{
+                        icon: AppWindow,
+                        title: query !== '' ? 'No matches' : 'No applications yet',
+                        description: query !== ''
+                            ? 'Try a different search term.'
+                            : 'Create an application, or pick a project above to see its databases and template installs.',
+                        action: query === '' ? (
+                            <Button onPress={() => navigate('/repositories/create')}>
+                                <Plus aria-hidden='true' className='size-4' />
+                                New application
+                            </Button>
+                        ) : undefined
+                    }}
+                >
                     <ApplicationsTable
                         rows={filtered}
                         onNavigate={navigate}
@@ -719,7 +687,7 @@ const Applications = () => {
                         onDeleteDatabase={setDeleteDatabaseTarget}
                         onUninstall={setUninstallTarget}
                     />
-                )}
+                </ListPageShell>
             </div>
 
             <CreateDatabaseDialog

@@ -11,7 +11,7 @@ const CallError = defineErrors({
     }
 } as const);
 
-export const interpolatePath = (path: string, values: PathValues = {}): string =>
+const interpolatePath = (path: string, values: PathValues = {}): string =>
     path.replace(/:(\w+)/g, (_, name: string) => {
         const value = values[name];
         if(value === undefined) throw CallError.MissingPathParam(`${name}@${path}`);

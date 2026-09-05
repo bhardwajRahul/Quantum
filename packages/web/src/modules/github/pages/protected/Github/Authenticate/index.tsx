@@ -1,6 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import PageBody from '@/shared/components/layout/PageBody';
-import LoadingState from '@/shared/components/LoadingState';
+import EmptyState from '@/shared/components/EmptyState';
 import ErrorState from '@/shared/components/ErrorState';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { githubApi } from '@/modules/github/api/api';
@@ -17,7 +17,7 @@ const Authenticate = () => {
     if(account.loading){
         return (
             <PageBody>
-                <LoadingState title='Connecting to GitHub' compact />
+                <EmptyState title='Connecting to GitHub' compact />
             </PageBody>
         );
     }

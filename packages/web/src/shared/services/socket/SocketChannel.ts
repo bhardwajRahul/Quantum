@@ -1,9 +1,17 @@
-import { wsUrl } from '@/shared/utils/socket/ws-url';
+import { env } from '@/shared/config/env';
 import { useSessionStore } from '@/shared/store/session';
 import type { ChannelStatus, ErrorHandler, MessageHandler, OutboundFrame, StatusHandler } from '@/shared/contracts/channel';
 
 const INITIAL_BACKOFF_MS = 500;
 const MAX_BACKOFF_MS = 10_000;
+
+const toWebSocketBase = (httpUrl: string): string => httpUrl.replace(/^http/, 'ws');
+
+const wsUrl = (path: string): string => {
+    const base = toWebSocketBase(env.apiUrl).replace(/\/+$/, '');
+    const suffix = path.startsWith('/') ? path : `/${path}`;
+    return `${base}${suffix}`;
+};
 
 export default class SocketChannel{
     readonly #path: string;

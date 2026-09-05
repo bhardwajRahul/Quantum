@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { Card, ListBox, ListBoxItem, Select, Table } from '@heroui/react';
 import { Inbox } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
-import LoadingState from '@/shared/components/LoadingState';
-import ErrorState from '@/shared/components/ErrorState';
+import PageHeader from '@/shared/components/layout/PageHeader';
+import ListPageShell from '@/shared/components/ListPageShell';
 import EmptyState from '@/shared/components/EmptyState';
 import CenterState from '@/shared/components/CenterState';
+import StatTile from '@/shared/components/StatTile';
+import { formatPercent } from '@/shared/utils/format-percent';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { usePolledQuery } from '@/shared/hooks/api/use-polled-query';
 import { analyticsApi } from '@/modules/analytics/api/api';
@@ -16,8 +18,6 @@ const WINDOW_OPTIONS = [
     { id: 1440, label: 'Last 24 hours' },
     { id: 10080, label: 'Last 7 days' }
 ];
-
-const formatPercent = (value: number): string => `${(value * 100).toFixed(1)}%`;
 
 interface WindowSelectProps{
     value: number;
@@ -45,20 +45,6 @@ const WindowSelect = ({ value, onChange }: WindowSelectProps) => (
             </ListBox>
         </Select.Popover>
     </Select>
-);
-
-interface StatTileProps{
-    label: string;
-    value: string;
-}
-
-const StatTile = ({ label, value }: StatTileProps) => (
-    <Card>
-        <Card.Content className='flex flex-col gap-1'>
-            <span className='text-[0.8125rem] text-muted'>{label}</span>
-            <span className='text-2xl font-medium text-foreground'>{value}</span>
-        </Card.Content>
-    </Card>
 );
 
 interface TopTableProps{
@@ -205,15 +191,15 @@ const WebAnalytics = () => {
         { while: (data) => data !== null, everyMs: 15000 }
     );
 
-    if(summary.loading || top.loading || domains.loading){
-        return <LoadingState title='Loading analytics' compact />;
-    }
-
-    if(summary.error !== undefined || top.error !== undefined || domains.error !== undefined){
+    if(summary.loading || top.loading || domains.loading || summary.error !== undefined || top.error !== undefined || domains.error !== undefined){
         return (
-            <ErrorState
-                title='Could not load analytics'
-                description='Something went wrong while loading analytics.'
+            <ListPageShell
+                bare
+                loading={summary.loading || top.loading || domains.loading}
+                loadingTitle='Loading analytics'
+                error={summary.error ?? top.error ?? domains.error}
+                errorTitle='Could not load analytics'
+                getErrorDescription={() => 'Something went wrong while loading analytics.'}
                 onRetry={() => {
                     summary.reload();
                     top.reload();
@@ -229,18 +215,15 @@ const WebAnalytics = () => {
 
     return (
         <PageBody width='wide'>
-            <div className='flex items-center justify-between gap-4'>
-                <div>
-                    <h1 className='text-lg font-medium text-foreground'>Analytics</h1>
-                    <p className='mt-1.5 text-sm text-muted'>
-                        Traffic across all domains. Refreshes automatically every 15 seconds.
-                    </p>
-                </div>
-
-                <div className='w-48'>
-                    <WindowSelect value={minutes} onChange={setMinutes} />
-                </div>
-            </div>
+            <PageHeader
+                title='Analytics'
+                description='Traffic across all domains. Refreshes automatically every 15 seconds.'
+                filter={(
+                    <div className='w-48'>
+                        <WindowSelect value={minutes} onChange={setMinutes} />
+                    </div>
+                )}
+            />
 
             <div className='mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4'>
                 <StatTile label='Pageviews' value={String(summaryData.pageviews)} />

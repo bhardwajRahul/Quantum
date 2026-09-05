@@ -8,9 +8,3 @@ export interface Session{
     isUnreachable: boolean;
     retry: () => void;
 }
-
-export interface SessionState{
-    token: string | null;
-    setToken: (token: string | null) => void;
-    clear: () => void;
-}

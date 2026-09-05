@@ -1,17 +1,19 @@
 import { useState } from 'react';
-import { Card } from '@heroui/react';
 import { Activity } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
-import LoadingState from '@/shared/components/LoadingState';
-import ErrorState from '@/shared/components/ErrorState';
-import EmptyState from '@/shared/components/EmptyState';
-import CenterState from '@/shared/components/CenterState';
-import RepositorySelect from '@/modules/metric/components/RepositorySelect';
+import PageHeader from '@/shared/components/layout/PageHeader';
+import ListPageShell from '@/shared/components/ListPageShell';
+import StatTile from '@/shared/components/StatTile';
+import EntitySelect from '@/shared/components/EntitySelect';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { usePolledQuery } from '@/shared/hooks/api/use-polled-query';
 import { metricApi } from '@/modules/metric/api/api';
 import { repositoryApi } from '@/modules/repository/api/api';
+import { metricErrorMessages } from '@/modules/metric/utils/error-messages';
+import { errorCopy } from '@/shared/utils/error-copy';
 import type { Metric } from '@quantum/contracts/modules/metric/domain';
+
+const copy = errorCopy(metricErrorMessages);
 
 const BYTE_UNITS = ['KB', 'MB', 'GB', 'TB'];
 
@@ -34,20 +36,6 @@ const formatBytes = (value: number): string => {
 
 const sortByTs = (samples: Metric[]): Metric[] =>
     [...samples].sort((a, b) => new Date(a.ts).valueOf() - new Date(b.ts).valueOf());
-
-interface StatTileProps{
-    label: string;
-    value: string;
-}
-
-const StatTile = ({ label, value }: StatTileProps) => (
-    <Card>
-        <Card.Content className='flex flex-col gap-1'>
-            <span className='text-[0.8125rem] text-muted'>{label}</span>
-            <span className='text-2xl font-medium text-foreground'>{value}</span>
-        </Card.Content>
-    </Card>
-);
 
 interface PercentBarChartProps{
     label: string;
@@ -83,12 +71,15 @@ const Metrics = () => {
         { while: (data) => data !== null, everyMs: 10000 }
     );
 
-    if(repositories.loading) return <LoadingState title='Loading repositories' compact />;
-    if(repositories.error !== undefined){
+    if(repositories.loading || repositories.error !== undefined){
         return (
-            <ErrorState
-                title='Could not load repositories'
-                description={repositories.error.message}
+            <ListPageShell
+                bare
+                loading={repositories.loading}
+                loadingTitle='Loading repositories'
+                error={repositories.error}
+                errorTitle='Could not load repositories'
+                getErrorDescription={copy}
                 onRetry={repositories.reload}
             />
         );
@@ -100,49 +91,44 @@ const Metrics = () => {
 
     return (
         <PageBody width='wide' height='full'>
-            <div>
-                <h1 className='text-lg font-medium text-foreground'>Metrics</h1>
-                <p className='mt-1.5 text-sm text-muted'>
-                    Live container resource usage for a repository. Refreshes automatically every 10 seconds.
-                </p>
-            </div>
+            <PageHeader
+                title='Metrics'
+                description='Live container resource usage for a repository. Refreshes automatically every 10 seconds.'
+            />
 
             <div className='mt-6 max-w-sm'>
-                <RepositorySelect
-                    repositories={items}
+                <EntitySelect
+                    items={items}
+                    getKey={(repository) => repository.id}
+                    getLabel={(repository) => repository.name !== '' ? repository.name : repository.alias}
                     value={repositoryId}
-                    onChange={setRepositoryId}
+                    onChange={(key) => setRepositoryId(Number(key))}
+                    placeholder='Select a repository'
+                    ariaLabel='Repository'
                 />
             </div>
 
             <div className='mt-6 flex flex-1 flex-col'>
-                {repositoryId === null ? (
-                    <CenterState>
-                        <EmptyState
-                            icon={Activity}
-                            title='Select a repository'
-                            description='Choose one of your repositories above to view its live resource usage.'
-                        />
-                    </CenterState>
-                ) : metrics.loading ? (
-                    <CenterState><LoadingState title='Loading metrics' compact /></CenterState>
-                ) : metrics.error !== undefined ? (
-                    <CenterState>
-                        <ErrorState
-                            title='Could not load metrics'
-                            description={metrics.error.message}
-                            onRetry={metrics.reload}
-                        />
-                    </CenterState>
-                ) : samples.length === 0 || latest === undefined ? (
-                    <CenterState>
-                        <EmptyState
-                            icon={Activity}
-                            title='No samples yet'
-                            description='This repository has no metric samples yet. Samples appear once its container starts reporting usage.'
-                        />
-                    </CenterState>
-                ) : (
+                <ListPageShell
+                    loading={metrics.loading}
+                    loadingTitle='Loading metrics'
+                    error={metrics.error}
+                    errorTitle='Could not load metrics'
+                    getErrorDescription={copy}
+                    onRetry={metrics.reload}
+                    showPrompt={repositoryId === null}
+                    prompt={{
+                        icon: Activity,
+                        title: 'Select a repository',
+                        description: 'Choose one of your repositories above to view its live resource usage.'
+                    }}
+                    isEmpty={samples.length === 0 || latest === undefined}
+                    empty={{
+                        icon: Activity,
+                        title: 'No samples yet',
+                        description: 'This repository has no metric samples yet. Samples appear once its container starts reporting usage.'
+                    }}
+                >
                     <div className='flex flex-col gap-6'>
                         <div className='grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5'>
                             <StatTile label='CPU' value={formatPercent(latest.cpuPercent)} />
@@ -160,7 +146,7 @@ const Metrics = () => {
                             <PercentBarChart label='Memory %' values={samples.map((sample) => sample.memPercent)} />
                         </div>
                     </div>
-                )}
+                </ListPageShell>
             </div>
         </PageBody>
     );

@@ -3,16 +3,13 @@ import { Button, Label, Table } from '@heroui/react';
 import { Plus, Users } from 'lucide-react';
 import typia from 'typia';
 import PageBody from '@/shared/components/layout/PageBody';
-import LoadingState from '@/shared/components/LoadingState';
-import ErrorState from '@/shared/components/ErrorState';
-import EmptyState from '@/shared/components/EmptyState';
-import CenterState from '@/shared/components/CenterState';
+import PageHeader from '@/shared/components/layout/PageHeader';
+import ListPageShell from '@/shared/components/ListPageShell';
 import InlineError from '@/shared/components/InlineError';
-import ConfirmDialog from '@/shared/components/ConfirmDialog';
-import Modal from '@/shared/components/Modal';
-import Form from '@/shared/components/forms/Form';
+import DeleteConfirmDialog from '@/shared/components/DeleteConfirmDialog';
+import SingleFieldDialog from '@/shared/components/SingleFieldDialog';
 import Field from '@/shared/components/forms/Field';
-import RoleSelect from '@/modules/organization/components/RoleSelect';
+import EntitySelect from '@/shared/components/EntitySelect';
 import { useForm } from '@/shared/hooks/forms/use-form';
 import { useResource } from '@/shared/hooks/api/use-resource';
 import { useMutation } from '@/shared/hooks/api/use-mutation';
@@ -27,6 +24,20 @@ import type { Member } from '@quantum/contracts/modules/organization/domain';
 import type { InviteMemberInput, UpdateMemberInput } from '@quantum/contracts/modules/organization/http';
 
 const copy = errorCopy(tenancyErrorMessages);
+
+const ROLES: OrganizationRole[] = [
+    OrganizationRole.Owner,
+    OrganizationRole.Admin,
+    OrganizationRole.Member,
+    OrganizationRole.Viewer
+];
+
+const ROLE_LABELS: Record<OrganizationRole, string> = {
+    [OrganizationRole.Owner]: 'Owner',
+    [OrganizationRole.Admin]: 'Admin',
+    [OrganizationRole.Member]: 'Member',
+    [OrganizationRole.Viewer]: 'Viewer'
+};
 
 interface InviteMemberDialogProps{
     organizationId: number;
@@ -47,29 +58,36 @@ const InviteMemberDialog = ({ organizationId, onClose, onInvited }: InviteMember
     });
 
     return (
-        <Modal isOpen onOpenChange={(isOpen) => { if(!isOpen && !form.submitting) onClose(); }} title='Invite member'>
-            <Form form={form} className='flex flex-col gap-4'>
-                <Field form={form} name='email' label='Email' type='email' placeholder='teammate@quantum.dev' autoComplete='off' />
-
+        <SingleFieldDialog
+            isOpen
+            onOpenChange={(isOpen) => { if(!isOpen && !form.submitting) onClose(); }}
+            title='Invite member'
+            form={form}
+            fieldName='email'
+            fieldLabel='Email'
+            fieldType='email'
+            fieldPlaceholder='teammate@quantum.dev'
+            extra={(
                 <Field form={form} name='role'>
                     {(binding) => (
                         <div className='flex flex-col gap-1.5'>
                             <Label>Role</Label>
-                            <RoleSelect
+                            <EntitySelect
+                                items={ROLES}
+                                getKey={(role) => role}
+                                getLabel={(role) => ROLE_LABELS[role]}
                                 value={binding.value as OrganizationRole}
-                                onChange={binding.onChange}
+                                onChange={(key) => binding.onChange(key as OrganizationRole)}
+                                ariaLabel='Role'
                                 isDisabled={form.submitting}
                             />
                         </div>
                     )}
                 </Field>
-
-                <div className='flex justify-end gap-2'>
-                    <Button variant='secondary' isDisabled={form.submitting} onPress={onClose}>Cancel</Button>
-                    <Button type='submit' isPending={form.submitting}>Add member</Button>
-                </div>
-            </Form>
-        </Modal>
+            )}
+            submitLabel='Add member'
+            onCancel={onClose}
+        />
     );
 };
 
@@ -79,34 +97,18 @@ interface TeamHeaderProps{
 }
 
 const TeamHeader = ({ organizationName, onInvite }: TeamHeaderProps) => (
-    <div className='flex items-center justify-between gap-4'>
-        <div>
-            <h1 className='text-lg font-medium text-foreground'>Team</h1>
-            <p className='mt-1.5 text-sm text-muted'>
-                {organizationName !== null
-                    ? `Members of ${organizationName}.`
-                    : 'Manage who can access this organization.'}
-            </p>
-        </div>
-
-        <Button onPress={onInvite}>
-            <Plus aria-hidden='true' className='size-4' />
-            Invite member
-        </Button>
-    </div>
-);
-
-const MembersEmpty = ({ onInvite }: { onInvite: () => void }) => (
-    <EmptyState
-        icon={Users}
-        title='No members yet'
-        description='Invite an existing Quantum user to collaborate in this organization.'
-    >
-        <Button onPress={onInvite}>
-            <Plus aria-hidden='true' className='size-4' />
-            Invite member
-        </Button>
-    </EmptyState>
+    <PageHeader
+        title='Team'
+        description={organizationName !== null
+            ? `Members of ${organizationName}.`
+            : 'Manage who can access this organization.'}
+        actions={(
+            <Button onPress={onInvite}>
+                <Plus aria-hidden='true' className='size-4' />
+                Invite member
+            </Button>
+        )}
+    />
 );
 
 interface TeamRowProps{
@@ -127,11 +129,14 @@ const TeamRow = ({ member, isBusy, onRoleChange, onRemove }: TeamRowProps) => {
             </Table.Cell>
             <Table.Cell>{member.email}</Table.Cell>
             <Table.Cell>
-                <RoleSelect
+                <EntitySelect
+                    items={ROLES}
+                    getKey={(role) => role}
+                    getLabel={(role) => ROLE_LABELS[role]}
                     ariaLabel={`Role of ${member.username}`}
                     value={member.role}
+                    onChange={(key) => onRoleChange(key as OrganizationRole)}
                     isDisabled={isOwner || isBusy}
-                    onChange={onRoleChange}
                 />
             </Table.Cell>
             <Table.Cell>
@@ -148,34 +153,21 @@ interface RemoveMemberDialogProps{
     onRemoved: () => void;
 }
 
-const RemoveMemberDialog = ({ organizationId, member, onClose, onRemoved }: RemoveMemberDialogProps) => {
-    const removeMember = useMutation((memberId: number) => organizationApi.removeMember({ path: { orgId: organizationId, id: memberId } }));
-
-    const handleRemove = async () => {
-        if(member === null) return;
-
-        const removed = await removeMember.run(member.id).then(() => true, () => false);
-        if(!removed) return;
-
-        onClose();
-        onRemoved();
-    };
-
-    return (
-        <ConfirmDialog
-            isOpen={member !== null}
-            onOpenChange={(isOpen) => { if(!isOpen) onClose(); }}
-            title='Remove member'
-            description={member === null
-                ? ''
-                : `This removes ${member.username} from the organization. They will lose access to its projects.`}
-            confirmLabel='Remove'
-            isPending={removeMember.loading}
-            error={copy(removeMember.error)}
-            onConfirm={() => { void handleRemove(); }}
-        />
-    );
-};
+const RemoveMemberDialog = ({ organizationId, member, onClose, onRemoved }: RemoveMemberDialogProps) => (
+    <DeleteConfirmDialog
+        isOpen={member !== null}
+        title='Remove member'
+        description={member === null
+            ? ''
+            : `This removes ${member.username} from the organization. They will lose access to its projects.`}
+        confirmLabel='Remove'
+        entityId={member?.id ?? null}
+        remove={(memberId) => organizationApi.removeMember({ path: { orgId: organizationId, id: memberId } })}
+        getErrorMessage={copy}
+        onClose={onClose}
+        onRemoved={onRemoved}
+    />
+);
 
 interface TeamTableProps{
     organizationId: number;
@@ -240,15 +232,17 @@ const Team = () => {
     });
     const [inviteOpen, setInviteOpen] = useState(false);
 
-    if(organizationId === null) return <CenterState className='h-full'><LoadingState title='Loading team' compact /></CenterState>;
-    if(members.loading){
-        return <CenterState className='h-full'><LoadingState title='Loading team members' compact /></CenterState>;
-    }
-    if(members.error !== undefined){
+    if(organizationId === null || members.loading || members.error !== undefined){
         return (
-            <CenterState className='h-full'>
-                <ErrorState title='Could not load team members' description={copy(members.error)} onRetry={members.refresh} />
-            </CenterState>
+            <ListPageShell
+                fill
+                loading={organizationId === null || members.loading}
+                loadingTitle={organizationId === null ? 'Loading team' : 'Loading team members'}
+                error={organizationId === null ? undefined : members.error}
+                errorTitle='Could not load team members'
+                getErrorDescription={copy}
+                onRetry={members.refresh}
+            />
         );
     }
 
@@ -259,11 +253,26 @@ const Team = () => {
             <TeamHeader organizationName={current?.name ?? null} onInvite={() => setInviteOpen(true)} />
 
             <div className='mt-6 flex flex-1 flex-col'>
-                {items.length === 0 ? (
-                    <CenterState><MembersEmpty onInvite={() => setInviteOpen(true)} /></CenterState>
-                ) : (
+                <ListPageShell
+                    loadingTitle='Loading team members'
+                    errorTitle='Could not load team members'
+                    getErrorDescription={copy}
+                    onRetry={members.refresh}
+                    isEmpty={items.length === 0}
+                    empty={{
+                        icon: Users,
+                        title: 'No members yet',
+                        description: 'Invite an existing Quantum user to collaborate in this organization.',
+                        action: (
+                            <Button onPress={() => setInviteOpen(true)}>
+                                <Plus aria-hidden='true' className='size-4' />
+                                Invite member
+                            </Button>
+                        )
+                    }}
+                >
                     <TeamTable organizationId={organizationId} members={items} onChanged={members.refresh} />
-                )}
+                </ListPageShell>
             </div>
 
             {inviteOpen && (

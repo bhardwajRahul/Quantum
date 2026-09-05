@@ -2,10 +2,8 @@ import { useState } from 'react';
 import { Button, ListBox, ListBoxItem, Select } from '@heroui/react';
 import { Boxes, Plus } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
-import LoadingState from '@/shared/components/LoadingState';
-import ErrorState from '@/shared/components/ErrorState';
-import EmptyState from '@/shared/components/EmptyState';
-import CenterState from '@/shared/components/CenterState';
+import PageHeader from '@/shared/components/layout/PageHeader';
+import ListPageShell from '@/shared/components/ListPageShell';
 import InstallTemplateDialog from '@/modules/template/components/InstallTemplateDialog';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { useResource } from '@/shared/hooks/api/use-resource';
@@ -26,13 +24,10 @@ interface TemplatesHeaderProps{
 }
 
 const TemplatesHeader = ({ categories, category, onCategoryChange }: TemplatesHeaderProps) => (
-    <div className='flex items-center justify-between gap-4'>
-        <div>
-            <h1 className='text-lg font-medium text-foreground'>Templates</h1>
-            <p className='mt-1.5 text-sm text-muted'>Install a pre-configured service into one of your projects.</p>
-        </div>
-
-        {categories.length > 0 && (
+    <PageHeader
+        title='Templates'
+        description='Install a pre-configured service into one of your projects.'
+        filter={categories.length > 0 && (
             <div className='w-48'>
                 <Select
                     aria-label='Category'
@@ -55,7 +50,7 @@ const TemplatesHeader = ({ categories, category, onCategoryChange }: TemplatesHe
                 </Select>
             </div>
         )}
-    </div>
+    />
 );
 
 interface TemplateCardProps{
@@ -87,16 +82,17 @@ const Templates = () => {
     const templates = useResource(templateRoutes, { list: 'list' });
     const [installTarget, setInstallTarget] = useState<Template | null>(null);
 
-    if(templates.loading) return <CenterState className='h-full'><LoadingState title='Loading templates' compact /></CenterState>;
-    if(templates.error !== undefined){
+    if(templates.loading || templates.error !== undefined){
         return (
-            <CenterState className='h-full'>
-                <ErrorState
-                    title='Could not load templates'
-                    description={copy(templates.error)}
-                    onRetry={templates.refresh}
-                />
-            </CenterState>
+            <ListPageShell
+                fill
+                loading={templates.loading}
+                loadingTitle='Loading templates'
+                error={templates.error}
+                errorTitle='Could not load templates'
+                getErrorDescription={copy}
+                onRetry={templates.refresh}
+            />
         );
     }
 
@@ -111,15 +107,18 @@ const Templates = () => {
             />
 
             <div className='mt-6 flex flex-1 flex-col'>
-                {items.length === 0 ? (
-                    <CenterState>
-                        <EmptyState
-                            icon={Boxes}
-                            title='No templates yet'
-                            description='There are no templates available for this filter.'
-                        />
-                    </CenterState>
-                ) : (
+                <ListPageShell
+                    loadingTitle='Loading templates'
+                    errorTitle='Could not load templates'
+                    getErrorDescription={copy}
+                    onRetry={templates.refresh}
+                    isEmpty={items.length === 0}
+                    empty={{
+                        icon: Boxes,
+                        title: 'No templates yet',
+                        description: 'There are no templates available for this filter.'
+                    }}
+                >
                     <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'>
                         {items.map((template) => (
                             <TemplateCard
@@ -129,7 +128,7 @@ const Templates = () => {
                             />
                         ))}
                     </div>
-                )}
+                </ListPageShell>
             </div>
 
             <InstallTemplateDialog

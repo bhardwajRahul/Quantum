@@ -1,8 +1,5 @@
-import { Button } from '@heroui/react';
 import typia from 'typia';
-import Modal from '@/shared/components/Modal';
-import Form from '@/shared/components/forms/Form';
-import Field from '@/shared/components/forms/Field';
+import SingleFieldDialog from '@/shared/components/SingleFieldDialog';
 import { useForm } from '@/shared/hooks/forms/use-form';
 import { codespaceApi } from '@/modules/codespace/api/api';
 import { codespaceErrorMessages } from '@/modules/codespace/utils/error-messages';
@@ -28,20 +25,19 @@ const CreateCodespaceDialog = ({ projectId, isOpen, onClose, onCreated }: Create
     });
 
     return (
-        <Modal isOpen={isOpen} onOpenChange={(open) => { if(!open && !form.submitting) onClose(false); }} title='New codespace'>
-            <Form form={form} className='flex flex-col gap-4'>
-                <p className='text-[0.875rem] text-muted'>Spin up a cloud dev environment for this project.</p>
-
-                <Field form={form} name='name' label='Name' placeholder='my-codespace' autoComplete='off' />
-
-                <div className='flex justify-end gap-2'>
-                    <Button variant='secondary' isDisabled={form.submitting} onPress={() => onClose(false)}>
-                        Cancel
-                    </Button>
-                    <Button type='submit' isPending={form.submitting} isDisabled={!form.isValid}>Create</Button>
-                </div>
-            </Form>
-        </Modal>
+        <SingleFieldDialog
+            isOpen={isOpen}
+            onOpenChange={(open) => { if(!open && !form.submitting) onClose(false); }}
+            title='New codespace'
+            description='Spin up a cloud dev environment for this project.'
+            form={form}
+            fieldName='name'
+            fieldLabel='Name'
+            fieldPlaceholder='my-codespace'
+            submitLabel='Create'
+            submitDisabled={!form.isValid}
+            onCancel={() => onClose(false)}
+        />
     );
 };
 

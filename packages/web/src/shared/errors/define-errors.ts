@@ -1,6 +1,7 @@
 import { ClientError } from '@/shared/errors/ClientError';
 import type { ErrorTable } from '@quantum/contracts/shared/errors';
-import type { ClientErrorFactory } from '@/shared/contracts/errors';
+
+export type ClientErrorFactory = (detail?: string) => ClientError;
 
 export const defineErrors = <T extends ErrorTable>({ domain, causes }: T): Record<keyof T['causes'], ClientErrorFactory> => {
     const factories = {} as Record<keyof T['causes'], ClientErrorFactory>;

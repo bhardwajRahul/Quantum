@@ -2,13 +2,11 @@ import { useState } from 'react';
 import { ListBox, ListBoxItem, Select } from '@heroui/react';
 import { Activity } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
-import LoadingState from '@/shared/components/LoadingState';
-import ErrorState from '@/shared/components/ErrorState';
-import EmptyState from '@/shared/components/EmptyState';
-import CenterState from '@/shared/components/CenterState';
+import PageHeader from '@/shared/components/layout/PageHeader';
+import ListPageShell from '@/shared/components/ListPageShell';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { dockerApi } from '@/modules/docker/api/api';
-import { formatBytes } from '@/modules/docker/utils/format';
+import { formatBytes } from '@/shared/utils/format-bytes';
 import type { NetworkUsageStat, ResourceUsageStat } from '@quantum/contracts/modules/docker/domain';
 
 interface TimeWindow{
@@ -53,14 +51,11 @@ interface UsageHeaderProps{
 }
 
 const UsageHeader = ({ minutes, onChangeWindow }: UsageHeaderProps) => (
-    <div className='flex items-center justify-between gap-4'>
-        <div>
-            <h1 className='text-lg font-medium text-foreground'>Usage</h1>
-            <p className='mt-1.5 text-sm text-muted'>Network and resource usage across your projects.</p>
-        </div>
-
-        <WindowSelect value={minutes} onChange={onChangeWindow} />
-    </div>
+    <PageHeader
+        title='Usage'
+        description='Network and resource usage across your projects.'
+        filter={<WindowSelect value={minutes} onChange={onChangeWindow} />}
+    />
 );
 
 interface NetworkBarProps{
@@ -162,20 +157,17 @@ const Usage = () => {
     const network = useQuery((query: { minutes?: number }) => dockerApi.networkUsage({ query }), [{ minutes }]);
     const resources = useQuery((query: { minutes?: number }) => dockerApi.resourceUsage({ query }), [{ minutes }]);
 
-    if(network.loading || resources.loading){
-        return <CenterState className='h-full'><LoadingState title='Loading usage' compact /></CenterState>;
-    }
-
-    const error = network.error ?? resources.error;
-    if(error !== undefined){
+    if(network.loading || resources.loading || network.error !== undefined || resources.error !== undefined){
         return (
-            <CenterState className='h-full'>
-                <ErrorState
-                    title='Could not load usage'
-                    description='Something went wrong loading usage data. Please try again.'
-                    onRetry={() => { network.reload(); resources.reload(); }}
-                />
-            </CenterState>
+            <ListPageShell
+                fill
+                loading={network.loading || resources.loading}
+                loadingTitle='Loading usage'
+                error={network.error ?? resources.error}
+                errorTitle='Could not load usage'
+                getErrorDescription={() => 'Something went wrong loading usage data. Please try again.'}
+                onRetry={() => { network.reload(); resources.reload(); }}
+            />
         );
     }
 
@@ -187,20 +179,23 @@ const Usage = () => {
             <UsageHeader minutes={minutes} onChangeWindow={setMinutes} />
 
             <div className='mt-6 flex flex-1 flex-col'>
-                {networkStats.length === 0 && resourceStats.length === 0 ? (
-                    <CenterState>
-                        <EmptyState
-                            icon={Activity}
-                            title='No usage yet'
-                            description='Usage data will appear here once your projects have running containers.'
-                        />
-                    </CenterState>
-                ) : (
+                <ListPageShell
+                    loadingTitle='Loading usage'
+                    errorTitle='Could not load usage'
+                    getErrorDescription={() => 'Something went wrong loading usage data. Please try again.'}
+                    onRetry={() => { network.reload(); resources.reload(); }}
+                    isEmpty={networkStats.length === 0 && resourceStats.length === 0}
+                    empty={{
+                        icon: Activity,
+                        title: 'No usage yet',
+                        description: 'Usage data will appear here once your projects have running containers.'
+                    }}
+                >
                     <div className='flex flex-col gap-6'>
                         {networkStats.length > 0 && <NetworkUsageSection stats={networkStats} />}
                         {resourceStats.length > 0 && <ResourceUsageSection stats={resourceStats} />}
                     </div>
-                )}
+                </ListPageShell>
             </div>
         </PageBody>
     );

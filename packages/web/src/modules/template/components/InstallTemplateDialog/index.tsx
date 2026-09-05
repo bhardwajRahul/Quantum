@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button, FieldError, Input, Label, ListBox, ListBoxItem, Select, TextField } from '@heroui/react';
 import Modal from '@/shared/components/Modal';
 import InlineError from '@/shared/components/InlineError';
-import ProjectSelect from '@/modules/template/components/ProjectSelect';
+import EntitySelect from '@/shared/components/EntitySelect';
 import { useResource } from '@/shared/hooks/api/use-resource';
 import { useMutation } from '@/shared/hooks/api/use-mutation';
 import { templateApi } from '@/modules/template/api/api';
@@ -100,10 +100,14 @@ const InstallTemplateDialog = ({ template, onClose, onInstalled }: InstallTempla
 
                 <div className='flex flex-col gap-1.5'>
                     <Label>Project</Label>
-                    <ProjectSelect
-                        projects={projects.data ?? []}
+                    <EntitySelect
+                        items={projects.data ?? []}
+                        getKey={(project) => project.id}
+                        getLabel={(project) => project.name}
                         value={projectId}
-                        onChange={selectProject}
+                        onChange={(key) => selectProject(Number(key))}
+                        placeholder='Select a project'
+                        ariaLabel='Project'
                         isDisabled={install.loading || projects.loading}
                     />
                 </div>

@@ -3,7 +3,6 @@ import { useParams } from 'react-router-dom';
 import { Button, Input, Label, TextField } from '@heroui/react';
 import { KeyRound, Plus, Rocket, Save, Trash2 } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
-import LoadingState from '@/shared/components/LoadingState';
 import ErrorState from '@/shared/components/ErrorState';
 import EmptyState from '@/shared/components/EmptyState';
 import CenterState from '@/shared/components/CenterState';
@@ -171,7 +170,7 @@ const EnvironmentVariables = () => {
     const environment = useQuery((repositoryId: number) => deploymentApi.environment({ path: { repositoryId } }), [id]);
 
     if(id === undefined || environment.loading){
-        return <CenterState className='h-full'><LoadingState title='Loading environment variables' compact /></CenterState>;
+        return <CenterState className='h-full'><EmptyState title='Loading environment variables' compact /></CenterState>;
     }
 
     if(environment.error !== undefined){

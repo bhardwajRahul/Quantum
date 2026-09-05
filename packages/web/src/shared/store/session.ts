@@ -1,15 +1,24 @@
 import { create } from 'zustand';
-import type { SessionState } from '@/shared/contracts/routing/session';
-import { readToken, writeToken } from '@/shared/utils/session';
+import { createPersistentStore } from '@/shared/store/persistent';
+
+export interface SessionState{
+    token: string | null;
+    setToken: (token: string | null) => void;
+    clear: () => void;
+}
+
+const storage = createPersistentStore<string>('quantum.session', (token) => token, (stored) => stored);
 
 export const useSessionStore = create<SessionState>((set) => ({
-    token: readToken(),
+    token: storage.read(),
     setToken: (token) => {
-        writeToken(token);
+        storage.write(token);
         set({ token });
     },
     clear: () => {
-        writeToken(null);
+        storage.write(null);
         set({ token: null });
     }
 }));
+
+storage.subscribe((token) => useSessionStore.setState({ token }));

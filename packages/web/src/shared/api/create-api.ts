@@ -1,6 +1,6 @@
 import { call } from '@/shared/api/call';
 import type { CallOptions, PathValues } from '@/shared/contracts/api';
-import type { Endpoint, InputOf, OutputOf, HttpMethod } from '@quantum/contracts/shared/routing';
+import type { Endpoint, InputOf, OutputOf } from '@quantum/contracts/shared/routing';
 
 export interface EndpointTable{
     [name: string]: Endpoint<never, unknown>;
@@ -53,5 +53,3 @@ export const segmentOf = (routes: EndpointTable): string => {
 
     throw new Error('createApi could not derive a segment from the route table');
 };
-
-export const isWrite = (method: HttpMethod): boolean => method !== 'GET';

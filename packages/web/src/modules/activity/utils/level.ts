@@ -1,15 +1,14 @@
 import { ActivityLevel } from '@quantum/contracts/modules/activity/domain';
-import type { ChipVariants } from '@heroui/react';
+import { makeStatusMeta, type StatusColor } from '@/shared/utils/status';
 
-const LEVEL_COPY: Record<ActivityLevel, { label: string; color: NonNullable<ChipVariants['color']> }> = {
+const meta = makeStatusMeta<ActivityLevel, StatusColor>({
     [ActivityLevel.Info]: { label: 'Info', color: 'default' },
     [ActivityLevel.Success]: { label: 'Success', color: 'success' },
     [ActivityLevel.Progress]: { label: 'In progress', color: 'warning' },
     [ActivityLevel.Warn]: { label: 'Warning', color: 'warning' },
     [ActivityLevel.Error]: { label: 'Error', color: 'danger' }
-};
+});
 
-export const activityLevelLabel = (level: ActivityLevel): string => LEVEL_COPY[level].label;
+export const activityLevelLabel = meta.label;
 
-export const activityLevelColor = (level: ActivityLevel): NonNullable<ChipVariants['color']> =>
-    LEVEL_COPY[level].color;
+export const activityLevelColor = meta.color;

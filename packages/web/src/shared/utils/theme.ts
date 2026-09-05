@@ -1,4 +1,4 @@
-import type { Theme } from '@/shared/contracts/theme';
+export type Theme = 'light' | 'dark';
 
 const STORAGE_KEY = 'quantum.theme';
 

@@ -3,13 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Card, Chip, Input, Label, ListBox, ListBoxItem, Select, TextField } from '@heroui/react';
 import { FolderGit2, Search } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
-import LoadingState from '@/shared/components/LoadingState';
 import ErrorState from '@/shared/components/ErrorState';
 import EmptyState from '@/shared/components/EmptyState';
 import CenterState from '@/shared/components/CenterState';
 import Form from '@/shared/components/forms/Form';
 import Field from '@/shared/components/forms/Field';
-import ProjectSelect from '@/modules/repository/components/ProjectSelect';
+import EntitySelect from '@/shared/components/EntitySelect';
 import { useForm } from '@/shared/hooks/forms/use-form';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { useResource } from '@/shared/hooks/api/use-resource';
@@ -196,10 +195,14 @@ const RepositoryConfigFields = ({ repository, detection, projects, onBack }: Rep
                         {(binding) => (
                             <div className='flex flex-col gap-1.5'>
                                 <Label>Project</Label>
-                                <ProjectSelect
-                                    projects={projects}
+                                <EntitySelect
+                                    items={projects}
+                                    getKey={(project) => project.id}
+                                    getLabel={(project) => project.name}
                                     value={(binding.value as number) === 0 ? null : (binding.value as number)}
-                                    onChange={(projectId) => binding.onChange(projectId)}
+                                    onChange={(key) => binding.onChange(Number(key))}
+                                    placeholder='Select a project'
+                                    ariaLabel='Project'
                                 />
                             </div>
                         )}
@@ -299,7 +302,7 @@ const RepositoryConfigForm = ({ repository, onBack }: RepositoryConfigFormProps)
     const detection = useQuery((owner: string, repo: string) => githubApi.detect({ path: { owner, repo } }), [repository.owner, repository.name]);
 
     if(projects.loading || detection.loading){
-        return <CenterState className='h-full'><LoadingState title='Preparing repository setup' compact /></CenterState>;
+        return <CenterState className='h-full'><EmptyState title='Preparing repository setup' compact /></CenterState>;
     }
 
     if(projects.error !== undefined){
@@ -330,7 +333,7 @@ const RepositoryCreateFlow = () => {
     const [selected, setSelected] = useState<GithubRepository | null>(null);
 
     if(repositories.loading){
-        return <CenterState className='h-full'><LoadingState title='Loading GitHub repositories' compact /></CenterState>;
+        return <CenterState className='h-full'><EmptyState title='Loading GitHub repositories' compact /></CenterState>;
     }
 
     if(repositories.error !== undefined){
@@ -364,7 +367,7 @@ const CreateRepository = () => {
 
             <div className='mt-6 flex flex-1 flex-col'>
                 {account.loading ? (
-                    <CenterState><LoadingState title='Checking GitHub connection' compact /></CenterState>
+                    <CenterState><EmptyState title='Checking GitHub connection' compact /></CenterState>
                 ) : account.error !== undefined ? (
                     <CenterState><ConnectGithubPrompt /></CenterState>
                 ) : (

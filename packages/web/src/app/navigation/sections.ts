@@ -1,4 +1,3 @@
-import { matchPath } from 'react-router-dom';
 import {
     Activity,
     AppWindow,
@@ -27,8 +26,3 @@ export const sections: NavSection[] = [
     { label: 'Events', to: '/events', icon: ScrollText },
     { label: 'Settings', to: '/settings/organization', icon: Settings }
 ];
-
-export const sectionFor = (pathname: string): NavSection | null => {
-    return sections.find((section) => matchPath({ path: section.to, end: false }, pathname) !== null)
-        ?? null;
-};

@@ -4,7 +4,7 @@ import typia from 'typia';
 import Modal from '@/shared/components/Modal';
 import Form from '@/shared/components/forms/Form';
 import Field from '@/shared/components/forms/Field';
-import LoadingState from '@/shared/components/LoadingState';
+import EmptyState from '@/shared/components/EmptyState';
 import InlineError from '@/shared/components/InlineError';
 import { useForm } from '@/shared/hooks/forms/use-form';
 import { useResource } from '@/shared/hooks/api/use-resource';
@@ -112,7 +112,7 @@ const ManageEnvironmentsDialog = ({ project, onClose }: ManageEnvironmentsDialog
                     Environments isolate deployments (production, staging, preview) within this project.
                 </p>
 
-                {environments.loading && <LoadingState title='Loading environments' compact />}
+                {environments.loading && <EmptyState title='Loading environments' compact />}
 
                 {!environments.loading && environments.error !== undefined && (
                     <div className='flex flex-col gap-2'>

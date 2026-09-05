@@ -1,13 +1,13 @@
 import { Link as RouterLink } from 'react-router-dom';
 import { useSession } from '@/modules/auth/hooks/use-session';
 import PageBody from '@/shared/components/layout/PageBody';
-import LoadingState from '@/shared/components/LoadingState';
+import EmptyState from '@/shared/components/EmptyState';
 
 const Account = () => {
     const { user } = useSession();
 
     if(user === null){
-        return <LoadingState title='Loading your account' compact />;
+        return <EmptyState title='Loading your account' compact />;
     }
 
     return (

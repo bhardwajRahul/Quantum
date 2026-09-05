@@ -4,12 +4,11 @@ import { Button, Card } from '@heroui/react';
 import { Trash2 } from 'lucide-react';
 import typia from 'typia';
 import PageBody from '@/shared/components/layout/PageBody';
-import LoadingState from '@/shared/components/LoadingState';
-import ConfirmDialog from '@/shared/components/ConfirmDialog';
+import EmptyState from '@/shared/components/EmptyState';
+import DeleteConfirmDialog from '@/shared/components/DeleteConfirmDialog';
 import Form from '@/shared/components/forms/Form';
 import Field from '@/shared/components/forms/Field';
 import { useForm } from '@/shared/hooks/forms/use-form';
-import { useMutation } from '@/shared/hooks/api/use-mutation';
 import { useTenancy } from '@/modules/organization/hooks/use-tenancy';
 import { organizationApi } from '@/modules/organization/api/api';
 import { tenancyErrorMessages } from '@/modules/organization/utils/error-messages';
@@ -87,36 +86,25 @@ interface DeleteOrganizationDialogProps{
     organization: Organization;
     isOpen: boolean;
     onClose: (isOpen: boolean) => void;
+    onRemoved: () => void;
 }
 
-const DeleteOrganizationDialog = ({ organization, isOpen, onClose }: DeleteOrganizationDialogProps) => {
-    const clearTenant = useTenantStore((state) => state.clear);
-    const navigate = useNavigate();
-    const remove = useMutation((organizationId: number) => organizationApi.remove({ path: { id: organizationId } }));
-
-    const handleDelete = async () => {
-        const deleted = await remove.run(organization.id).then(() => true, () => false);
-        if(!deleted) return;
-
-        clearTenant();
-        navigate('/dashboard');
-    };
-
-    return (
-        <ConfirmDialog
-            isOpen={isOpen}
-            onOpenChange={onClose}
-            title='Delete organization'
-            description={`This permanently removes ${organization.name} and everything inside it. This action cannot be undone.`}
-            confirmLabel='Delete'
-            isPending={remove.loading}
-            error={copy(remove.error)}
-            onConfirm={() => { void handleDelete(); }}
-        />
-    );
-};
+const DeleteOrganizationDialog = ({ organization, isOpen, onClose, onRemoved }: DeleteOrganizationDialogProps) => (
+    <DeleteConfirmDialog
+        isOpen={isOpen}
+        title='Delete organization'
+        description={`This permanently removes ${organization.name} and everything inside it. This action cannot be undone.`}
+        entityId={organization.id}
+        remove={(organizationId) => organizationApi.remove({ path: { id: organizationId } })}
+        getErrorMessage={copy}
+        onClose={() => onClose(false)}
+        onRemoved={onRemoved}
+    />
+);
 
 const DangerZone = ({ organization }: { organization: Organization }) => {
+    const clearTenant = useTenantStore((state) => state.clear);
+    const navigate = useNavigate();
     const [deleteOpen, setDeleteOpen] = useState(false);
 
     return (
@@ -136,7 +124,12 @@ const DangerZone = ({ organization }: { organization: Organization }) => {
                 </Button>
             </Card.Content>
 
-            <DeleteOrganizationDialog organization={organization} isOpen={deleteOpen} onClose={setDeleteOpen} />
+            <DeleteOrganizationDialog
+                organization={organization}
+                isOpen={deleteOpen}
+                onClose={setDeleteOpen}
+                onRemoved={() => { clearTenant(); navigate('/dashboard'); }}
+            />
         </Card>
     );
 };
@@ -144,7 +137,7 @@ const DangerZone = ({ organization }: { organization: Organization }) => {
 const OrganizationSettings = () => {
     const { current, reload } = useTenancy();
 
-    if(current === null) return <LoadingState title='Loading organization' compact />;
+    if(current === null) return <EmptyState title='Loading organization' compact />;
 
     return (
         <PageBody>

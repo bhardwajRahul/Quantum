@@ -56,7 +56,7 @@ export function useResource<T extends EndpointTable, L extends ListNames<T>>(
         return requestJson === null ? [segment, list] : [segment, list, JSON.parse(requestJson) as unknown];
     }, [disabled, segment, list, requestJson]);
 
-    useRegisteredLoader(key, key === null ? null : (force) => (api[list] as (request?: object) => Promise<unknown>)(force ? { ...(request ?? {}), fresh: true } : { ...(request ?? {}) }));
+    useRegisteredLoader(key, key === null ? null : (force) => (api[list] as (request?: object) => Promise<unknown>)(force ? { ...request, fresh: true } : { ...request }));
 
     useEffect(() => {
         if(key === null) return;

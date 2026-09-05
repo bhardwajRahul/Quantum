@@ -23,12 +23,15 @@ import InlineError from '@/shared/components/InlineError';
 import { Dropdown } from '@heroui/react';
 import ProjectSelect from '@/modules/application/components/ProjectSelect';
 import { useQuery } from '@/shared/hooks/api/use-query';
+import { useResource } from '@/shared/hooks/api/use-resource';
 import { useMutation } from '@/shared/hooks/api/use-mutation';
 import { usePolledQuery } from '@/shared/hooks/api/use-polled-query';
 import { repositoryApi } from '@/modules/repository/api/api';
 import { databaseApi } from '@/modules/database/api/api';
 import { templateInstallApi } from '@/modules/template/api/api';
-import { projectApi } from '@/modules/application/api/projects';
+import { projectRoutes } from '@quantum/contracts/modules/project/routes';
+import { repositoryRoutes } from '@quantum/contracts/modules/repository/routes';
+import { templateInstallRoutes } from '@quantum/contracts/modules/template/routes';
 import { useCurrentOrganizationId } from '@/modules/organization/hooks/use-current-organization-id';
 import { databaseStatusColor, databaseStatusLabel, isDatabaseTransient } from '@/modules/application/utils/status';
 import { formatDate } from '@/modules/application/utils/format-date';
@@ -596,17 +599,23 @@ const UninstallDialog = ({ install, onClose, onRemoved }: UninstallDialogProps) 
 const Applications = () => {
     const navigate = useNavigate();
     const organizationId = useCurrentOrganizationId();
-    const projects = useQuery(projectApi.listByOrganization, [organizationId ?? undefined]);
+    const projects = useResource(projectRoutes, {
+        list: 'listByOrganization',
+        request: organizationId === null ? null : { path: { orgId: organizationId } }
+    });
     const [projectId, setProjectId] = useState<number | null>(null);
     const [search, setSearch] = useState('');
 
-    const repositoriesQuery = useQuery(repositoryApi.mine);
+    const repositoriesQuery = useResource(repositoryRoutes, { list: 'mine' });
     const databasesQuery = useQuery((databasesProjectId: number) => databaseApi.listByProject({ path: { projectId: databasesProjectId } }), [projectId ?? undefined], { enabled: projectId !== null });
     const databases = usePolledQuery(databasesQuery, {
         while: (data) => data.some((database) => isDatabaseTransient(database.status)),
         everyMs: 5000
     });
-    const installsQuery = useQuery((installProjectId: number) => templateInstallApi.listByProject({ path: { projectId: installProjectId } }), [projectId ?? undefined], { enabled: projectId !== null });
+    const installsQuery = useResource(templateInstallRoutes, {
+        list: 'listByProject',
+        request: projectId === null ? null : { path: { projectId } }
+    });
 
     const [createDatabaseOpen, setCreateDatabaseOpen] = useState(false);
     const [deleteAppTarget, setDeleteAppTarget] = useState<Repository | null>(null);
@@ -628,7 +637,7 @@ const Applications = () => {
     if(projects.error !== undefined){
         return (
             <CenterState className='h-full'>
-                <ErrorState title='Could not load projects' description={copy(projects.error)} onRetry={projects.reload} />
+                <ErrorState title='Could not load projects' description={copy(projects.error)} onRetry={projects.refresh} />
             </CenterState>
         );
     }
@@ -639,7 +648,7 @@ const Applications = () => {
                 <ErrorState
                     title='Could not load applications'
                     description={copy(repositoriesQuery.error)}
-                    onRetry={repositoriesQuery.reload}
+                    onRetry={repositoriesQuery.refresh}
                 />
             </CenterState>
         );
@@ -723,7 +732,7 @@ const Applications = () => {
             <DeleteApplicationDialog
                 repository={deleteAppTarget}
                 onClose={() => setDeleteAppTarget(null)}
-                onRemoved={repositoriesQuery.reload}
+                onRemoved={repositoriesQuery.refresh}
             />
 
             <ConnectionStringDialog
@@ -747,7 +756,7 @@ const Applications = () => {
             <UninstallDialog
                 install={uninstallTarget}
                 onClose={() => setUninstallTarget(null)}
-                onRemoved={installsQuery.reload}
+                onRemoved={installsQuery.refresh}
             />
         </PageBody>
     );

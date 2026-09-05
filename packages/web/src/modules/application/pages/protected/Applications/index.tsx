@@ -292,7 +292,7 @@ const CreateDatabaseDialog = ({ projectId, isOpen, onClose, onCreated }: CreateD
     const [engine, setEngine] = useState<DatabaseEngine>(DatabaseEngine.Postgres);
     const [version, setVersion] = useState('');
     const create = useMutation((targetProjectId: number, body: CreateDatabaseInput) =>
-        databaseApi.create(targetProjectId, body));
+        databaseApi.create({ path: { projectId: targetProjectId }, body }));
 
     const reset = () => {
         setName('');
@@ -411,7 +411,7 @@ interface ConnectionStringDialogProps{
 }
 
 const ConnectionStringDialog = ({ database, onClose }: ConnectionStringDialogProps) => {
-    const connectionString = useQuery(databaseApi.connectionString, [database?.id], { enabled: database !== null });
+    const connectionString = useQuery((connectionStringId: number) => databaseApi.connectionString({ path: { id: connectionStringId } }), [database?.id], { enabled: database !== null });
 
     return (
         <Modal
@@ -449,7 +449,7 @@ interface RestoreDatabaseDialogProps{
 
 const RestoreDatabaseDialog = ({ database, onClose, onRestored }: RestoreDatabaseDialogProps) => {
     const [backupId, setBackupId] = useState<string | null>(null);
-    const restore = useMutation((id: number, backup: string) => databaseApi.restore(id, { backupId: backup }));
+    const restore = useMutation((id: number, backup: string) => databaseApi.restore({ path: { id }, body: { backupId: backup } }));
 
     const backups = database?.backups ?? [];
 
@@ -530,7 +530,7 @@ interface DeleteDatabaseDialogProps{
 }
 
 const DeleteDatabaseDialog = ({ database, onClose, onRemoved }: DeleteDatabaseDialogProps) => {
-    const remove = useMutation((id: number) => databaseApi.remove(id));
+    const remove = useMutation((id: number) => databaseApi.remove({ path: { id } }));
 
     const handleRemove = async () => {
         if(database === null) return;
@@ -601,7 +601,7 @@ const Applications = () => {
     const [search, setSearch] = useState('');
 
     const repositoriesQuery = useQuery(repositoryApi.mine);
-    const databasesQuery = useQuery(databaseApi.listByProject, [projectId ?? undefined], { enabled: projectId !== null });
+    const databasesQuery = useQuery((databasesProjectId: number) => databaseApi.listByProject({ path: { projectId: databasesProjectId } }), [projectId ?? undefined], { enabled: projectId !== null });
     const databases = usePolledQuery(databasesQuery, {
         while: (data) => data.some((database) => isDatabaseTransient(database.status)),
         everyMs: 5000
@@ -615,7 +615,7 @@ const Applications = () => {
     const [deleteDatabaseTarget, setDeleteDatabaseTarget] = useState<Database | null>(null);
     const [uninstallTarget, setUninstallTarget] = useState<TemplateInstall | null>(null);
 
-    const backup = useMutation((id: number) => databaseApi.backup(id));
+    const backup = useMutation((id: number) => databaseApi.backup({ path: { id } }));
 
     const handleBackup = async (database: Database) => {
         await backup.run(database.id).then(() => databases.reload(), () => undefined);

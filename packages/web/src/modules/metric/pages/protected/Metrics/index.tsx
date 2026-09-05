@@ -10,7 +10,7 @@ import RepositorySelect from '@/modules/metric/components/RepositorySelect';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { usePolledQuery } from '@/shared/hooks/api/use-polled-query';
 import { metricApi } from '@/modules/metric/api/api';
-import { repositoryApi } from '@/modules/metric/api/repositories';
+import { repositoryApi } from '@/modules/repository/api/api';
 import type { Metric } from '@quantum/contracts/modules/metric/domain';
 
 const BYTE_UNITS = ['KB', 'MB', 'GB', 'TB'];
@@ -75,7 +75,8 @@ const Metrics = () => {
 
     const metrics = usePolledQuery(
         useQuery(
-            metricApi.byRepository,
+            (metricRepositoryId: number, query: { limit?: number }) =>
+                metricApi.byRepository({ path: { repositoryId: metricRepositoryId }, query }),
             [repositoryId ?? undefined, { limit: 60 }],
             { enabled: repositoryId !== null }
         ),

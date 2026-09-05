@@ -193,15 +193,15 @@ const WebAnalytics = () => {
     const [minutes, setMinutes] = useState(1440);
 
     const summary = usePolledQuery(
-        useQuery(analyticsApi.summary, [{ minutes, domainId: undefined }]),
+        useQuery((query: { minutes?: number; domainId?: number }) => analyticsApi.summary({ query }), [{ minutes, domainId: undefined }]),
         { while: (data) => data !== null, everyMs: 15000 }
     );
     const top = usePolledQuery(
-        useQuery(analyticsApi.top, [{ minutes, domainId: undefined }]),
+        useQuery((query: { minutes?: number; domainId?: number }) => analyticsApi.top({ query }), [{ minutes, domainId: undefined }]),
         { while: (data) => data !== null, everyMs: 15000 }
     );
     const domains = usePolledQuery(
-        useQuery(analyticsApi.domains, [{ minutes, domainId: undefined }]),
+        useQuery((query: { minutes?: number; domainId?: number }) => analyticsApi.domains({ query }), [{ minutes, domainId: undefined }]),
         { while: (data) => data !== null, everyMs: 15000 }
     );
 

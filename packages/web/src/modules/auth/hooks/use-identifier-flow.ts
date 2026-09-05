@@ -32,18 +32,18 @@ export const useIdentifierFlow = (): IdentifierFlow => {
         initialValues: { username: '', fullname: '', email: '', password: '', passwordConfirm: '' },
         onSubmit: async (values) => {
             if(step === 'email'){
-                const { exists } = await authApi.checkEmail(values.email);
+                const { exists } = await authApi.checkEmail({ query: { email: values.email } });
                 setStep(exists ? 'password' : 'signup');
                 return;
             }
 
             if(step === 'password'){
-                const session = await authApi.signIn({ email: values.email, password: values.password });
+                const session = await authApi.signIn({ body: { email: values.email, password: values.password } });
                 setToken(session.token);
                 return;
             }
 
-            const session = await authApi.signUp(values);
+            const session = await authApi.signUp({ body: values });
             setToken(session.token);
         }
     });

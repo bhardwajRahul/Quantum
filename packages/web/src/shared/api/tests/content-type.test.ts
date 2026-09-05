@@ -39,7 +39,7 @@ describe('outgoing content type', () => {
     });
 
     it('still sends it when there is a body', async () => {
-        await authApi.signIn({ email: 'rody@quantum.dev', password: 'secret-password' });
+        await authApi.signIn({ body: { email: 'rody@quantum.dev', password: 'secret-password' } });
 
         expect(captured[0]?.method).toBe('POST');
         expect(captured[0]?.contentType).toContain('application/json');

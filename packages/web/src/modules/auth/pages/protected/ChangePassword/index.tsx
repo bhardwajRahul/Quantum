@@ -25,7 +25,7 @@ const ChangePassword = () => {
         submitErrorFields: changePasswordErrorFields,
         initialValues: { passwordCurrent: '', password: '', passwordConfirm: '' },
         onSubmit: async (values) => {
-            const session = await authApi.updatePassword(values);
+            const session = await authApi.updatePassword({ body: values });
             setToken(session.token);
             form.reset();
             setSaved(true);

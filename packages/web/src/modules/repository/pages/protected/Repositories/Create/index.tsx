@@ -296,7 +296,7 @@ const RepositoryConfigForm = ({ repository, onBack }: RepositoryConfigFormProps)
         list: 'listByOrganization',
         request: organizationId === null ? null : { path: { orgId: organizationId } }
     });
-    const detection = useQuery(githubApi.detect, [repository.owner, repository.name]);
+    const detection = useQuery((owner: string, repo: string) => githubApi.detect({ path: { owner, repo } }), [repository.owner, repository.name]);
 
     if(projects.loading || detection.loading){
         return <CenterState className='h-full'><LoadingState title='Preparing repository setup' compact /></CenterState>;

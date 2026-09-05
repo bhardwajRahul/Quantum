@@ -159,8 +159,8 @@ const ResourceUsageSection = ({ stats }: ResourceUsageSectionProps) => (
 
 const Usage = () => {
     const [minutes, setMinutes] = useState(WINDOWS[1].minutes);
-    const network = useQuery(dockerApi.networkUsage, [{ minutes }]);
-    const resources = useQuery(dockerApi.resourceUsage, [{ minutes }]);
+    const network = useQuery((query: { minutes?: number }) => dockerApi.networkUsage({ query }), [{ minutes }]);
+    const resources = useQuery((query: { minutes?: number }) => dockerApi.resourceUsage({ query }), [{ minutes }]);
 
     if(network.loading || resources.loading){
         return <CenterState className='h-full'><LoadingState title='Loading usage' compact /></CenterState>;

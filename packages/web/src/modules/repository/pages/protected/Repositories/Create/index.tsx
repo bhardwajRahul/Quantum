@@ -9,6 +9,7 @@ import CenterState from '@/shared/components/CenterState';
 import Form from '@/shared/components/forms/Form';
 import Field from '@/shared/components/forms/Field';
 import EntitySelect from '@/shared/components/EntitySelect';
+import ConnectGithubButton from '@/modules/github/components/ConnectGithubButton';
 import { useForm } from '@/shared/hooks/forms/use-form';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { useResource } from '@/shared/hooks/api/use-resource';
@@ -19,7 +20,6 @@ import { useCurrentOrganizationId } from '@/modules/organization/hooks/use-curre
 import { githubErrorMessages } from '@/modules/github/utils/error-messages';
 import { repositoryErrorMessages } from '@/modules/repository/utils/error-messages';
 import { errorCopy } from '@/shared/utils/error-copy';
-import { env } from '@/shared/config/env';
 import {
     CREATE_REPOSITORY_INITIAL_VALUES,
     FRAMEWORK_OPTIONS,
@@ -27,7 +27,6 @@ import {
     toCreateRepositoryInput,
     validateCreateRepositoryForm
 } from '@/modules/repository/utils/create-repository-form';
-import { githubRoutes } from '@quantum/contracts/modules/github/routes';
 import type { IValidation } from 'typia';
 import type { CreateRepositoryFormValues } from '@/modules/repository/utils/create-repository-form';
 import type { GithubRepository, RepositoryDetection } from '@quantum/contracts/modules/github/domain';
@@ -66,9 +65,7 @@ const ConnectGithubPrompt = () => (
         title='Connect GitHub'
         description='Connect your GitHub account to import and deploy a repository.'
     >
-        <Button onPress={() => { window.location.href = `${env.apiUrl}${githubRoutes.oauthStart.path}`; }}>
-            Connect GitHub
-        </Button>
+        <ConnectGithubButton />
     </EmptyState>
 );
 

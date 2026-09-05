@@ -1,8 +1,6 @@
-import { Button } from '@heroui/react';
 import { Link as RouterLink } from 'react-router-dom';
 import PageBody from '@/shared/components/layout/PageBody';
-import { env } from '@/shared/config/env';
-import { githubRoutes } from '@quantum/contracts/modules/github/routes';
+import ConnectGithubButton from '@/modules/github/components/ConnectGithubButton';
 
 const NeedAuthenticate = () => (
     <PageBody>
@@ -12,9 +10,7 @@ const NeedAuthenticate = () => (
         </p>
 
         <div className='mt-6 flex items-center gap-4'>
-            <Button onPress={() => { window.location.href = `${env.apiUrl}${githubRoutes.oauthStart.path}`; }}>
-                Connect GitHub
-            </Button>
+            <ConnectGithubButton />
 
             <RouterLink to='/dashboard' className='text-sm text-muted'>Skip for now</RouterLink>
         </div>

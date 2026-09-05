@@ -3,6 +3,7 @@ import { flushEvents, useApp } from '@tests/harness';
 import { expectError, request } from '@tests/request';
 import { seed } from '@tests/Seed';
 import { githubRoutes } from '@quantum/contracts/modules/github/routes';
+import { config } from '@/shared/config';
 import { eventBus } from '@/shared/events/EventBus';
 import SecretCipher from '@/shared/services/SecretCipher';
 import GithubAccount from '../models/GithubAccount';
@@ -13,6 +14,23 @@ import type { GithubConnectedPayload, GithubDisconnectedPayload } from '../contr
 import type { GithubUserProfile } from '../contracts/domain/github';
 
 const ctx = useApp();
+
+/**
+ * The suite deliberately leaves the OAuth app unset so `NotConfigured` stays
+ * covered, so the one case that needs credentials borrows them for its own
+ * duration. `config` is `as const`, hence the widening cast.
+ */
+const withGithubCredentials = async <T>(run: () => Promise<T>): Promise<T> => {
+    const github = config.github as { clientId?: string; clientSecret?: string };
+    const previous = { ...github };
+
+    Object.assign(github, { clientId: 'test-client-id', clientSecret: 'test-client-secret' });
+    try{
+        return await run();
+    }finally{
+        Object.assign(github, previous);
+    }
+};
 
 const GITHUB_PROFILE: GithubUserProfile = {
     id: 42,
@@ -80,6 +98,25 @@ describe('github oauth', () => {
         const res = await request(ctx.app, githubRoutes.oauthStart);
 
         expectError(res, 401, 'Authentication::Unauthorized');
+    });
+
+    it('answers the authorize URL on oauth start, with a state bound to the caller', async () => {
+        const user = await seed.user();
+
+        const res = await withGithubCredentials(() => request(ctx.app, githubRoutes.oauthStart, { as: user.id }));
+
+        expect(res.status).toBe(200);
+
+        const { url } = res.data();
+        const authorize = new URL(url);
+        expect(`${authorize.origin}${authorize.pathname}`).toBe('https://github.com/login/oauth/authorize');
+        expect(authorize.searchParams.get('client_id')).toBe('test-client-id');
+
+        // Not a redirect: a top-level navigation could not have authenticated this route.
+        expect(res.json<Record<string, unknown>>()).toHaveProperty('data');
+
+        const state = authorize.searchParams.get('state') ?? '';
+        expect(new OAuthStateService().consume(state)).toBe(user.id);
     });
 
     it('answers 500 NotConfigured on oauth start when credentials are missing', async () => {

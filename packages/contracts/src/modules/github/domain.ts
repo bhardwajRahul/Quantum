@@ -7,6 +7,10 @@ export interface GithubAccount extends BaseEntity{
     avatarUrl: string | null;
 }
 
+export interface GithubOAuthStart{
+    url: string;
+}
+
 export interface GithubRepository{
     name: string;
     fullName: string;

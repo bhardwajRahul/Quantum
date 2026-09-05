@@ -132,6 +132,9 @@ const rowActions = (row: Row, handlers: RowActionHandlers) => {
             <Dropdown.Item key='deployments' onAction={() => handlers.onNavigate(`/repositories/${id}/deployments`)}>
                 Deployments
             </Dropdown.Item>,
+            <Dropdown.Item key='logs' onAction={() => handlers.onNavigate(`/repositories/${id}/logs`)}>
+                Logs
+            </Dropdown.Item>,
             <Dropdown.Item key='shell' onAction={() => handlers.onNavigate(`/repositories/${id}/shell`)}>
                 Shell
             </Dropdown.Item>,

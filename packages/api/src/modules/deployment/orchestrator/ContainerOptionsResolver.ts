@@ -2,6 +2,7 @@ import Dockerode from 'dockerode';
 import { getDockerHost } from './DockerHost';
 import DockerContainer from '@/modules/docker/models/DockerContainer';
 import DockerImage from '@/modules/docker/models/DockerImage';
+import { shellSplit } from './shellSplit';
 import DockerNetwork from '@/modules/docker/models/DockerNetwork';
 import PortBinding from '@/modules/docker/models/PortBinding';
 import { namedVolume } from '@/modules/docker/services/containerVolume';
@@ -36,6 +37,7 @@ export default class ContainerOptionsResolver{
             }
         };
         if(overrides.cmd !== undefined && overrides.cmd.length > 0) options.Cmd = [...overrides.cmd];
+        else if(!this.container.isRepositoryContainer && this.container.command) options.Cmd = shellSplit(this.container.command);
         if(overrides.user !== undefined) options.User = overrides.user;
         if(overrides.aliases !== undefined && overrides.aliases.length > 0){
             options.NetworkingConfig = { EndpointsConfig: { [networkName]: { Aliases: [...overrides.aliases] } } };

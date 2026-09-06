@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { composeToSpec } from '../services/composeSpec';
+import { composeToSpec, composeVariables, interpolateCompose } from '../services/composeSpec';
 
 const compose = (body: string): string => `services:\n${body}`;
 
@@ -93,5 +93,57 @@ describe('compose to spec', () => {
             .toThrow('TemplateInstall::UnsupportedCompose:bind-mount:web:./site');
         expect(() => composeToSpec(compose('  web:\n    image: nginx\n    volumes:\n      - type: bind\n        source: /etc/x\n        target: /x')))
             .toThrow('TemplateInstall::UnsupportedCompose:bind-mount:web:/etc/x');
+    });
+});
+
+describe('compose build sections', () => {
+    it('rejects build: unless the caller allows it, and maps its shape when it does', () => {
+        const body = compose(`
+  api:
+    build:
+      context: ./packages/api
+      dockerfile: Dockerfile.prod
+      target: runtime
+      args:
+        NODE_ENV: production
+  web:
+    build: .
+    image: acme/web:dev
+`);
+        expect(() => composeToSpec(body)).toThrow(/UnsupportedCompose:build:api/);
+
+        const spec = composeToSpec(body, { allowBuild: true });
+        expect(spec.services.api.image).toBeUndefined();
+        expect(spec.services.api.build).toEqual({
+            context: './packages/api', dockerfile: 'Dockerfile.prod', target: 'runtime', args: { NODE_ENV: 'production' }
+        });
+        expect(spec.services.web.build).toEqual({ context: '.' });
+        expect(spec.services.web.image).toBe('acme/web:dev');
+    });
+});
+
+describe('compose variables', () => {
+    const text = 'services:\n  db:\n    image: postgres:${PG_VERSION:-18}\n    environment:\n      PASSWORD: ${DB_PASSWORD}\n      HOST: $DB_HOST\n      LITERAL: $$HOME\n      STRICT: ${REQUIRED:?set it}\n';
+
+    it('lists every variable once and knows which ones have no default', () => {
+        expect(composeVariables(text)).toEqual([
+            { name: 'PG_VERSION', required: false },
+            { name: 'DB_PASSWORD', required: true },
+            { name: 'DB_HOST', required: true },
+            { name: 'REQUIRED', required: true }
+        ]);
+    });
+
+    it('interpolates values, defaults and escapes, and names the first unset variable', () => {
+        const out = interpolateCompose(text, { DB_PASSWORD: 's3cret', DB_HOST: 'db', REQUIRED: 'yes' });
+        expect(out).toContain('postgres:18');
+        expect(out).toContain('PASSWORD: s3cret');
+        expect(out).toContain('HOST: db');
+        expect(out).toContain('LITERAL: $HOME');
+        expect(out).toContain('STRICT: yes');
+        expect(interpolateCompose('x: ${PG_VERSION:-18}', { PG_VERSION: '' })).toBe('x: 18');
+
+        expect(() => interpolateCompose(text, { DB_HOST: 'db', REQUIRED: 'yes' })).toThrow(/UnsetVariable:DB_PASSWORD/);
+        expect(interpolateCompose(text, {}, { strict: false })).toContain('PASSWORD: \n');
     });
 });

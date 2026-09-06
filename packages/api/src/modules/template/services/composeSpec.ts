@@ -1,11 +1,23 @@
 import { parse } from 'yaml';
 import { TemplateInstallError } from '../contracts/domain/errors';
 import type {
+    ComposeVariable,
+    TemplateServiceBuild,
     TemplateServicePort,
     TemplateServiceSpec,
     TemplateServiceVolume,
     TemplateSpec
 } from '@quantum/contracts/modules/template/domain';
+
+export interface ComposeOptions{
+    allowBuild?: boolean;
+}
+
+export interface InterpolationOptions{
+    strict?: boolean;
+}
+
+const VARIABLE = /\$(?:(\$)|\{([A-Za-z_][A-Za-z0-9_]*)(?:(:?[-?])([^}]*))?\}|([A-Za-z_][A-Za-z0-9_]*))/g;
 
 type Mapping = Record<string, unknown>;
 
@@ -122,13 +134,36 @@ const toList = <T>(name: string, key: string, value: unknown, convert: (entry: u
     return value.map(convert);
 };
 
-const toService = (name: string, value: unknown): TemplateServiceSpec => {
+const toBuildArgs = (name: string, value: unknown): Record<string, string> | undefined => {
+    if(value === undefined || value === null) return undefined;
+    const environment = toEnvironment(name, value);
+    return environment;
+};
+
+const toBuild = (name: string, value: unknown, options: ComposeOptions): TemplateServiceBuild | undefined => {
+    if(value === undefined || value === null) return undefined;
+    if(options.allowBuild !== true) return unsupported(`build:${name}`);
+    if(typeof value === 'string') return { context: value.trim() === '' ? '.' : value.trim() };
+    if(!isMapping(value)) return invalid(`build:${name}`);
+
+    const context = typeof value.context === 'string' && value.context.trim() !== '' ? value.context.trim() : '.';
+    return {
+        context,
+        dockerfile: typeof value.dockerfile === 'string' ? value.dockerfile : undefined,
+        args: toBuildArgs(name, value.args),
+        target: typeof value.target === 'string' ? value.target : undefined
+    };
+};
+
+const toService = (name: string, value: unknown, options: ComposeOptions): TemplateServiceSpec => {
     if(!isMapping(value)) return invalid(`service:${name}`);
-    if(value.build !== undefined) return unsupported(`build:${name}`);
-    if(typeof value.image !== 'string' || value.image.trim() === '') return invalid(`image:${name}`);
+    const build = toBuild(name, value.build, options);
+    const image = typeof value.image === 'string' && value.image.trim() !== '' ? value.image.trim() : undefined;
+    if(image === undefined && build === undefined) return invalid(`image:${name}`);
 
     return {
-        image: value.image.trim(),
+        image,
+        build,
         command: toCommand(name, value.command),
         environment: toEnvironment(name, value.environment),
         ports: toList(name, 'ports', value.ports, (entry) => toPort(name, entry)),
@@ -138,13 +173,13 @@ const toService = (name: string, value: unknown): TemplateServiceSpec => {
     };
 };
 
-export const composeToSpec = (source: string): TemplateSpec => {
+export const composeToSpec = (source: string, options: ComposeOptions = {}): TemplateSpec => {
     const document = parseDocument(source);
     if(!isMapping(document.services) || Object.keys(document.services).length === 0) return invalid('services');
 
     const services: Record<string, TemplateServiceSpec> = {};
     for(const [name, value] of Object.entries(document.services)){
-        services[name] = toService(name, value);
+        services[name] = toService(name, value, options);
     }
 
     for(const [name, service] of Object.entries(services)){
@@ -155,3 +190,32 @@ export const composeToSpec = (source: string): TemplateSpec => {
 
     return { services };
 };
+
+export const composeVariables = (source: string): ComposeVariable[] => {
+    const seen = new Map<string, ComposeVariable>();
+    for(const match of source.matchAll(VARIABLE)){
+        const [, escaped, braced, operator, , bare] = match;
+        if(escaped !== undefined) continue;
+        const name = braced ?? bare ?? '';
+        const required = operator === undefined || operator.endsWith('?');
+        const known = seen.get(name);
+        seen.set(name, { name, required: known === undefined ? required : known.required && required });
+    }
+    return [...seen.values()];
+};
+
+export const interpolateCompose = (
+    source: string,
+    variables: Record<string, string>,
+    options: InterpolationOptions = {}
+): string =>
+    source.replace(VARIABLE, (match, escaped: string | undefined, braced: string | undefined, operator: string | undefined, fallback: string | undefined, bare: string | undefined) => {
+        if(escaped !== undefined) return '$';
+        const name = braced ?? bare ?? '';
+        const value = variables[name];
+        const unset = value === undefined || (operator?.startsWith(':') === true && value === '');
+        if(!unset) return value;
+        if(operator === '-' || operator === ':-') return fallback ?? '';
+        if(options.strict === false) return '';
+        throw TemplateInstallError.UnsetVariable(name);
+    });

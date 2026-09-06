@@ -19,4 +19,7 @@ export default class DockerImage extends BaseModel implements DockerImageFields{
 
     @Column('int')
     organizationId!: number;
+
+    @Column({ type: 'boolean', default: false })
+    builtLocally!: boolean;
 }

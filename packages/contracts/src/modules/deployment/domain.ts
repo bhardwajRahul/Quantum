@@ -33,7 +33,6 @@ export enum JobType{
     DbRestore = 'db:restore',
     DbDelete = 'db:delete',
     MetricsSample = 'metrics:sample',
-    ImageWatch = 'image:watch',
     TemplateInstall = 'template:install',
     TemplateUninstall = 'template:uninstall',
     OrgCascadeDelete = 'org:cascade-delete',

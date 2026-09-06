@@ -60,5 +60,5 @@ export interface RollbackAccepted{
 
 export type WebhookOutcome =
     | { ok: true }
-    | { skipped: true; reason: 'branch-mismatch' }
+    | { skipped: true; reason: 'branch-mismatch' | 'not-published' }
     | { skipped: false };

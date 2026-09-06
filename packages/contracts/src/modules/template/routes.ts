@@ -1,13 +1,17 @@
 import { del, get, patch, post } from '../../shared/routing';
 import type {
     CreateComposeInstallInput,
+    CreateSourceInstallInput,
+    InspectStackSourceInput,
     InstallTemplateInput,
     TemplateInstallOperationInput,
     UpdateComposeInput,
-    UpdateTemplateInstallEnvironmentInput,
-    UpdateDeployTriggersInput
+    UpdateStackSourceInput,
+    UpdateStackVariablesInput,
+    UpdateTemplateInstallEnvironmentInput
 } from './http';
-import type { Template, TemplateInstall, TemplateInstallEnvironment, DeployHookResult, DeployTriggers } from './domain';
+import type { StackSourceInspection, Template, TemplateInstall, TemplateInstallEnvironment } from './domain';
+import type { WebhookOutcome } from '../repository/domain';
 
 export const templateRoutes = {
     list: get<Template[]>('/template'),
@@ -20,12 +24,14 @@ export const templateInstallRoutes = {
     operate: post<TemplateInstallOperationInput, TemplateInstall>('/template/install/:id/operate'),
     remove: del('/template/install/:id'),
     createCompose: post<CreateComposeInstallInput, TemplateInstall>('/template/install/project/:projectId/compose'),
+    inspectSource: post<InspectStackSourceInput, StackSourceInspection>('/template/source/inspect'),
+    createFromSource: post<CreateSourceInstallInput, TemplateInstall>('/template/install/project/:projectId/source'),
+    updateSource: patch<UpdateStackSourceInput, TemplateInstall>('/template/install/:id/source'),
     updateCompose: patch<UpdateComposeInput, TemplateInstall>('/template/install/:id/compose'),
     redeploy: post<never, TemplateInstall>('/template/install/:id/redeploy'),
     environment: get<TemplateInstallEnvironment>('/template/install/:id/environment'),
     updateEnvironment: patch<UpdateTemplateInstallEnvironmentInput, TemplateInstall>('/template/install/:id/environment'),
-    triggers: get<DeployTriggers>('/template/install/:id/triggers'),
-    updateTriggers: patch<UpdateDeployTriggersInput, DeployTriggers>('/template/install/:id/triggers'),
-    rotateDeployToken: post<never, DeployTriggers>('/template/install/:id/triggers/token'),
-    deployHook: post<never, DeployHookResult>('/template/install/:id/deploy/:token')
+    variables: get<Record<string, string>>('/template/install/:id/variables'),
+    updateVariables: patch<UpdateStackVariablesInput, TemplateInstall>('/template/install/:id/variables'),
+    githubHook: post<never, WebhookOutcome>('/template/install/:id/github')
 };

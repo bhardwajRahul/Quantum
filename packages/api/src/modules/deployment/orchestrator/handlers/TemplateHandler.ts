@@ -1,3 +1,5 @@
+import path from 'node:path';
+import { readFile } from 'node:fs/promises';
 import { In, Not } from 'typeorm';
 import TemplateInstall from '@/modules/template/models/TemplateInstall';
 import DockerContainer from '@/modules/docker/models/DockerContainer';
@@ -6,10 +8,16 @@ import DockerNetwork from '@/modules/docker/models/DockerNetwork';
 import PortBinding from '@/modules/docker/models/PortBinding';
 import ActivityStepContext from '@/modules/activity/services/ActivityStepContext';
 import { installInputs, installSpec, serviceEnvironment } from '@/modules/template/services/installEnvironment';
+import { composeToSpec, interpolateCompose } from '@/modules/template/services/composeSpec';
+import { TemplateInstallError } from '@/modules/template/contracts/domain/errors';
+import { checkoutRepository } from '../build/SourceCheckout';
+import { buildComposeImage, insideSource } from '../build/composeBuild';
+import { getDockerHost } from '../DockerHost';
+import { shellSplit } from '../shellSplit';
 import ContainerOps from '../ContainerOps';
 import { materializeNetwork, teardownNetwork } from '../NetworkOps';
 import { allocateHostPort } from '../PortAllocator';
-import { getContainerStoragePath, getSystemDockerName } from '../paths';
+import { getContainerStoragePath, getStackSourcePath, getSystemDockerName } from '../paths';
 import { failureMessage } from '../failureMessage';
 import { TemplateInstallStatus } from '@quantum/contracts/modules/template/domain';
 import { NetworkDriver, PortBindingProtocol } from '@quantum/contracts/modules/docker/domain';
@@ -77,9 +85,6 @@ export default class TemplateHandler{
     }
 
     async #install(job: Job, install: TemplateInstall): Promise<void>{
-        const spec = await installSpec(install);
-        if(!spec) throw new Error(`Template::Job::SpecNotFound::${install.id}`);
-
         const inputs = installInputs(install);
         const userId = install.userId ?? job.userId ?? 0;
         const organizationId = install.organizationId ?? 0;
@@ -95,6 +100,8 @@ export default class TemplateHandler{
         await install.save();
 
         try{
+            const { spec, built } = await this.#resolveSpec(install, userId, activity);
+
             const network = await activity.step('Preparing the network', () => this.#network(install, userId, organizationId));
             install.networkId = network.id;
             await install.save();
@@ -102,12 +109,12 @@ export default class TemplateHandler{
             const services: InstalledService[] = [...install.services];
 
             for(const [name, service] of orderServices(spec)){
-                const ref = service.image ?? (service.engine !== undefined ? ENGINE_IMAGE[service.engine] : undefined);
+                const ref = built.get(name) ?? service.image ?? (service.engine !== undefined ? ENGINE_IMAGE[service.engine] : undefined);
                 if(ref === undefined) throw new Error(`Template::Service::ImageRequired::${name}`);
 
                 const previous = services.find((entry) => entry.name === name);
                 const entry = await activity.step(`Starting ${name} (${ref})`, () =>
-                    this.#service(install, name, service, ref, inputs, userId, organizationId, network, previous));
+                    this.#service(install, name, service, ref, built.has(name), inputs, userId, organizationId, network, previous));
 
                 const index = services.findIndex((current) => current.name === name);
                 if(index >= 0) services[index] = entry;
@@ -159,11 +166,55 @@ export default class TemplateHandler{
         return network;
     }
 
+    async #resolveSpec(install: TemplateInstall, userId: number, activity: ActivityStepContext): Promise<{ spec: TemplateSpec; built: Map<string, string> }>{
+        const built = new Map<string, string>();
+
+        if(install.compose === null){
+            const spec = await installSpec(install);
+            if(!spec) throw new Error(`Template::Job::SpecNotFound::${install.id}`);
+            return { spec, built };
+        }
+
+        let text = install.compose;
+        let sourcePath: string | null = null;
+        let composeDir = '.';
+        let version = 'latest';
+
+        const source = install.source;
+        if(source !== null){
+            const target = getStackSourcePath(userId, install.id);
+            const checkout = await activity.step(`Fetching ${source.owner}/${source.repo}@${source.branch}`, () =>
+                checkoutRepository(target, `https://github.com/${source.owner}/${source.repo}.git`, source.branch, userId));
+            version = checkout.commit.slice(0, 12) || 'latest';
+            sourcePath = target;
+            composeDir = path.dirname(source.composePath);
+            text = await readFile(insideSource(target, source.composePath), 'utf8')
+                .catch(() => { throw TemplateInstallError.ComposeFileNotFound(source.composePath); });
+            install.compose = text;
+        }
+
+        const spec = composeToSpec(interpolateCompose(text, installInputs(install)), { allowBuild: sourcePath !== null });
+        install.spec = spec;
+        await install.save();
+
+        for(const [name, service] of Object.entries(spec.services)){
+            if(service.build === undefined || sourcePath === null) continue;
+            const tag = `quantum-stack-${install.id}-${name}:${version}`;
+            const docker = getDockerHost(install.nodeId).client();
+            const buildPath = sourcePath;
+            await activity.step(`Building ${name}`, () => buildComposeImage(docker, buildPath, composeDir, service.build as NonNullable<typeof service.build>, tag));
+            built.set(name, tag);
+        }
+
+        return { spec, built };
+    }
+
     async #service(
         install: TemplateInstall,
         name: string,
         spec: TemplateServiceSpec,
         ref: string,
+        builtLocally: boolean,
         inputs: Record<string, string>,
         userId: number,
         organizationId: number,
@@ -171,7 +222,7 @@ export default class TemplateHandler{
         previous: InstalledService | undefined
     ): Promise<InstalledService>{
         const { name: imageName, tag } = splitImage(ref);
-        const image = await this.#image(imageName, tag, userId, organizationId);
+        const image = await this.#image(imageName, tag, userId, organizationId, builtLocally);
 
         const environment = serviceEnvironment(install, name, spec, inputs);
 
@@ -191,17 +242,23 @@ export default class TemplateHandler{
         const ops = new ContainerOps(container);
         await ops.destroyContainer();
         await ops.createAndStartContainer({
-            cmd: spec.command !== undefined && spec.command.trim() !== '' ? ['sh', '-c', spec.command] : undefined,
+            cmd: spec.command !== undefined && spec.command.trim() !== '' ? shellSplit(spec.command) : undefined,
             aliases: [name]
         });
 
         return { name, kind: spec.kind ?? 'app', image: ref, containerId: container.id, ports, address: null };
     }
 
-    async #image(name: string, tag: string, userId: number, organizationId: number): Promise<DockerImage>{
+    async #image(name: string, tag: string, userId: number, organizationId: number, builtLocally: boolean): Promise<DockerImage>{
         const existing = await DockerImage.findOneBy({ name, tag, organizationId, userId });
-        if(existing) return existing;
-        return DockerImage.create({ name, tag, userId, organizationId }).save();
+        if(existing){
+            if(existing.builtLocally !== builtLocally){
+                existing.builtLocally = builtLocally;
+                await existing.save();
+            }
+            return existing;
+        }
+        return DockerImage.create({ name, tag, userId, organizationId, builtLocally }).save();
     }
 
     async #container(
@@ -227,6 +284,7 @@ export default class TemplateHandler{
         if(existing){
             existing.environmentVariables = environment;
             existing.volumes = volumes;
+            existing.command = spec.command ?? null;
             existing.imageId = imageId;
             existing.networkId = networkId;
             existing.projectId = install.projectId;
@@ -237,7 +295,7 @@ export default class TemplateHandler{
         const container = await DockerContainer.create({
             name: containerName,
             dockerContainerName: '',
-            command: null,
+            command: spec.command ?? null,
             userId,
             organizationId,
             projectId: install.projectId,

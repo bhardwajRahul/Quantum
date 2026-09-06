@@ -1,4 +1,4 @@
-import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { In } from 'typeorm';
 import Project from '@/modules/project/models/Project';
 import DockerContainer from '@/modules/docker/models/DockerContainer';
@@ -15,7 +15,9 @@ import { config } from '@/shared/config';
 import { eventBus } from '@/shared/events/EventBus';
 import TemplateInstall from '../models/TemplateInstall';
 import TemplateService from './TemplateService';
-import { composeToSpec } from './composeSpec';
+import { composeToSpec, composeVariables, interpolateCompose } from './composeSpec';
+import GithubRepositoryService from '@/modules/github/services/GithubRepositoryService';
+import GithubWebhookService from '@/modules/github/services/GithubWebhookService';
 import { installInputs, installSpec, serviceEnvironment } from './installEnvironment';
 import { TemplateInstallError } from '../contracts/domain/errors';
 import type { Tenant } from '@/modules/organization/contracts/types/fastify';
@@ -23,22 +25,53 @@ import type {
     CreateComposeInstallInput,
     InstallTemplateInput,
     TemplateInstallOperation,
+    CreateSourceInstallInput,
+    InspectStackSourceInput,
     UpdateComposeInput,
-    UpdateDeployTriggersInput,
+    UpdateStackSourceInput,
+    UpdateStackVariablesInput,
     UpdateTemplateInstallEnvironmentInput
 } from '@quantum/contracts/modules/template/http';
+import type { WebhookOutcome } from '@quantum/contracts/modules/repository/domain';
 import type {
-    DeployTriggers,
+    StackSource,
+    StackSourceInspection,
     TemplateInstall as TemplateInstallPayload,
     TemplateInstallEnvironment,
     TemplateSpec
 } from '@quantum/contracts/modules/template/domain';
 
-const newDeployToken = (): string => randomBytes(24).toString('base64url');
+const COMPOSE_FILE = /^(docker-)?compose(\.[\w-]+)?\.ya?ml$/;
+const PREFERRED_COMPOSE = ['compose.yaml', 'compose.yml', 'docker-compose.yml', 'docker-compose.yaml'];
+
+const byComposePreference = (a: string, b: string): number => {
+    const rank = (file: string): number => {
+        const index = PREFERRED_COMPOSE.indexOf(file);
+        return index === -1 ? PREFERRED_COMPOSE.length : index;
+    };
+    return rank(a) - rank(b) || a.localeCompare(b);
+};
+
+interface GithubEvent{
+    ref?: string;
+    action?: string;
+    pusher?: { name?: string };
+    head_commit?: { message?: string } | null;
+    release?: { tag_name?: string; name?: string | null };
+}
+
+const validSignature = (secret: string, signature: string | undefined, rawBody: Buffer | undefined): boolean => {
+    if(signature === undefined || rawBody === undefined) return false;
+    const expected = Buffer.from('sha256=' + createHmac('sha256', secret).update(rawBody).digest('hex'));
+    const received = Buffer.from(signature);
+    return received.length === expected.length && timingSafeEqual(received, expected);
+};
 
 export default class TemplateInstallService{
     #templates = new TemplateService();
     #cipher = new SecretCipher();
+    #github = new GithubRepositoryService();
+    #webhooks = new GithubWebhookService();
 
     async install(userId: number, tenant: Tenant, projectId: number, input: InstallTemplateInput): Promise<TemplateInstallPayload>{
         const project = await this.#projectFor(tenant, projectId);
@@ -46,7 +79,6 @@ export default class TemplateInstallService{
         const inputsEnc = this.#resolveInputs(template, input.inputs ?? {});
 
         const install = await TemplateInstall.create({
-            deployTokenEnc: new SecretCipher().encrypt(newDeployToken()),
             templateId: template.id,
             compose: null,
             spec: null,
@@ -65,10 +97,9 @@ export default class TemplateInstallService{
 
     async createCompose(userId: number, tenant: Tenant, projectId: number, input: CreateComposeInstallInput): Promise<TemplateInstallPayload>{
         const project = await this.#projectFor(tenant, projectId);
-        const spec = composeToSpec(input.compose);
+        const spec = composeToSpec(interpolateCompose(input.compose, {}, { strict: false }));
 
         const install = await TemplateInstall.create({
-            deployTokenEnc: new SecretCipher().encrypt(newDeployToken()),
             templateId: null,
             compose: input.compose,
             spec,
@@ -89,7 +120,7 @@ export default class TemplateInstallService{
         const install = await this.get(tenant, id);
         if(!install.compose) throw TemplateInstallError.NotCompose();
 
-        install.spec = composeToSpec(input.compose);
+        install.spec = composeToSpec(interpolateCompose(input.compose, installInputs(install), { strict: false }));
         install.compose = input.compose;
         await install.save();
         return this.present(install);
@@ -194,7 +225,10 @@ export default class TemplateInstallService{
         if(!install) throw TemplateInstallError.NotFound();
         await this.#assertProjectVisible(tenant, install.projectId);
 
-        const { services, networkId } = install;
+        const { services, networkId, source, webhookId } = install;
+        if(source !== null && webhookId !== null && install.userId !== null){
+            await this.#webhooks.remove(install.userId, source.owner, source.repo, webhookId).catch(() => undefined);
+        }
         await install.remove();
 
         eventBus.emit('template.uninstalled', { templateInstallId: id, userId, services, networkId });
@@ -237,33 +271,134 @@ export default class TemplateInstallService{
         return container;
     }
 
-    async triggers(tenant: Tenant, id: number): Promise<DeployTriggers>{
-        return this.#triggersOf(await this.get(tenant, id));
+    async inspectSource(userId: number, input: InspectStackSourceInput): Promise<StackSourceInspection>{
+        const files = await this.#github.listRootFiles(userId, input.owner, input.repo, input.branch);
+        const composeFiles = files.filter((file) => COMPOSE_FILE.test(file)).sort(byComposePreference);
+        const composePath = input.composePath ?? composeFiles[0] ?? null;
+        if(composePath === null) return { composeFiles, composePath, variables: [], problem: null };
+
+        const text = await this.#github.readFile(userId, input.owner, input.repo, input.branch, composePath);
+        if(text === null) throw TemplateInstallError.ComposeFileNotFound(composePath);
+        return { composeFiles, composePath, variables: composeVariables(text), problem: this.#problemOf(text) };
     }
 
-    async updateTriggers(tenant: Tenant, id: number, input: UpdateDeployTriggersInput): Promise<DeployTriggers>{
+    async createFromSource(userId: number, tenant: Tenant, projectId: number, input: CreateSourceInstallInput): Promise<TemplateInstallPayload>{
+        const project = await this.#projectFor(tenant, projectId);
+        const source: StackSource = {
+            owner: input.owner, repo: input.repo, branch: input.branch, composePath: input.composePath, deployOn: input.deployOn
+        };
+        const text = await this.#github.readFile(userId, source.owner, source.repo, source.branch, source.composePath);
+        if(text === null) throw TemplateInstallError.ComposeFileNotFound(source.composePath);
+        const variables = input.variables ?? {};
+        const spec = composeToSpec(interpolateCompose(text, variables), { allowBuild: true });
+
+        const install = await TemplateInstall.create({
+            templateId: null,
+            compose: text,
+            spec,
+            name: input.name,
+            organizationId: project.organizationId,
+            projectId: project.id,
+            userId,
+            nodeId: process.env.NODE_ID ?? 'local',
+            inputsEnc: Object.keys(variables).length === 0 ? null : this.#cipher.encrypt(JSON.stringify(variables)),
+            source
+        }).save();
+
+        await this.#registerWebhook(install, userId);
+        this.#startProvisioning(install, userId);
+        return this.present(install);
+    }
+
+    async updateSource(tenant: Tenant, id: number, input: UpdateStackSourceInput): Promise<TemplateInstallPayload>{
         const install = await this.get(tenant, id);
-        install.watchImages = input.watchImages;
+        if(install.source === null) throw TemplateInstallError.NotSourced();
+        install.source = { ...install.source, branch: input.branch, composePath: input.composePath, deployOn: input.deployOn };
         await install.save();
-        return this.#triggersOf(install);
+        return this.present(install);
     }
 
-    async rotateDeployToken(tenant: Tenant, id: number): Promise<DeployTriggers>{
+    async variables(tenant: Tenant, id: number): Promise<Record<string, string>>{
         const install = await this.get(tenant, id);
-        install.deployTokenEnc = new SecretCipher().encrypt(newDeployToken());
-        await install.save();
-        return this.#triggersOf(install);
+        if(install.compose === null) throw TemplateInstallError.NotCompose();
+        return installInputs(install);
     }
 
-    async deployHook(id: number, token: string): Promise<void>{
+    async updateVariables(tenant: Tenant, id: number, input: UpdateStackVariablesInput): Promise<TemplateInstallPayload>{
+        const install = await this.get(tenant, id);
+        if(install.compose === null) throw TemplateInstallError.NotCompose();
+        install.inputsEnc = Object.keys(input.variables).length === 0 ? null : this.#cipher.encrypt(JSON.stringify(input.variables));
+        await install.save();
+        return this.present(install);
+    }
+
+    async githubHook(
+        id: number,
+        event: string | undefined,
+        signature: string | undefined,
+        rawBody: Buffer | undefined,
+        payload: unknown
+    ): Promise<{ status: 200 | 202; outcome: WebhookOutcome }>{
         const install = await TemplateInstall.findOneBy({ id });
-        if(!install || install.deployTokenEnc === null) throw TemplateInstallError.NotFound();
+        if(!install || install.source === null || install.webhookSecretEnc === null) throw TemplateInstallError.NotFound();
+        if(!validSignature(this.#cipher.decrypt(install.webhookSecretEnc), signature, rawBody)) throw TemplateInstallError.InvalidSignature();
 
-        const expected = Buffer.from(new SecretCipher().decrypt(install.deployTokenEnc));
-        const presented = Buffer.from(token);
-        if(expected.length !== presented.length || !timingSafeEqual(expected, presented)) throw TemplateInstallError.NotFound();
+        const source = install.source;
+        const body = (payload ?? {}) as GithubEvent;
 
-        await this.requestRedeploy(install, 'template.webhook', `${install.name}: redeploy requested through its webhook`);
+        if(event === 'push' && source.deployOn === 'push'){
+            if((body.ref ?? '') !== `refs/heads/${source.branch}`) return { status: 200, outcome: { skipped: true, reason: 'branch-mismatch' } };
+            const pusher = body.pusher?.name;
+            await this.requestRedeploy(
+                install,
+                'github',
+                `${install.name}: push to ${source.branch}${pusher ? ` by ${pusher}` : ''}`,
+                body.head_commit?.message?.split('\n')[0] ?? ''
+            );
+            return { status: 202, outcome: { skipped: false } };
+        }
+
+        if(event === 'release' && source.deployOn === 'release'){
+            if(body.action !== 'published') return { status: 200, outcome: { skipped: true, reason: 'not-published' } };
+            await this.requestRedeploy(install, 'github', `${install.name}: release ${body.release?.tag_name ?? ''}`.trim(), body.release?.name ?? '');
+            return { status: 202, outcome: { skipped: false } };
+        }
+
+        return { status: 200, outcome: { ok: true } };
+    }
+
+    async #registerWebhook(install: TemplateInstall, userId: number): Promise<void>{
+        const source = install.source;
+        if(source === null) return;
+
+        const secret = randomBytes(32).toString('hex');
+        const url = `${config.domain.replace(/\/$/, '')}/template/install/${install.id}/github`;
+        try{
+            install.webhookId = await this.#webhooks.register(userId, source.owner, source.repo, url, secret);
+            install.webhookSecretEnc = this.#cipher.encrypt(secret);
+            await install.save();
+        }catch(error){
+            await new ActivityService().create({
+                organizationId: install.organizationId,
+                userId,
+                scope: 'template',
+                level: ActivityLevel.Warn,
+                title: `${install.name}: could not register the GitHub webhook`,
+                message: `${(error as Error).message}. Pushes to ${source.owner}/${source.repo} will not redeploy this stack.`,
+                source: 'template.source',
+                correlationId: null,
+                meta: { templateInstallId: install.id }
+            });
+        }
+    }
+
+    #problemOf(text: string): string | null{
+        try{
+            composeToSpec(interpolateCompose(text, {}, { strict: false }), { allowBuild: true });
+            return null;
+        }catch(error){
+            return error instanceof Error ? error.message : String(error);
+        }
     }
 
     async requestRedeploy(install: TemplateInstall, source: string, title: string, message = ''): Promise<void>{
@@ -281,14 +416,6 @@ export default class TemplateInstallService{
         install.status = TemplateInstallStatus.Pending;
         await install.save();
         this.#startProvisioning(install, install.userId ?? 0);
-    }
-
-    #triggersOf(install: TemplateInstall): DeployTriggers{
-        const token = install.deployTokenEnc === null ? null : new SecretCipher().decrypt(install.deployTokenEnc);
-        return {
-            webhookUrl: token === null ? null : `${config.domain.replace(/\/$/, '')}/template/install/${install.id}/deploy/${token}`,
-            watchImages: install.watchImages
-        };
     }
 
     #startProvisioning(install: TemplateInstall, userId: number){

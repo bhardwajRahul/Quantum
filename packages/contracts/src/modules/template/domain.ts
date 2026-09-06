@@ -21,8 +21,16 @@ export interface TemplateServiceExpose{
     port?: number;
 }
 
+export interface TemplateServiceBuild{
+    context: string;
+    dockerfile?: string;
+    args?: Record<string, string>;
+    target?: string;
+}
+
 export interface TemplateServiceSpec{
     image?: string;
+    build?: TemplateServiceBuild;
     command?: string;
     environment?: Record<string, string>;
     ports?: TemplateServicePort[];
@@ -97,6 +105,7 @@ export interface TemplateInstall extends BaseEntity{
     networkId: number | null;
     services: TemplateInstallService[];
     environment: ServiceEnvironment;
+    source: StackSource | null;
 }
 
 export interface TemplateInstallServiceEnvironment{
@@ -109,11 +118,24 @@ export interface TemplateInstallEnvironment{
     services: TemplateInstallServiceEnvironment[];
 }
 
-export interface DeployTriggers{
-    webhookUrl: string | null;
-    watchImages: boolean;
+export type StackDeployTrigger = 'push' | 'release';
+
+export interface StackSource{
+    owner: string;
+    repo: string;
+    branch: string;
+    composePath: string;
+    deployOn: StackDeployTrigger;
 }
 
-export interface DeployHookResult{
-    queued: boolean;
+export interface ComposeVariable{
+    name: string;
+    required: boolean;
+}
+
+export interface StackSourceInspection{
+    composeFiles: string[];
+    composePath: string | null;
+    variables: ComposeVariable[];
+    problem: string | null;
 }

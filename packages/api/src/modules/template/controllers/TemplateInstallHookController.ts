@@ -5,11 +5,16 @@ import TemplateInstallService from '../services/TemplateInstallService';
 import { templateInstallRoutes } from '@quantum/contracts/modules/template/routes';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
+const header = (req: FastifyRequest, name: string): string | undefined => {
+    const value = req.headers[name];
+    return typeof value === 'string' ? value : undefined;
+};
+
 export default class TemplateInstallHookController extends BaseController{
     #service = new TemplateInstallService();
 
     async register(app: FastifyInstance, prefix: string){
-        const route = templateInstallRoutes.deployHook;
+        const route = templateInstallRoutes.githubHook;
         if(!route.path.startsWith(`${prefix}/`)) throw RouteError.PrefixMismatch(route.path);
 
         app.route({
@@ -20,8 +25,14 @@ export default class TemplateInstallHookController extends BaseController{
     }
 
     async #handle(req: FastifyRequest, reply: FastifyReply){
-        const params = req.params as Record<string, string>;
-        await this.#service.deployHook(parseId(params.id), params.token);
-        reply.status(202).send({ data: { queued: true } });
+        const id = parseId((req.params as Record<string, string>).id);
+        const decision = await this.#service.githubHook(
+            id,
+            header(req, 'x-github-event'),
+            header(req, 'x-hub-signature-256'),
+            req.rawBody,
+            req.body
+        );
+        reply.status(decision.status).send({ data: decision.outcome });
     }
 }

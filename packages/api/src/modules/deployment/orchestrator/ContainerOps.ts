@@ -2,6 +2,7 @@ import Dockerode from 'dockerode';
 import { getDockerHost } from './DockerHost';
 import ContainerOptionsResolver from './ContainerOptionsResolver';
 import DockerContainer from '@/modules/docker/models/DockerContainer';
+import DockerImage from '@/modules/docker/models/DockerImage';
 import Repository from '@/modules/repository/models/Repository';
 import { internalHostname } from '@/modules/docker/services/containerAddress';
 import { namedVolume } from '@/modules/docker/services/containerVolume';
@@ -241,6 +242,8 @@ export default class ContainerOps{
 
     async #pullBaseImage(imageOverride?: string): Promise<void>{
         if(imageOverride) return;
+        const built = await DockerImage.findOneBy({ id: this.container.imageId });
+        if(built?.builtLocally) return;
         const image = await new ContainerOptionsResolver(this.container).resolve({});
         if(!image.Image) throw new Error('Container::Image::Required');
         await pullImage(this.#docker, image.Image, { organizationId: this.container.organizationId, userId: this.container.userId });

@@ -15,6 +15,9 @@ export const getContainerStoragePath = (userId: number, containerId: number, nam
     return { userContainerPath, containerStoragePath, repositoryContainerPath };
 };
 
+export const getStackSourcePath = (userId: number, installId: number): string =>
+    path.join('/var/lib/quantum', config.nodeEnv, 'containers', String(userId), 'stacks', String(installId));
+
 export const getSystemDockerName = (containerId: number): string => {
     const formatted = String(containerId).replace(/[^a-zA-Z0-9_.-]/g, '_');
     return `quantum-container-${config.nodeEnv}-${formatted}`;

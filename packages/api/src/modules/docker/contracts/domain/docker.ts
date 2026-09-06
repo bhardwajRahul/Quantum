@@ -31,6 +31,7 @@ export interface DockerImageFields{
     size: number;
     userId: number;
     organizationId: number;
+    builtLocally: boolean;
     createdAt: Date;
     updatedAt: Date;
 }

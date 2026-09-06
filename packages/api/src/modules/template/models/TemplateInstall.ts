@@ -3,7 +3,7 @@ import BaseModel from '@/shared/models/BaseModel';
 import { Hidden } from '@/shared/models/Hidden';
 import { TemplateInstallStatus } from '@quantum/contracts/modules/template/domain';
 import { TemplateInstallFields } from '../contracts/domain/template';
-import type { ServiceEnvironment, TemplateInstallService, TemplateSpec } from '@quantum/contracts/modules/template/domain';
+import type { ServiceEnvironment, StackSource, TemplateInstallService, TemplateSpec } from '@quantum/contracts/modules/template/domain';
 
 @Entity()
 export default class TemplateInstall extends BaseModel implements TemplateInstallFields{
@@ -47,10 +47,13 @@ export default class TemplateInstall extends BaseModel implements TemplateInstal
     @Column({ type: 'jsonb', default: {} })
     environment!: ServiceEnvironment;
 
+    @Column({ type: 'jsonb', nullable: true })
+    source!: StackSource | null;
+
+    @Column({ type: 'varchar', nullable: true })
+    webhookId!: string | null;
+
     @Hidden()
     @Column({ type: 'varchar', nullable: true })
-    deployTokenEnc!: string | null;
-
-    @Column({ type: 'boolean', default: false })
-    watchImages!: boolean;
+    webhookSecretEnc!: string | null;
 }

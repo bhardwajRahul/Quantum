@@ -20,7 +20,11 @@ export const TemplateInstallErrors = {
         InvalidCompose: 400,
         UnsupportedCompose: 400,
         NotCompose: 400,
-        UnknownService: 400
+        NotSourced: 400,
+        UnknownService: 400,
+        UnsetVariable: 400,
+        ComposeFileNotFound: 400,
+        InvalidSignature: 401
     }
 } as const satisfies ErrorTable;
 

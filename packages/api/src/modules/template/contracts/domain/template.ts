@@ -4,6 +4,7 @@ import type {
     TemplateInstallService,
     TemplateInstallStatus,
     TemplateSource,
+    StackSource,
     TemplateSpec
 } from '@quantum/contracts/modules/template/domain';
 
@@ -35,8 +36,9 @@ export interface TemplateInstallFields{
     networkId: number | null;
     services: TemplateInstallService[];
     environment: ServiceEnvironment;
-    deployTokenEnc: string | null;
-    watchImages: boolean;
+    source: StackSource | null;
+    webhookId: string | null;
+    webhookSecretEnc: string | null;
     createdAt: Date;
     updatedAt: Date;
 }

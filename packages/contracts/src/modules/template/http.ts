@@ -1,4 +1,4 @@
-import type { InputDef, ServiceEnvironment, TemplateSpec } from './domain';
+import type { InputDef, ServiceEnvironment, StackDeployTrigger, TemplateSpec } from './domain';
 
 export interface CreateTemplateInput{
     name: string;
@@ -35,6 +35,29 @@ export interface UpdateTemplateInstallEnvironmentInput{
     environment: ServiceEnvironment;
 }
 
-export interface UpdateDeployTriggersInput{
-    watchImages: boolean;
+export interface InspectStackSourceInput{
+    owner: string;
+    repo: string;
+    branch: string;
+    composePath?: string;
+}
+
+export interface CreateSourceInstallInput{
+    name: string;
+    owner: string;
+    repo: string;
+    branch: string;
+    composePath: string;
+    deployOn: StackDeployTrigger;
+    variables?: Record<string, string>;
+}
+
+export interface UpdateStackSourceInput{
+    branch: string;
+    composePath: string;
+    deployOn: StackDeployTrigger;
+}
+
+export interface UpdateStackVariablesInput{
+    variables: Record<string, string>;
 }

@@ -28,6 +28,22 @@ export default class GithubRepositoryService{
         return Promise.all(repositories.map((repository) => this.#toRepository(octokit, repository)));
     }
 
+    async listRootFiles(userId: number, owner: string, repo: string, ref: string): Promise<string[]>{
+        const octokit = this.#accounts.createClient(await this.#accounts.requireForUser(userId));
+        return this.#rootFileNames(octokit, owner, repo, ref);
+    }
+
+    async readFile(userId: number, owner: string, repo: string, ref: string, path: string): Promise<string | null>{
+        const octokit = this.#accounts.createClient(await this.#accounts.requireForUser(userId));
+        try{
+            const { data } = await octokit.rest.repos.getContent({ owner, repo, path, ref });
+            if(Array.isArray(data) || data.type !== 'file') return null;
+            return Buffer.from(data.content, 'base64').toString('utf8');
+        }catch{
+            return null;
+        }
+    }
+
     async detect(userId: number, owner: string, repo: string): Promise<RepositoryDetection>{
         const octokit = this.#accounts.createClient(await this.#accounts.requireForUser(userId));
         const files = await this.#rootFileNames(octokit, owner, repo);
@@ -57,8 +73,8 @@ export default class GithubRepositoryService{
         return branches.map((branch) => branch.name);
     }
 
-    async #rootFileNames(octokit: Octokit, owner: string, repo: string): Promise<string[]>{
-        const { data } = await octokit.rest.repos.getContent({ owner, repo, path: '' });
+    async #rootFileNames(octokit: Octokit, owner: string, repo: string, ref?: string): Promise<string[]>{
+        const { data } = await octokit.rest.repos.getContent({ owner, repo, path: '', ref });
         return Array.isArray(data) ? data.map((file) => file.name) : [];
     }
 

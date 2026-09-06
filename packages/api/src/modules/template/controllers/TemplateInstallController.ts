@@ -11,8 +11,11 @@ import { templateInstallRoutes } from '@quantum/contracts/modules/template/route
 import type {
     CreateComposeInstallInput,
     TemplateInstallOperationInput,
+    CreateSourceInstallInput,
+    InspectStackSourceInput,
     UpdateComposeInput,
-    UpdateDeployTriggersInput,
+    UpdateStackSourceInput,
+    UpdateStackVariablesInput,
     UpdateTemplateInstallEnvironmentInput
 } from '@quantum/contracts/modules/template/http';
 
@@ -65,21 +68,38 @@ export default class TemplateInstallController extends BaseController{
         return this.#service.updateEnvironment(tenant, id, body);
     }
 
-    @Route(templateInstallRoutes.triggers)
-    triggers(@Tenant() tenant: Tenant, @NumericParam('id') id: number){
-        return this.#service.triggers(tenant, id);
+    @Route(templateInstallRoutes.inspectSource)
+    inspectSource(@CurrentUser() userId: number, @Body() body: InspectStackSourceInput){
+        return this.#service.inspectSource(userId, body);
     }
 
-    @Route(templateInstallRoutes.updateTriggers)
+    @Route(templateInstallRoutes.createFromSource)
+    @Status(201)
     @Middleware(TenantGuard('deploy'))
-    updateTriggers(@Tenant() tenant: Tenant, @NumericParam('id') id: number, @Body() body: UpdateDeployTriggersInput){
-        return this.#service.updateTriggers(tenant, id, body);
+    createFromSource(
+        @CurrentUser() userId: number,
+        @Tenant() tenant: Tenant,
+        @NumericParam('projectId') projectId: number,
+        @Body() body: CreateSourceInstallInput
+    ){
+        return this.#service.createFromSource(userId, tenant, projectId, body);
     }
 
-    @Route(templateInstallRoutes.rotateDeployToken)
+    @Route(templateInstallRoutes.updateSource)
     @Middleware(TenantGuard('deploy'))
-    rotateDeployToken(@Tenant() tenant: Tenant, @NumericParam('id') id: number){
-        return this.#service.rotateDeployToken(tenant, id);
+    updateSource(@Tenant() tenant: Tenant, @NumericParam('id') id: number, @Body() body: UpdateStackSourceInput){
+        return this.#service.updateSource(tenant, id, body);
+    }
+
+    @Route(templateInstallRoutes.variables)
+    variables(@Tenant() tenant: Tenant, @NumericParam('id') id: number){
+        return this.#service.variables(tenant, id);
+    }
+
+    @Route(templateInstallRoutes.updateVariables)
+    @Middleware(TenantGuard('deploy'))
+    updateVariables(@Tenant() tenant: Tenant, @NumericParam('id') id: number, @Body() body: UpdateStackVariablesInput){
+        return this.#service.updateVariables(tenant, id, body);
     }
 
     @Route(templateInstallRoutes.operate)

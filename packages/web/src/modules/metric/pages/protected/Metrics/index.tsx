@@ -139,10 +139,7 @@ const Metrics = () => {
 
     return (
         <PageBody width='wide' height='full'>
-            <PageHeader
-                title='Metrics'
-                description='Live resource usage of any container: repositories, databases and the services of your stacks. Refreshes automatically every 10 seconds.'
-            />
+            <PageHeader title='Metrics' />
 
             <div className='mt-6 max-w-sm'>
                 <EntitySelect

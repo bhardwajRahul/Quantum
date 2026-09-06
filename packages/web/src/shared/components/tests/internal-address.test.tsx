@@ -21,11 +21,11 @@ afterEach(async () => {
 });
 
 describe('internal address', () => {
-    it('shows the ip with its hostname underneath and a copy control', async () => {
+    it('shows the ip with a copy control', async () => {
         await render({ ip: '10.42.0.7', hostname: 'shop-api' });
 
         expect(container?.querySelector('code')?.textContent).toBe('10.42.0.7');
-        expect(container?.textContent).toContain('shop-api');
+        expect(container?.textContent).not.toContain('shop-api');
         expect(container?.querySelector('button')?.getAttribute('aria-label')).toBe('Copy 10.42.0.7');
     });
 

@@ -35,13 +35,10 @@ import { projectRoutes } from '@quantum/contracts/modules/project/routes';
 import { repositoryRoutes } from '@quantum/contracts/modules/repository/routes';
 import { templateInstallRoutes } from '@quantum/contracts/modules/template/routes';
 import { installStatusColor, installStatusLabel, isInstallRunning, isInstallTransient } from '@/modules/template/utils/install-status';
-import { PortBindingProtocol } from '@quantum/contracts/modules/docker/domain';
-import type { RepositoryPort } from '@quantum/contracts/modules/repository/domain';
 import type { TemplateInstallOperation } from '@quantum/contracts/modules/template/http';
 import { useCurrentOrganizationId } from '@/modules/organization/hooks/use-current-organization-id';
 import { databaseStatusColor, databaseStatusLabel, isDatabaseTransient } from '@/modules/application/utils/status';
 import { containerStatusColor, containerStatusLabel, isContainerTransient } from '@/modules/application/utils/container-status';
-import PublishedPorts from '@/modules/repository/components/PublishedPorts';
 import { formatDate } from '@/shared/utils/format-date';
 import { copyText } from '@/shared/utils/clipboard';
 import { applicationErrorMessages } from '@/modules/application/utils/error-messages';
@@ -106,7 +103,6 @@ interface ApplicationsHeaderProps{
 const ApplicationsHeader = ({ canAddDatabase, onAddApplication, onAddCompose, onAddDatabase }: ApplicationsHeaderProps) => (
     <PageHeader
         title='Applications'
-        description='Repositories, databases, template installs and compose stacks for this organization.'
         actions={(
             <div className='flex flex-wrap gap-2'>
                 <Button variant='secondary' isDisabled={!canAddDatabase} onPress={onAddDatabase}>
@@ -130,13 +126,6 @@ const primaryService = (install: TemplateInstall): TemplateInstallService | unde
     install.services.find((service) => service.kind === 'app' && service.ports.length > 0)
         ?? install.services.find((service) => service.kind === 'app')
         ?? install.services[0];
-
-const installPorts = (install: TemplateInstall): RepositoryPort[] =>
-    (primaryService(install)?.ports ?? []).map((port) => ({
-        internalPort: port.internalPort,
-        externalPort: port.externalPort,
-        protocol: port.protocol === 'udp' ? PortBindingProtocol.Udp : PortBindingProtocol.Tcp
-    }));
 
 interface RowActionHandlers{
     onNavigate: (path: string) => void;
@@ -243,7 +232,6 @@ const ApplicationsTable = ({ rows, ...handlers }: ApplicationsTableProps) => (
                     <Table.Column isRowHeader>Name</Table.Column>
                     <Table.Column>Status</Table.Column>
                     <Table.Column>Address</Table.Column>
-                    <Table.Column>Ports</Table.Column>
                     <Table.Column>Created</Table.Column>
                     <Table.Column><span className='sr-only'>Actions</span></Table.Column>
                 </Table.Header>
@@ -287,12 +275,6 @@ const ApplicationsTable = ({ rows, ...handlers }: ApplicationsTableProps) => (
                                     {row.kind === 'app' && <InternalAddress address={row.repository.address} />}
                                     {row.kind === 'install' && <InternalAddress address={primaryService(row.install)?.address ?? null} />}
                                     {row.kind === 'database' && <InternalAddress address={row.database.address} />}
-                                </Table.Cell>
-
-                                <Table.Cell>
-                                    {row.kind === 'app' && <PublishedPorts ports={row.repository.ports} />}
-                                    {row.kind === 'install' && <PublishedPorts ports={installPorts(row.install)} />}
-                                    {row.kind === 'database' && <span className='text-[0.8125rem] text-muted'>—</span>}
                                 </Table.Cell>
 
                                 <Table.Cell>{formatDate(row.date)}</Table.Cell>

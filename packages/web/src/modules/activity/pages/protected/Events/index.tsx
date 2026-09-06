@@ -99,10 +99,7 @@ const Events = () => {
 
     return (
         <PageBody width='wide' height='full'>
-            <PageHeader
-                title='Events'
-                description='Live activity across your organization, updated in real time.'
-            />
+            <PageHeader title='Events' />
 
             <div className='mt-6 flex flex-1 flex-col'>
                 <ListPageShell

@@ -41,7 +41,6 @@ const InternalAddress = ({ address }: InternalAddressProps) => {
                         : <Copy aria-hidden='true' className='size-3.5' />}
                 </Button>
             </span>
-            <span className='truncate font-mono text-[0.75rem] text-muted'>{address.hostname}</span>
         </div>
     );
 };

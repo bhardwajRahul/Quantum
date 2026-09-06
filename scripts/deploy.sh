@@ -12,7 +12,7 @@ usage(){
 Quantum — one-command deploy.
 
   bash scripts/deploy.sh              local install on localhost
-  bash scripts/deploy.sh --public     bind to this machine's public IP
+  bash scripts/deploy.sh --public     URLs on this machine's public IP
   bash scripts/deploy.sh --host quantum.example.com
   bash scripts/deploy.sh --no-build   start without rebuilding the images
 
@@ -104,21 +104,15 @@ set_env_if_empty POSTGRES_PASSWORD "$(rand_hex 16)"
 set_env_if_empty POSTGRES_USER     quantum
 
 case "$MODE" in
-    local)  BIND_IP=0.0.0.0; PUBLIC_HOST=localhost ;;
+    local)  PUBLIC_HOST=localhost ;;
     public)
-        BIND_IP="$(curl -fsS --max-time 10 https://api.ipify.org || true)"
-        [ -n "$BIND_IP" ] || die "Could not detect the public IP. Use --host <ip-or-domain>."
-        PUBLIC_HOST="$BIND_IP"
-        echo "    detected public IP $BIND_IP"
+        PUBLIC_HOST="$(curl -fsS --max-time 10 https://api.ipify.org || true)"
+        [ -n "$PUBLIC_HOST" ] || die "Could not detect the public IP. Use --host <ip-or-domain>."
+        echo "    detected public IP $PUBLIC_HOST"
         ;;
     host)
         [ -n "$HOST_OVERRIDE" ] || die "--host needs a value, e.g. --host quantum.example.com"
         PUBLIC_HOST="$HOST_OVERRIDE"
-        if printf '%s' "$PUBLIC_HOST" | grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
-            BIND_IP="$PUBLIC_HOST"
-        else
-            BIND_IP=0.0.0.0
-        fi
         ;;
 esac
 
@@ -128,12 +122,12 @@ CLIENT_PORT="$(env_value CLIENT_WEB_APP_PORT)";   CLIENT_PORT="${CLIENT_PORT:-50
 set_env_if_empty SERVER_PORT         "$SERVER_PORT"
 set_env_if_empty CLIENT_WEB_APP_PORT "$CLIENT_PORT"
 
+set_env_if_empty SERVER_IP 0.0.0.0
+
 if [ "$MODE" = local ]; then
-    set_env_if_empty SERVER_IP   "$BIND_IP"
     set_env_if_empty DOMAIN      "http://$PUBLIC_HOST:$SERVER_PORT"
     set_env_if_empty CLIENT_HOST "http://$PUBLIC_HOST:$CLIENT_PORT"
 else
-    set_env SERVER_IP   "$BIND_IP"
     set_env DOMAIN      "http://$PUBLIC_HOST:$SERVER_PORT"
     set_env CLIENT_HOST "http://$PUBLIC_HOST:$CLIENT_PORT"
     echo "    set DOMAIN=http://$PUBLIC_HOST:$SERVER_PORT and CLIENT_HOST=http://$PUBLIC_HOST:$CLIENT_PORT"
@@ -148,9 +142,9 @@ fi
 say 'Starting the stack'
 
 if [ "$SKIP_BUILD" = true ]; then
-    docker compose up -d
+    docker compose up -d --remove-orphans
 else
-    docker compose up -d --build
+    docker compose up -d --build --remove-orphans
 fi
 
 say 'Waiting for the server to become healthy'

@@ -8,11 +8,6 @@ export enum CodespaceStatus{
     Error = 'error'
 }
 
-export enum PortBindingProtocol{
-    Tcp = 'tcp',
-    Udp = 'udp'
-}
-
 export interface Codespace extends BaseEntity{
     name: string;
     organizationId: number;
@@ -35,13 +30,4 @@ export interface Codespace extends BaseEntity{
 export interface CodespaceAccess{
     accessUrl: string;
     password: string;
-}
-
-export interface PortBinding extends BaseEntity{
-    containerId: number;
-    userId: number;
-    organizationId: number;
-    internalPort: number;
-    externalPort: number;
-    protocol: PortBindingProtocol;
 }

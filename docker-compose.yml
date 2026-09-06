@@ -7,23 +7,8 @@ services:
       dockerfile: packages/api/Dockerfile
 
     ports:
-      - "127.0.0.1:${SERVER_PORT:-7080}:${SERVER_PORT:-7080}"
+      - "${SERVER_IP:-0.0.0.0}:${SERVER_PORT:-7080}:${SERVER_PORT:-7080}"
 
-    labels:
-      traefik.enable: "${PANEL_HOST:+true}"
-      traefik.docker.network: quantum_quantum_network
-      traefik.http.routers.quantum-api.rule: "Host(`${PANEL_HOST:-panel.invalid}`) && PathPrefix(`/api`)"
-      traefik.http.routers.quantum-api.entrypoints: websecure
-      traefik.http.routers.quantum-api.tls: "true"
-      traefik.http.routers.quantum-api.tls.certresolver: le
-      traefik.http.middlewares.quantum-api-strip.stripprefix.prefixes: /api
-      traefik.http.middlewares.quantum-api-to-https.redirectscheme.scheme: https
-      traefik.http.middlewares.quantum-api-to-https.redirectscheme.permanent: "true"
-      traefik.http.routers.quantum-api.middlewares: quantum-api-strip@docker
-      traefik.http.services.quantum-api.loadbalancer.server.port: "${SERVER_PORT:-7080}"
-      traefik.http.routers.quantum-api-redirect.rule: "Host(`${PANEL_HOST:-panel.invalid}`) && PathPrefix(`/api`)"
-      traefik.http.routers.quantum-api-redirect.entrypoints: web
-      traefik.http.routers.quantum-api-redirect.middlewares: quantum-api-to-https@docker
 
     environment:
       DOMAIN: ${DOMAIN:-http://localhost:${SERVER_PORT:-7080}}
@@ -81,21 +66,8 @@ services:
         VITE_API_SUFFIX: ${VITE_API_SUFFIX:-}
 
     ports:
-      - "127.0.0.1:${CLIENT_WEB_APP_PORT:-5050}:80"
+      - "${SERVER_IP:-0.0.0.0}:${CLIENT_WEB_APP_PORT:-5050}:80"
 
-    labels:
-      traefik.enable: "${PANEL_HOST:+true}"
-      traefik.docker.network: quantum_quantum_network
-      traefik.http.routers.quantum-web.rule: "Host(`${PANEL_HOST:-panel.invalid}`)"
-      traefik.http.routers.quantum-web.entrypoints: websecure
-      traefik.http.routers.quantum-web.tls: "true"
-      traefik.http.routers.quantum-web.tls.certresolver: le
-      traefik.http.services.quantum-web.loadbalancer.server.port: "80"
-      traefik.http.routers.quantum-web-redirect.rule: "Host(`${PANEL_HOST:-panel.invalid}`)"
-      traefik.http.routers.quantum-web-redirect.entrypoints: web
-      traefik.http.middlewares.quantum-web-to-https.redirectscheme.scheme: https
-      traefik.http.middlewares.quantum-web-to-https.redirectscheme.permanent: "true"
-      traefik.http.routers.quantum-web-redirect.middlewares: quantum-web-to-https@docker
 
     depends_on:
       api:
@@ -130,34 +102,6 @@ services:
       retries: 5
       start_period: 40s
 
-  traefik:
-    container_name: quantum-traefik
-    image: traefik:v3.6
-    restart: unless-stopped
-    command:
-      - --providers.docker
-      - --providers.docker.exposedbydefault=false
-      - --entrypoints.web.address=:80
-      - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.le.acme.email=${ACME_EMAIL:-}
-      - --certificatesresolvers.le.acme.storage=/acme/acme.json
-      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
-      - --certificatesresolvers.le.acme.caserver=${ACME_CA_SERVER:-https://acme-staging-v02.api.letsencrypt.org/directory}
-      - --accesslog=true
-      - --accesslog.format=json
-      - --accesslog.filepath=/logs/access.log
-
-    ports:
-      - "${TRAEFIK_HTTP_PORT:-80}:80"
-      - "${TRAEFIK_HTTPS_PORT:-443}:443"
-
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - traefik_acme:/acme
-      - traefik_logs:/logs
-
-    networks:
-      - quantum_network
 
 networks:
   quantum_network:
@@ -165,5 +109,3 @@ networks:
 
 volumes:
   postgres_data:
-  traefik_acme:
-  traefik_logs:

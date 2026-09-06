@@ -4,7 +4,6 @@ import Deployment from '../models/Deployment';
 import DockerContainer from '@/modules/docker/models/DockerContainer';
 import DockerNetwork from '@/modules/docker/models/DockerNetwork';
 import DockerImage from '@/modules/docker/models/DockerImage';
-import HealthCheck from '@/modules/health-check/models/HealthCheck';
 import Database from '@/modules/database/models/Database';
 import TemplateInstall from '@/modules/template/models/TemplateInstall';
 import RegistryCredential from '@/modules/registry/models/RegistryCredential';
@@ -24,7 +23,6 @@ export default class CascadeService{
         deleted.networks = await this.#teardownNetworks(organizationId);
         deleted.repositories = await this.#safe(() => Repository.delete({ organizationId }));
         deleted.deployments = await this.#safe(() => Deployment.delete({ organizationId }));
-        deleted.healthChecks = await this.#safe(() => HealthCheck.delete({ organizationId }));
         deleted.databases = await this.#safe(() => Database.delete({ organizationId }));
         deleted.templateInstalls = await this.#safe(() => TemplateInstall.delete({ organizationId }));
         deleted.registryCredentials = await this.#safe(() => RegistryCredential.delete({ organizationId }));
@@ -44,7 +42,6 @@ export default class CascadeService{
         deleted.deployments = repositoryIds.length === 0
             ? 0
             : await this.#safe(() => Deployment.delete({ repositoryId: In(repositoryIds) }));
-        deleted.healthChecks = await this.#safe(() => HealthCheck.delete({ projectId }));
         deleted.databases = await this.#safe(() => Database.delete({ projectId }));
         deleted.templateInstalls = await this.#safe(() => TemplateInstall.delete({ projectId }));
         deleted.codespaces = await this.#safe(() => Codespace.delete({ projectId }));

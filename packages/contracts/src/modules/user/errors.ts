@@ -3,7 +3,6 @@ import type { ErrorCode, ErrorTable } from '../../shared/errors';
 export const UserErrors = {
     domain: 'User',
     causes: {
-        NotFound: 404,
         UsernameAlreadyTaken: 409,
         EmailAlreadyRegistered: 409
     }

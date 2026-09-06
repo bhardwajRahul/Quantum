@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { useApp } from '@tests/harness';
-import { request, expectError } from '@tests/request';
-import { seed } from '@tests/Seed';
+import { request } from '@tests/request';
 import { serverRoutes } from '@quantum/contracts/modules/server/routes';
 
 const ctx = useApp();
@@ -24,20 +23,5 @@ describe('server', () => {
         expect(health.ramPercent).toBeLessThanOrEqual(100);
         expect(health.memTotal).toBeGreaterThan(0);
         expect(health.memFree).toBeGreaterThan(0);
-    });
-
-    it('rejects unauthenticated ip requests', async () => {
-        const res = await request(ctx.app, serverRoutes.ip);
-
-        expectError(res, 401, 'Authentication::Unauthorized');
-    });
-
-    it('returns the configured server ip to authenticated users', async () => {
-        const user = await seed.user();
-
-        const res = await request(ctx.app, serverRoutes.ip, { as: user.id });
-
-        expect(res.status).toBe(200);
-        expect(typeof res.data()).toBe('string');
     });
 });

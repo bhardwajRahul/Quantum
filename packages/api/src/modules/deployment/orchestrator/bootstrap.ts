@@ -32,9 +32,6 @@ export const startOrchestrator = (): void => {
     if(process.env.METRICS_ENABLED !== 'false'){
         schedule(interval('METRICS_INTERVAL_MS', 20000), () => orchestrator.metricsSample(), 'metrics');
     }
-    if(process.env.HEALTH_ENABLED !== 'false'){
-        schedule(interval('HEALTH_INTERVAL_MS', 30000), () => orchestrator.healthCheck(), 'health');
-    }
 
     logger.info('orchestrator started', { scope: 'orchestrator' });
 };

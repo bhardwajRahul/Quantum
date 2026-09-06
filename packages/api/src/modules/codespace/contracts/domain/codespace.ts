@@ -1,4 +1,4 @@
-import type { CodespaceStatus, PortBindingProtocol } from '@quantum/contracts/modules/codespace/domain';
+import type { CodespaceStatus } from '@quantum/contracts/modules/codespace/domain';
 
 export interface CodespaceFields{
     name: string;
@@ -18,17 +18,6 @@ export interface CodespaceFields{
     accessUrl: string | null;
     passwordEnc: string | null;
     nodeId: string;
-    createdAt: Date;
-    updatedAt: Date;
-}
-
-export interface PortBindingFields{
-    containerId: number;
-    userId: number;
-    organizationId: number;
-    internalPort: number;
-    externalPort: number;
-    protocol: PortBindingProtocol;
     createdAt: Date;
     updatedAt: Date;
 }

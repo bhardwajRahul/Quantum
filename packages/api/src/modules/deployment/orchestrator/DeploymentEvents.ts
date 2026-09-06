@@ -9,10 +9,8 @@ import type { DeploymentRequestedPayload, DeploymentRollbackRequestedPayload, Re
 import type { TemplateInstalledPayload, TemplateUninstalledPayload } from '@/modules/template/contracts/domain/events';
 import type { CodespaceProvisionRequestedPayload } from '@/modules/codespace/contracts/domain/events';
 import type { DatabaseProvisionRequestedPayload } from '@/modules/database/contracts/domain/events';
-import type { HealthCheckChangedPayload } from '@/modules/health-check/contracts/domain/events';
 import type { OrganizationDeletedPayload } from '@/modules/organization/contracts/domain/events';
 import type { ProjectDeletedPayload } from '@/modules/project/contracts/domain/events';
-import type { UserDeletedPayload } from '@/modules/user/contracts/domain/events';
 import type { GithubConnectedPayload, GithubDisconnectedPayload } from '@/modules/github/contracts/domain/events';
 
 type DbJobType = JobType.DbProvision | JobType.DbBackup | JobType.DbRestore | JobType.DbDelete;
@@ -35,10 +33,8 @@ export default class DeploymentEvents{
         eventBus.subscribe('codespace.provisionRequested', (payload) => this.#codespaceRequested(payload as CodespaceProvisionRequestedPayload));
         eventBus.subscribe('repository.deleted', (payload) => this.#orchestrator.repositoryTeardown((payload as RepositoryDeletedPayload).repositoryId));
         eventBus.subscribe('database.provisionRequested', (payload) => this.#databaseProvision(payload as DatabaseProvisionRequestedPayload));
-        eventBus.subscribe('healthcheck.changed', (payload) => this.#healthCheckChanged(payload as HealthCheckChangedPayload));
         eventBus.subscribe('organization.deleted', (payload) => this.#organizationDeleted(payload as OrganizationDeletedPayload));
         eventBus.subscribe('project.deleted', (payload) => this.#projectDeleted(payload as ProjectDeletedPayload));
-        eventBus.subscribe('user.deleted', (payload) => this.#userDeleted(payload as UserDeletedPayload));
         eventBus.subscribe('github.connected', (payload) => this.#githubConnected(payload as GithubConnectedPayload));
         eventBus.subscribe('github.disconnected', (payload) => this.#githubDisconnected(payload as GithubDisconnectedPayload));
     }
@@ -96,20 +92,12 @@ export default class DeploymentEvents{
         });
     }
 
-    #healthCheckChanged(_payload: HealthCheckChangedPayload): Promise<unknown>{
-        return this.#orchestrator.healthCheck();
-    }
-
     #organizationDeleted(payload: OrganizationDeletedPayload): Promise<unknown>{
         return this.#orchestrator.orgCascadeDelete(payload.organizationId);
     }
 
     #projectDeleted(payload: ProjectDeletedPayload): Promise<unknown>{
         return this.#orchestrator.projectCascadeDelete(payload.projectId);
-    }
-
-    #userDeleted(payload: UserDeletedPayload): void{
-        logger.info(`user ${payload.userId} deleted; user-level cascade deferred (no legacy user cascade job)`, { scope: 'deployment.events' });
     }
 
     #githubConnected(payload: GithubConnectedPayload): void{

@@ -22,9 +22,8 @@ bash scripts/deploy.sh
 ```
 
 The script writes `.env` from `.env.example`, generates the secrets, builds the images and starts
-four containers: `quantum-api`, `quantum-web`, `quantum-postgres` and `quantum-traefik`. The
-dashboard is at `http://localhost:5050` and the API at `http://localhost:7080`; both listen on
-`127.0.0.1` only.
+three containers: `quantum-api`, `quantum-web` and `quantum-postgres`. The dashboard is at
+`http://localhost:5050` and the API at `http://localhost:7080`.
 
 Then:
 
@@ -42,20 +41,38 @@ git pull && bash scripts/deploy.sh
 
 ### On a public server
 
-The bundled Traefik serves the dashboard over HTTPS on a hostname of yours. Point an A record at
-the server, open ports **80** and **443**, and set in `.env`:
+```bash
+bash scripts/deploy.sh --public                      # URLs on the machine's public IP
+bash scripts/deploy.sh --host quantum.example.com    # or on a domain that points at it
+```
+
+Open ports **5050** and **7080** in the firewall. For HTTPS, put the reverse proxy you already
+run in front of them. With NGINX:
+
+```nginx
+server {
+    listen 80;
+    server_name quantum.example.com;
+    location / { proxy_pass http://127.0.0.1:5050; }
+    location /api/ {
+        proxy_pass http://127.0.0.1:7080/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+`certbot --nginx -d quantum.example.com` adds the certificate. Then in `.env`:
 
 ```bash
-PANEL_HOST=quantum.example.com
-ACME_EMAIL=you@example.com
+SERVER_IP=127.0.0.1
 DOMAIN=https://quantum.example.com/api
 CLIENT_HOST=https://quantum.example.com
 ```
 
-then `docker compose up -d --build`. The web app answers at `https://quantum.example.com` and the
-API under `/api`. Certificates come from Let's Encrypt's staging CA first; once they are issued,
-switch `ACME_CA_SERVER` to `https://acme-v02.api.letsencrypt.org/directory` and restart Traefik.
-`DOMAIN` is compiled into the web bundle, so rebuild `web` whenever it changes.
+and `docker compose up -d --build`: the ports are now reachable only by the proxy, and `DOMAIN`
+is compiled into the web bundle, so the web image needs the rebuild.
 
 ### GitHub OAuth
 
@@ -84,9 +101,10 @@ have working defaults.
 | `SECRET_KEY` | Signs sessions. Any long random string. |
 | `ENCRYPTION_KEY` | 64 hex chars, or base64 of exactly 32 bytes. Encrypts stored GitHub and registry tokens. |
 | `POSTGRES_PASSWORD` | Generated for you. |
+| `SERVER_PORT`, `CLIENT_WEB_APP_PORT`, `POSTGRES_PORT` | Host ports of the API (7080), the web app (5050) and Postgres (5432). Change one when it is already taken. |
 | `DOMAIN`, `CLIENT_HOST` | API and web URLs as the browser sees them, with scheme and port. CORS allows exactly `CLIENT_HOST`. |
+| `SERVER_IP` | Interface the API and web ports bind to. `0.0.0.0` by default, `127.0.0.1` behind your own proxy. |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | The OAuth app above. |
-| `PANEL_HOST`, `ACME_EMAIL`, `ACME_CA_SERVER` | HTTPS for the dashboard through Traefik. Empty `PANEL_HOST` disables it. |
 | `SMTP_*`, `WEBMASTER_MAIL` | Password resets and alert emails. |
 | `REGISTRATION_DISABLED` | `true` closes self-signup. |
 

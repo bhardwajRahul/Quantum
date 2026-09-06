@@ -11,7 +11,6 @@ const SEGMENT_BY_ENTITY: Readonly<Record<string, string>> = {
     DockerContainer: 'docker',
     DockerImage: 'docker',
     DockerNetwork: 'docker',
-    HealthCheck: 'health-check',
     Job: 'deployment',
     Metric: 'metric',
     OrganizationMembership: 'organization',

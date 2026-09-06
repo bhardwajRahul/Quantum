@@ -7,7 +7,8 @@ export const RepositoryErrors = {
         Forbidden: 403,
         AliasAlreadyTaken: 409,
         InvalidSignature: 401,
-        OperationFailed: 500
+        OperationFailed: 500,
+        InvalidVolume: 400
     }
 } as const satisfies ErrorTable;
 

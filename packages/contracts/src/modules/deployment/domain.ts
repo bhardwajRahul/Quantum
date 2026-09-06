@@ -39,7 +39,8 @@ export enum JobType{
     OrgCascadeDelete = 'org:cascade-delete',
     ProjectCascadeDelete = 'project:cascade-delete',
     CodespaceProvision = 'codespace:provision',
-    CodespaceDelete = 'codespace:delete'
+    CodespaceDelete = 'codespace:delete',
+    RepositoryTeardown = 'repo:teardown'
 }
 
 export interface DeploymentCommitAuthor{

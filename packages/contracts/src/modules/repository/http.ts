@@ -15,6 +15,7 @@ export interface CreateRepositoryInput{
     runtimeVersion?: string;
     outputDirectory?: string;
     port?: number;
+    volumes?: string[];
     projectId: number;
 }
 
@@ -37,6 +38,7 @@ export interface UpdateRepositoryInput{
     buildStrategy?: BuildStrategy;
     dockerfilePath?: string;
     image?: string;
+    volumes?: string[];
 }
 
 export interface RepositoryOperationInput{

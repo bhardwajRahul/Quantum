@@ -5,7 +5,7 @@ import { startOrchestrator } from './bootstrap';
 import { JobType } from '@quantum/contracts/modules/deployment/domain';
 import { logger } from '@/shared/utils/Logger';
 import type { DeployOptions } from './OrchestratorService';
-import type { DeploymentRequestedPayload, DeploymentRollbackRequestedPayload } from '@/modules/repository/contracts/domain/events';
+import type { DeploymentRequestedPayload, DeploymentRollbackRequestedPayload, RepositoryDeletedPayload } from '@/modules/repository/contracts/domain/events';
 import type { TemplateInstalledPayload, TemplateUninstalledPayload } from '@/modules/template/contracts/domain/events';
 import type { CodespaceProvisionRequestedPayload } from '@/modules/codespace/contracts/domain/events';
 import type { DatabaseProvisionRequestedPayload } from '@/modules/database/contracts/domain/events';
@@ -33,6 +33,7 @@ export default class DeploymentEvents{
         eventBus.subscribe('template.installed', (payload) => this.#templateInstalled(payload as TemplateInstalledPayload));
         eventBus.subscribe('template.uninstalled', (payload) => this.#templateUninstalled(payload as TemplateUninstalledPayload));
         eventBus.subscribe('codespace.provisionRequested', (payload) => this.#codespaceRequested(payload as CodespaceProvisionRequestedPayload));
+        eventBus.subscribe('repository.deleted', (payload) => this.#orchestrator.repositoryTeardown((payload as RepositoryDeletedPayload).repositoryId));
         eventBus.subscribe('database.provisionRequested', (payload) => this.#databaseProvision(payload as DatabaseProvisionRequestedPayload));
         eventBus.subscribe('healthcheck.changed', (payload) => this.#healthCheckChanged(payload as HealthCheckChangedPayload));
         eventBus.subscribe('organization.deleted', (payload) => this.#organizationDeleted(payload as OrganizationDeletedPayload));

@@ -11,12 +11,17 @@ import { PortBindingProtocol } from '@quantum/contracts/modules/docker/domain';
 import ContainerOps from './ContainerOps';
 import { NetworkDriver } from '@quantum/contracts/modules/docker/domain';
 import { logger } from '@/shared/utils/Logger';
+import type { DockerContainerVolume } from '@quantum/contracts/modules/docker/domain';
+
+const volumesOf = (repository: Repository): DockerContainerVolume[] =>
+    repository.volumes.map((containerPath) => ({ containerPath, mode: 'rw' as const }));
 
 export default class ProvisionService{
     async ensureRepositoryInfra(repository: Repository): Promise<DockerContainer>{
         const existing = await DockerContainer.findOneBy({ repositoryId: repository.id });
         if(existing){
             await this.#ensurePortBinding(repository, existing, existing.organizationId);
+            await this.#syncVolumes(repository, existing);
             return existing;
         }
 
@@ -76,12 +81,20 @@ export default class ProvisionService{
             networkId,
             imageId,
             repositoryId: repository.id,
-            isRepositoryContainer: true
+            isRepositoryContainer: true,
+            volumes: volumesOf(repository)
         }).save();
         container.dockerContainerName = getSystemDockerName(container.id);
         container.storagePath = getContainerStoragePath(repository.userId, container.id, repository.alias).repositoryContainerPath;
         await container.save();
         return container;
+    }
+
+    async #syncVolumes(repository: Repository, container: DockerContainer): Promise<void>{
+        const wanted = volumesOf(repository);
+        if(JSON.stringify(wanted) === JSON.stringify(container.volumes)) return;
+        container.volumes = wanted;
+        await container.save();
     }
 
     async #materialize(container: DockerContainer): Promise<void>{

@@ -6,6 +6,7 @@ import { TenancyError } from '@/modules/organization/contracts/domain/errors';
 import Project from '@/modules/project/models/Project';
 import Repository from '../models/Repository';
 import { oneWithContainerStatus, withContainerStatus } from './withContainerStatus';
+import { normalizeVolumes } from './repositoryVolumes';
 import { RepositoryError } from '../contracts/domain/errors';
 import { SourceType } from '@quantum/contracts/modules/repository/domain';
 import type { Tenant } from '@/modules/organization/contracts/types/fastify';
@@ -19,7 +20,7 @@ const ALIAS_MAX_LENGTH = 32;
 const REDEPLOY_FIELDS: Array<keyof UpdateRepositoryInput> = [
     'buildCommand', 'installCommand', 'startCommand', 'rootDirectory',
     'branch', 'framework', 'runtime', 'runtimeVersion', 'outputDirectory',
-    'buildStrategy', 'dockerfilePath', 'image'
+    'buildStrategy', 'dockerfilePath', 'image', 'volumes'
 ];
 
 export default class RepositoryService{
@@ -48,6 +49,7 @@ export default class RepositoryService{
             outputDirectory: input.outputDirectory ?? null,
             url: input.url,
             port: input.port ?? null,
+            volumes: normalizeVolumes(input.volumes ?? []),
             userId,
             organizationId: tenant.organizationId,
             projectId: project.id,
@@ -112,6 +114,7 @@ export default class RepositoryService{
         if(input.buildStrategy !== undefined) repository.buildStrategy = input.buildStrategy;
         if(input.dockerfilePath !== undefined) repository.dockerfilePath = input.dockerfilePath === '' ? null : input.dockerfilePath;
         if(input.image !== undefined) repository.image = input.image === '' ? null : input.image;
+        if(input.volumes !== undefined) repository.volumes = normalizeVolumes(input.volumes);
         if(input.projectId !== undefined){
             repository.projectId = (await this.#projectFor(tenant, input.projectId)).id;
         }

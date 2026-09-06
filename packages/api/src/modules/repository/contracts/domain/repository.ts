@@ -23,6 +23,7 @@ export interface RepositoryFields{
     organizationId: number | null;
     projectId: number;
     sourceType: SourceType;
+    volumes: string[];
     createdAt: Date;
     updatedAt: Date;
 }

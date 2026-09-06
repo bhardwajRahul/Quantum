@@ -8,6 +8,7 @@ import ReconcileHandler from './handlers/ReconcileHandler';
 import DatabaseHandler from './handlers/DatabaseHandler';
 import TemplateHandler from './handlers/TemplateHandler';
 import CodespaceHandler from './handlers/CodespaceHandler';
+import RepositoryTeardownHandler from './handlers/RepositoryTeardownHandler';
 import HealthHandler from './handlers/HealthHandler';
 import MetricsHandler from './handlers/MetricsHandler';
 import OrgCascadeHandler from './handlers/OrgCascadeHandler';
@@ -32,6 +33,7 @@ export const buildHandlerMap = (): JobHandlerMap => ({
     [JobType.TemplateUninstall]: (job) => new TemplateHandler().run(job),
     [JobType.CodespaceProvision]: (job) => new CodespaceHandler().run(job),
     [JobType.CodespaceDelete]: (job) => new CodespaceHandler().run(job),
+    [JobType.RepositoryTeardown]: (job) => new RepositoryTeardownHandler().run(job),
     [JobType.OrgCascadeDelete]: (job) => new OrgCascadeHandler().run(job),
     [JobType.ProjectCascadeDelete]: (job) => new ProjectCascadeHandler().run(job)
 });

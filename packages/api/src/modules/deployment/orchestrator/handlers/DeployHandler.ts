@@ -45,7 +45,7 @@ export default class DeployHandler{
 
         const container = await this.#provision.ensureRepositoryInfra(repository);
         const ops = new ContainerOps(container);
-        await ops.removeContainer();
+        await ops.destroyContainer();
         await ops.createAndStartContainer({ imageOverride: tag });
 
         await Deployment.update(
@@ -117,7 +117,7 @@ export default class DeployHandler{
         if(strategy === BuildStrategy.Exec) return;
 
         const ops = new ContainerOps(container);
-        await ops.removeContainer();
+        await ops.destroyContainer();
         await ops.createAndStartContainer({ imageOverride: artifact.tag });
     }
 }

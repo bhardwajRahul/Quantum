@@ -124,6 +124,15 @@ export default class OrchestratorService{
         return this.enqueue({ type: JobType.HealthCheck, nodeId, lockKey: `health:${nodeId}`, maxAttempts: 1 });
     }
 
+    repositoryTeardown(repositoryId: number): Promise<Job>{
+        return this.enqueue({
+            type: JobType.RepositoryTeardown,
+            repositoryId,
+            lockKey: `repo:${repositoryId}`,
+            idempotencyKey: `repo-teardown:${repositoryId}`
+        });
+    }
+
     codespaceJob(
         type: JobType.CodespaceProvision | JobType.CodespaceDelete,
         codespaceId: number,

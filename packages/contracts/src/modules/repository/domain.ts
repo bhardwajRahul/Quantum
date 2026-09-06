@@ -46,6 +46,7 @@ export interface Repository extends BaseEntity{
     containerStatus: ContainerStatus | null;
     ports: RepositoryPort[];
     address: ContainerAddress | null;
+    volumes: string[];
     userId: number;
     organizationId: number | null;
     projectId: number;

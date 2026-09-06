@@ -9,6 +9,7 @@ import SettingsSection from '@/shared/components/SettingsSection';
 import DeleteConfirmDialog from '@/shared/components/DeleteConfirmDialog';
 import Form from '@/shared/components/forms/Form';
 import Field from '@/shared/components/forms/Field';
+import PersistentVolumes from '@/modules/repository/components/PersistentVolumes';
 import { useForm } from '@/shared/hooks/forms/use-form';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { repositoryApi } from '@/modules/repository/api/api';
@@ -306,6 +307,7 @@ const RepositorySettings = () => {
                     repository={repository.data}
                     onSaved={repository.reload}
                 />
+                <PersistentVolumes key={`volumes-${repository.data.id}`} repository={repository.data} onSaved={repository.reload} />
                 <RepositoryDetails repository={repository.data} />
                 <DangerZone repository={repository.data} />
             </div>

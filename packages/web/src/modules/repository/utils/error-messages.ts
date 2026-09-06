@@ -7,7 +7,8 @@ export const repositoryErrorMessages: Partial<Record<RepositoryErrorCode, string
     'Repository::Forbidden': forbidden('repository', 'this'),
     'Repository::AliasAlreadyTaken': 'That alias is already used by another repository.',
     'Repository::InvalidSignature': 'The webhook signature is not valid.',
-    'Repository::OperationFailed': 'The operation could not be completed. Try again.'
+    'Repository::OperationFailed': 'The operation could not be completed. Try again.',
+    'Repository::InvalidVolume': 'Volumes must be absolute paths inside the container, other than / and /app.'
 };
 
 export const deploymentErrorMessages: Partial<Record<DeploymentErrorCode, string>> = {

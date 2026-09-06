@@ -71,4 +71,7 @@ export default class Repository extends BaseModel implements RepositoryFields{
 
     @Column({ type: 'simple-enum', enum: SourceType, default: SourceType.Github })
     sourceType!: SourceType;
+
+    @Column({ type: 'jsonb', default: [] })
+    volumes!: string[];
 }

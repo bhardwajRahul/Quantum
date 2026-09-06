@@ -104,6 +104,7 @@ have working defaults.
 | `SERVER_PORT`, `CLIENT_WEB_APP_PORT`, `POSTGRES_PORT` | Host ports of the API (7080), the web app (5050) and Postgres (5432). Change one when it is already taken. |
 | `DOMAIN`, `CLIENT_HOST` | API and web URLs as the browser sees them, with scheme and port. CORS allows exactly `CLIENT_HOST`. |
 | `SERVER_IP` | Interface the API and web ports bind to. `0.0.0.0` by default, `127.0.0.1` behind your own proxy. |
+| `PUBLIC_HOST` | Public IP or domain the published ports of your applications are linked on. `deploy.sh` fills it; set it by hand when the api resolves DNS differently from your users. |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | The OAuth app above. |
 | `SMTP_*`, `WEBMASTER_MAIL` | Password resets and alert emails. |
 | `REGISTRATION_DISABLED` | `true` closes self-signup. |

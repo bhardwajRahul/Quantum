@@ -13,7 +13,7 @@ import ContainerOps from '../ContainerOps';
 import { materializeNetwork, teardownNetwork } from '../NetworkOps';
 import { allocateHostPort } from '../PortAllocator';
 import { getContainerStoragePath, getSystemDockerName } from '../paths';
-import { publicHost } from '../publicHost';
+import { publicAddress } from '../publicAddress';
 import { failureMessage } from '../failureMessage';
 import { CodespaceStatus } from '@quantum/contracts/modules/codespace/domain';
 import { NetworkDriver, PortBindingProtocol } from '@quantum/contracts/modules/docker/domain';
@@ -208,7 +208,7 @@ export default class CodespaceHandler{
 
         const password = randomBytes(18).toString('base64url');
         codespace.passwordEnc = new SecretCipher().encrypt(password);
-        codespace.accessUrl = `http://${publicHost()}:${binding.externalPort}/?folder=${WORKSPACE_ROOT}`;
+        codespace.accessUrl = `http://${await publicAddress()}:${binding.externalPort}/?folder=${WORKSPACE_ROOT}`;
         await codespace.save();
 
         return { binding, password };

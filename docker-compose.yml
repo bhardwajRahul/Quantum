@@ -15,6 +15,7 @@ services:
       CLIENT_HOST: ${CLIENT_HOST:-http://localhost:${CLIENT_WEB_APP_PORT:-5050}}
       SERVER_PORT: ${SERVER_PORT:-7080}
       CORS_ORIGIN: ${CORS_ORIGIN:-${CLIENT_HOST:-http://localhost:${CLIENT_WEB_APP_PORT:-5050}}}
+      PUBLIC_HOST: ${PUBLIC_HOST:-}
 
       SECRET_KEY: ${SECRET_KEY:?run scripts/deploy.sh, or set SECRET_KEY in .env}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?run scripts/deploy.sh, or set ENCRYPTION_KEY in .env}

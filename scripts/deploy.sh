@@ -127,9 +127,11 @@ set_env_if_empty SERVER_IP 0.0.0.0
 if [ "$MODE" = local ]; then
     set_env_if_empty DOMAIN      "http://$PUBLIC_HOST:$SERVER_PORT"
     set_env_if_empty CLIENT_HOST "http://$PUBLIC_HOST:$CLIENT_PORT"
+    set_env_if_empty PUBLIC_HOST "$PUBLIC_HOST"
 else
     set_env DOMAIN      "http://$PUBLIC_HOST:$SERVER_PORT"
     set_env CLIENT_HOST "http://$PUBLIC_HOST:$CLIENT_PORT"
+    set_env PUBLIC_HOST "$PUBLIC_HOST"
     echo "    set DOMAIN=http://$PUBLIC_HOST:$SERVER_PORT and CLIENT_HOST=http://$PUBLIC_HOST:$CLIENT_PORT"
     warn "DOMAIN is compiled into the frontend bundle — the web image is rebuilt below."
 fi

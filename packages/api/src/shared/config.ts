@@ -23,6 +23,7 @@ export const config = {
     port,
     domain: required('DOMAIN'),
     clientHost: required('CLIENT_HOST'),
+    publicHost: optional('PUBLIC_HOST'),
     corsOrigins,
 
     jwtSecret: required('SECRET_KEY'),

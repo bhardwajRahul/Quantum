@@ -12,7 +12,7 @@ import { materializeNetwork, teardownNetwork } from '../NetworkOps';
 import { allocateHostPort } from '../PortAllocator';
 import { getContainerStoragePath, getSystemDockerName } from '../paths';
 import { failureMessage } from '../failureMessage';
-import { publicHost } from '../publicHost';
+import { publicAddress } from '../publicAddress';
 import { DatabaseEngine, DatabaseStatus } from '@quantum/contracts/modules/database/domain';
 import { NetworkDriver, PortBindingProtocol } from '@quantum/contracts/modules/docker/domain';
 import { JobType } from '@quantum/contracts/modules/deployment/domain';
@@ -167,7 +167,7 @@ export default class DatabaseHandler{
             const reachable = new DatabaseService().buildConnectionString(
                 database.engine,
                 { ...credentials, port: binding.externalPort },
-                publicHost()
+                await publicAddress()
             );
             database.connectionStringEnc = this.#cipher.encrypt(reachable);
             database.status = DatabaseStatus.Running;

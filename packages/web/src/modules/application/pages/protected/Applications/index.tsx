@@ -111,7 +111,7 @@ const ApplicationsHeader = ({ canAddDatabase, onAddApplication, onAddCompose, on
                 </Button>
                 <Button variant='secondary' onPress={onAddCompose}>
                     <FileCode2 aria-hidden='true' className='size-4' />
-                    Deploy compose
+                    Deploy stack
                 </Button>
                 <Button onPress={onAddApplication}>
                     New application

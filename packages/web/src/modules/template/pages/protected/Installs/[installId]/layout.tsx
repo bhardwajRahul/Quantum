@@ -29,10 +29,12 @@ const TABS = [
 const COMPOSE_TAB = { label: 'Compose', to: 'compose' } as const;
 const SETTINGS_TAB = { label: 'Settings', to: 'settings' } as const;
 
-const tabsFor = (install: TemplateInstall) =>
-    (install.compose === null ? [...TABS, SETTINGS_TAB] : [...TABS, COMPOSE_TAB, SETTINGS_TAB]);
+const tabsFor = (install: TemplateInstall) => (install.compose === null ? TABS : [...TABS, COMPOSE_TAB, SETTINGS_TAB]);
 
-const kindLabel = (install: TemplateInstall): string => (install.compose === null ? 'Template' : 'Docker Compose');
+const kindLabel = (install: TemplateInstall): string => {
+    if(install.source !== null) return `${install.source.owner}/${install.source.repo} @ ${install.source.branch}`;
+    return install.compose === null ? 'Template' : 'Docker Compose';
+};
 
 const tabClass = (active: boolean): string =>
     `label-caps -mb-px shrink-0 whitespace-nowrap border-b pb-3.5 transition-colors focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-foreground motion-reduce:transition-none ${

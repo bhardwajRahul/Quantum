@@ -3,7 +3,7 @@ import { errorCopy } from '@/shared/utils/error-copy';
 
 const copy = errorCopy(templateErrorMessages);
 
-const COMPOSE_ERROR = /^TemplateInstall::(InvalidCompose|UnsupportedCompose)(?::(.*))?$/s;
+const COMPOSE_ERROR = /^TemplateInstall::(InvalidCompose|UnsupportedCompose|UnsetVariable|ComposeFileNotFound)(?::(.*))?$/s;
 
 const invalid = (detail: string): string => {
     const [kind, service, rest] = detail.split(':');
@@ -18,7 +18,7 @@ const invalid = (detail: string): string => {
 
 const unsupported = (detail: string): string => {
     const [kind, service, ...rest] = detail.split(':');
-    if(kind === 'build') return `Service ${service} uses build, but Quantum only deploys prebuilt images.`;
+    if(kind === 'build') return `Service ${service} uses build, which only a stack deployed from a repository can do.`;
     if(kind === 'bind-mount') return `Service ${service} mounts the host path ${rest.join(':')}; only named volumes are supported.`;
     return `Service ${service} uses ${kind}, which Quantum cannot deploy.`;
 };
@@ -26,5 +26,7 @@ const unsupported = (detail: string): string => {
 export const composeErrorMessage = (error: Error): string => {
     const match = COMPOSE_ERROR.exec(error.message);
     if(match === null || match[2] === undefined) return copy(error);
+    if(match[1] === 'UnsetVariable') return `The compose file uses ${match[2]} and it has no value. Set it under Variables.`;
+    if(match[1] === 'ComposeFileNotFound') return `The repository has no ${match[2]} on that branch.`;
     return match[1] === 'InvalidCompose' ? invalid(match[2]) : unsupported(match[2]);
 };

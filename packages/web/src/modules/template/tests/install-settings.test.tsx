@@ -4,14 +4,21 @@ import { createRoot } from 'react-dom/client';
 import InstallSettings from '@/modules/template/pages/protected/Installs/[installId]/Settings';
 import { templateInstallApi } from '@/modules/template/api/api';
 import { resetStores } from '@/shared/tests/store-reset';
+import { TemplateInstallStatus } from '@quantum/contracts/modules/template/domain';
 import type { Root } from 'react-dom/client';
+import type { TemplateInstall } from '@quantum/contracts/modules/template/domain';
+
+const INSTALL: TemplateInstall = {
+    id: 4, templateId: null, compose: 'services: {}', name: 'learn', organizationId: 3, projectId: 7, userId: 1,
+    nodeId: 'local', status: TemplateInstallStatus.Running, networkId: 2, environment: {}, services: [],
+    source: { owner: 'pollium', repo: 'learn', branch: 'main', composePath: 'docker-compose.yml', deployOn: 'push' },
+    createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z'
+};
 
 vi.mock('react-router-dom', () => ({
-    useParams: () => ({ installId: '4' })
+    useParams: () => ({ installId: '4' }),
+    useOutletContext: () => INSTALL
 }));
-
-const URL_BEFORE = 'https://api.quantum.test/template/install/4/deploy/tok-one';
-const URL_AFTER = 'https://api.quantum.test/template/install/4/deploy/tok-two';
 
 let container: HTMLDivElement | undefined;
 let root: Root | undefined;
@@ -20,24 +27,16 @@ const settle = async (rounds = 8) => {
     for(let i = 0; i < rounds; i += 1) await act(async () => undefined);
 };
 
-const button = (label: string): HTMLButtonElement => {
-    const found = [...(container?.querySelectorAll('button') ?? [])].find((node) => node.textContent?.includes(label));
-    if(!found) throw new Error(`no ${label} button`);
-    return found as HTMLButtonElement;
-};
-
 afterEach(async () => {
     await act(async () => { root?.unmount(); });
     container?.remove();
+    vi.restoreAllMocks();
     resetStores();
 });
 
-describe('install settings', () => {
-    it('shows the webhook url and rotates it on request', async () => {
-        vi.spyOn(templateInstallApi, 'triggers')
-            .mockResolvedValueOnce({ webhookUrl: URL_BEFORE, watchImages: false })
-            .mockResolvedValueOnce({ webhookUrl: URL_AFTER, watchImages: false });
-        const rotate = vi.spyOn(templateInstallApi, 'rotateDeployToken').mockResolvedValue({ webhookUrl: URL_AFTER, watchImages: false });
+describe('stack settings', () => {
+    it('shows where the stack comes from and the variables its compose file uses', async () => {
+        vi.spyOn(templateInstallApi, 'variables').mockResolvedValue({ DATABASE_URL: 'postgres://db/learn' });
 
         container = document.createElement('div');
         document.body.appendChild(container);
@@ -45,13 +44,11 @@ describe('install settings', () => {
         await act(async () => { root?.render(<InstallSettings />); });
         await settle();
 
-        expect(container.textContent).toContain(URL_BEFORE);
-        expect(container.querySelector('[role="switch"]')).not.toBeNull();
-
-        await act(async () => { button('Rotate').click(); });
-        await settle();
-
-        expect(rotate).toHaveBeenCalledWith({ path: { id: 4 } });
-        expect(container.textContent).toContain(URL_AFTER);
+        expect(container.textContent).toContain('pollium/learn');
+        const inputs = [...container.querySelectorAll('input')].map((input) => input.value);
+        expect(inputs).toContain('main');
+        expect(inputs).toContain('docker-compose.yml');
+        expect(inputs).toContain('DATABASE_URL');
+        expect(inputs).toContain('postgres://db/learn');
     });
 });

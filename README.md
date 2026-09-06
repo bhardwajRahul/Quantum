@@ -127,8 +127,8 @@ An application is one of:
   dashboard.
 - **A template.** One click on anything in the catalogue: n8n, Directus, WordPress, Uptime Kuma, Ollama and the
   rest.
-- **A Docker Compose file.** **Applications → Deploy compose** opens an editor: paste the file,
-  pick a project, deploy. Each service becomes a container on the stack's own network, so
+- **A stack.** **Applications → Deploy stack** takes a compose file, either from one of your
+  GitHub repositories or pasted in. Each service becomes a container on the stack's own network, so
   services reach each other by name exactly as with `docker compose up`.
 
 ![Template catalogue](/screenshots/templates.png)
@@ -144,15 +144,19 @@ automatically and apply on **Redeploy**.
 
 ![Compose file, editable in place](/screenshots/compose.png)
 
-Supported per service: `image`, `command`, `environment`, `ports`, `volumes` (named volumes) and
-`depends_on`. `build:` contexts and host bind mounts are rejected with a message naming the
-service. Host ports are assigned by Quantum, as for every other application. Removing a service
-from the file and redeploying removes its container.
+**From a repository** is the way that runs itself. Pick the repository and branch, Quantum finds the
+compose files at its root (`compose.dokploy.yml` and friends count), shows the `${VAR}` placeholders
+the file uses so you can fill them, and registers the webhook on GitHub for you. From then on every
+push to that branch, or every published release if you prefer, clones the branch, builds the
+services that have `build:` on the server, pulls the rest and redeploys. The compose file is read
+from the repository on each deploy; edit it there. Branch, file and trigger live in the stack's
+**Settings** tab, next to its variables.
 
-Every redeploy pulls the images again, so a moving tag such as `:main` lands on the next one. The
-stack's **Settings** tab has two ways to trigger that without pressing the button: a webhook URL to
-`POST` from your CI once the new images are published, and **Watch image tags**, which pulls each
-service's image every five minutes and redeploys when a tag points at a new image.
+**Pasted** compose files work too, without `build:` and without a trigger other than the Redeploy
+button. Supported per service either way: `image`, `command`, `environment`, `ports`, `volumes`
+(named volumes) and `depends_on`, plus `build:` for repository stacks. Host bind mounts are
+rejected with a message naming the service. Host ports are assigned by Quantum, as for every other
+application. Removing a service from the file and redeploying removes its container.
 
 ### Environment variables
 

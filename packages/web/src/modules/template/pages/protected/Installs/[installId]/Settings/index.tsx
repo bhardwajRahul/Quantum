@@ -1,129 +1,113 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { Button, Switch } from '@heroui/react';
-import { Check, Copy, RefreshCw } from 'lucide-react';
+import { useOutletContext, useParams } from 'react-router-dom';
+import { Input, Label, TextField } from '@heroui/react';
 import SettingsSection from '@/shared/components/SettingsSection';
-import SettingsRow from '@/shared/components/SettingsRow';
-import InlineError from '@/shared/components/InlineError';
+import EntitySelect from '@/shared/components/EntitySelect';
 import ErrorState from '@/shared/components/ErrorState';
 import CenterState from '@/shared/components/CenterState';
+import SaveStatus from '@/shared/components/forms/SaveStatus';
+import EnvironmentVariablesEditor from '@/shared/components/EnvironmentVariablesEditor';
 import { FieldsSkeleton } from '@/shared/components/skeletons';
 import { useQuery } from '@/shared/hooks/api/use-query';
-import { useMutation } from '@/shared/hooks/api/use-mutation';
+import { useAutosave } from '@/shared/hooks/forms/use-autosave';
 import { templateInstallApi } from '@/modules/template/api/api';
 import { templateErrorMessages } from '@/modules/template/utils/error-messages';
 import { errorCopy } from '@/shared/utils/error-copy';
-import { copyText } from '@/shared/utils/clipboard';
+import type { StackDeployTrigger, StackSource, TemplateInstall } from '@quantum/contracts/modules/template/domain';
+import type { UpdateStackSourceInput } from '@quantum/contracts/modules/template/http';
 
 const copy = errorCopy(templateErrorMessages);
 
-const COPIED_MS = 2000;
+const TRIGGERS: Array<{ key: StackDeployTrigger; label: (branch: string) => string }> = [
+    { key: 'push', label: (branch) => `Every push to ${branch}` },
+    { key: 'release', label: () => 'Every published release' }
+];
 
-interface WebhookProps{
-    url: string | null;
-    isRotating: boolean;
-    onRotate: () => void;
+interface SourceSectionProps{
+    installId: number;
+    source: StackSource;
 }
 
-const Webhook = ({ url, isRotating, onRotate }: WebhookProps) => {
-    const [copied, setCopied] = useState(false);
-
-    if(url === null){
-        return (
-            <Button variant='secondary' isPending={isRotating} onPress={onRotate}>
-                Create webhook URL
-            </Button>
-        );
-    }
-
-    const copyUrl = async () => {
-        await copyText(url);
-        setCopied(true);
-        setTimeout(() => setCopied(false), COPIED_MS);
-    };
+const SourceSection = ({ installId, source }: SourceSectionProps) => {
+    const [form, setForm] = useState<UpdateStackSourceInput>({ branch: source.branch, composePath: source.composePath, deployOn: source.deployOn });
+    const saver = useAutosave<UpdateStackSourceInput>({
+        value: form,
+        canSave: (value) => value.branch.trim() !== '' && value.composePath.trim() !== '',
+        save: async (value) => {
+            await templateInstallApi.updateSource({ path: { id: installId }, body: value });
+        }
+    });
 
     return (
-        <div className='flex flex-col gap-3'>
-            <code className='block truncate border border-border px-3 py-2.5 font-mono text-[0.8125rem] text-foreground'>{url}</code>
-            <div className='flex flex-wrap gap-2'>
-                <Button size='sm' variant='secondary' onPress={() => { void copyUrl(); }}>
-                    {copied ? <Check aria-hidden='true' className='size-3.5' /> : <Copy aria-hidden='true' className='size-3.5' />}
-                    {copied ? 'Copied' : 'Copy'}
-                </Button>
-                <Button size='sm' variant='secondary' isPending={isRotating} onPress={onRotate}>
-                    <RefreshCw aria-hidden='true' className='size-3.5' />
-                    Rotate
-                </Button>
+        <SettingsSection title='Source' description='Where the compose file comes from. Changes apply on the next deploy.'>
+            <div className='flex flex-wrap items-center justify-between gap-4'>
+                <a
+                    href={`https://github.com/${source.owner}/${source.repo}`}
+                    target='_blank'
+                    rel='noreferrer'
+                    className='font-mono text-[0.8125rem] text-foreground underline-offset-4 hover:underline'
+                >
+                    {source.owner}/{source.repo}
+                </a>
+                <SaveStatus state={saver.state} />
             </div>
-        </div>
+
+            <TextField value={form.branch} onChange={(branch) => setForm((current) => ({ ...current, branch }))} validationBehavior='aria' fullWidth>
+                <Label>Branch</Label>
+                <Input className='font-mono' autoComplete='off' />
+            </TextField>
+
+            <TextField value={form.composePath} onChange={(composePath) => setForm((current) => ({ ...current, composePath }))} validationBehavior='aria' fullWidth>
+                <Label>Compose file</Label>
+                <Input className='font-mono' autoComplete='off' />
+            </TextField>
+
+            <div className='flex flex-col gap-1.5'>
+                <Label>Deploy on</Label>
+                <EntitySelect
+                    items={TRIGGERS}
+                    getKey={(entry) => entry.key}
+                    getLabel={(entry) => entry.label(form.branch)}
+                    value={form.deployOn}
+                    onChange={(key) => setForm((current) => ({ ...current, deployOn: key as StackDeployTrigger }))}
+                    ariaLabel='Deploy on'
+                />
+            </div>
+        </SettingsSection>
     );
 };
 
 const InstallSettings = () => {
     const { installId } = useParams<{ installId: string }>();
     const id = installId !== undefined ? Number(installId) : undefined;
-    const triggers = useQuery((templateInstallId: number) => templateInstallApi.triggers({ path: { id: templateInstallId } }), [id]);
-    const update = useMutation(
-        (templateInstallId: number, watchImages: boolean) =>
-            templateInstallApi.updateTriggers({ path: { id: templateInstallId }, body: { watchImages } }),
-        { onSuccess: () => triggers.reload() }
-    );
-    const rotate = useMutation(
-        (templateInstallId: number) => templateInstallApi.rotateDeployToken({ path: { id: templateInstallId } }),
-        { onSuccess: () => triggers.reload() }
-    );
+    const install = useOutletContext<TemplateInstall>();
+    const variables = useQuery((templateInstallId: number) => templateInstallApi.variables({ path: { id: templateInstallId } }), [id]);
 
-    if(id === undefined || triggers.loading) return <FieldsSkeleton rows={2} />;
-
-    if(triggers.error !== undefined || triggers.data === null){
-        return (
-            <CenterState className='h-full'>
-                <ErrorState
-                    title='Could not load the deploy triggers'
-                    description={copy(triggers.error ?? 'TemplateInstall::NotFound')}
-                    onRetry={triggers.reload}
-                />
-            </CenterState>
-        );
-    }
-
-    const error = update.error ?? rotate.error;
+    if(id === undefined || install.compose === null) return null;
 
     return (
         <div className='flex flex-col gap-10 [&>section:first-child]:border-t-0 [&>section:first-child]:pt-0'>
-            <SettingsSection title='Deploy triggers' description='Redeploy this stack without pressing the button.'>
-                <SettingsRow
-                    title='Webhook'
-                    description='POST to this URL and the stack redeploys, pulling every image again. Call it from your CI once the new images are published. Anyone holding the URL can trigger a deploy; rotate it if it leaks.'
-                >
-                    <Webhook
-                        url={triggers.data.webhookUrl}
-                        isRotating={rotate.loading}
-                        onRotate={() => { void rotate.run(id).catch(() => undefined); }}
-                    />
-                </SettingsRow>
+            {install.source !== null && <SourceSection installId={id} source={install.source} />}
 
-                <SettingsRow
-                    title='Watch image tags'
-                    description='Every five minutes Quantum pulls the image of each service and redeploys the stack when a tag points at a new image.'
-                    action={(
-                        <Switch
-                            aria-label='Watch image tags'
-                            isSelected={triggers.data.watchImages}
-                            isDisabled={update.loading}
-                            onChange={(watchImages) => { void update.run(id, watchImages).catch(() => undefined); }}
-                        >
-                            <Switch.Content>
-                                <Switch.Control>
-                                    <Switch.Thumb />
-                                </Switch.Control>
-                            </Switch.Content>
-                        </Switch>
-                    )}
+            {variables.loading && <FieldsSkeleton rows={2} />}
+
+            {variables.error !== undefined && (
+                <CenterState>
+                    <ErrorState title='Could not load the variables' description={copy(variables.error)} onRetry={variables.reload} />
+                </CenterState>
+            )}
+
+            {!variables.loading && variables.error === undefined && (
+                <EnvironmentVariablesEditor
+                    title='Variables'
+                    variables={variables.data ?? {}}
+                    save={(next) => templateInstallApi.updateVariables({ path: { id }, body: { variables: next } })}
+                    getErrorMessage={copy}
+                    description='Values for the ${VAR} placeholders in the compose file. Saved automatically, applied on the next deploy.'
+                    emptyDescription='The compose file uses no ${VAR} placeholders yet, or none needs a value.'
+                    fills={false}
                 />
-            </SettingsSection>
-
-            {error !== undefined && <InlineError>{copy(error)}</InlineError>}
+            )}
         </div>
     );
 };

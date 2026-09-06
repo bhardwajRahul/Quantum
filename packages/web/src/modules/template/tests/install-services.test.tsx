@@ -10,7 +10,7 @@ import type { TemplateInstall } from '@quantum/contracts/modules/template/domain
 
 const INSTALL: TemplateInstall = {
     id: 4, templateId: null, compose: 'services: {}', name: 'pollium', organizationId: 3, projectId: 7, userId: 1,
-    nodeId: 'local', status: TemplateInstallStatus.Running, networkId: 2, environment: {},
+    nodeId: 'local', status: TemplateInstallStatus.Running, networkId: 2, environment: {}, source: null,
     services: [
         { name: 'gateway', kind: 'app', image: 'ghcr.io/pollium/learn-gateway:main', containerId: 31, address: { ip: '10.9.0.4', hostname: 'install-4-gateway' }, ports: [{ internalPort: 8080, externalPort: 20001, protocol: 'tcp' }] },
         { name: 'redis', kind: 'app', image: 'redis:7', containerId: 32, address: null, ports: [] }

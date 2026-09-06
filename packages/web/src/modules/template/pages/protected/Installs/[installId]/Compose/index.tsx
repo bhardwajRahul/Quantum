@@ -72,6 +72,21 @@ const InstallCompose = () => {
         );
     }
 
+    if(install.source !== null){
+        const { owner, repo, branch, composePath } = install.source;
+        return (
+            <div className='flex min-h-0 flex-1 flex-col gap-6'>
+                <div>
+                    <h2 className='text-[0.9375rem] font-medium text-foreground'>Compose file</h2>
+                    <p className='mt-1 max-w-[58ch] text-[0.8125rem] text-muted'>
+                        Read from <code className='font-mono'>{composePath}</code> on {owner}/{repo}@{branch} at every deploy. Edit it in the repository.
+                    </p>
+                </div>
+                <MonacoEditor value={install.compose} language='yaml' ariaLabel='Compose file' height='32rem' isDisabled onChange={() => undefined} />
+            </div>
+        );
+    }
+
     return <ComposeEditor key={id} installId={id} compose={install.compose} />;
 };
 

@@ -3,7 +3,3 @@ export interface UserCreatedPayload{
     username: string;
     email: string;
 }
-
-export interface UserDeletedPayload{
-    userId: number;
-}

@@ -11,7 +11,6 @@ import type { CodespaceProvisionRequestedPayload } from '@/modules/codespace/con
 import type { DatabaseProvisionRequestedPayload } from '@/modules/database/contracts/domain/events';
 import type { OrganizationDeletedPayload } from '@/modules/organization/contracts/domain/events';
 import type { ProjectDeletedPayload } from '@/modules/project/contracts/domain/events';
-import type { UserDeletedPayload } from '@/modules/user/contracts/domain/events';
 import type { GithubConnectedPayload, GithubDisconnectedPayload } from '@/modules/github/contracts/domain/events';
 
 type DbJobType = JobType.DbProvision | JobType.DbBackup | JobType.DbRestore | JobType.DbDelete;
@@ -36,7 +35,6 @@ export default class DeploymentEvents{
         eventBus.subscribe('database.provisionRequested', (payload) => this.#databaseProvision(payload as DatabaseProvisionRequestedPayload));
         eventBus.subscribe('organization.deleted', (payload) => this.#organizationDeleted(payload as OrganizationDeletedPayload));
         eventBus.subscribe('project.deleted', (payload) => this.#projectDeleted(payload as ProjectDeletedPayload));
-        eventBus.subscribe('user.deleted', (payload) => this.#userDeleted(payload as UserDeletedPayload));
         eventBus.subscribe('github.connected', (payload) => this.#githubConnected(payload as GithubConnectedPayload));
         eventBus.subscribe('github.disconnected', (payload) => this.#githubDisconnected(payload as GithubDisconnectedPayload));
     }
@@ -100,10 +98,6 @@ export default class DeploymentEvents{
 
     #projectDeleted(payload: ProjectDeletedPayload): Promise<unknown>{
         return this.#orchestrator.projectCascadeDelete(payload.projectId);
-    }
-
-    #userDeleted(payload: UserDeletedPayload): void{
-        logger.info(`user ${payload.userId} deleted; user-level cascade deferred (no legacy user cascade job)`, { scope: 'deployment.events' });
     }
 
     #githubConnected(payload: GithubConnectedPayload): void{

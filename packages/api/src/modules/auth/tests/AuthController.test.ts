@@ -3,7 +3,6 @@ import { useApp, flushEvents } from '@tests/harness';
 import { request, expectError } from '@tests/request';
 import { seed, TEST_PASSWORD } from '@tests/Seed';
 import { authRoutes } from '@quantum/contracts/modules/auth/routes';
-import { userRoutes } from '@quantum/contracts/modules/user/routes';
 import { UserRole } from '@quantum/contracts/modules/user/domain';
 import User from '@/modules/user/models/User';
 import Organization from '@/modules/organization/models/Organization';
@@ -186,48 +185,5 @@ describe('email availability', () => {
         const res = await request(ctx.app, authRoutes.checkEmail);
 
         expectError(res, 400, 'Request::ValidationFailed');
-    });
-});
-
-describe('users admin', () => {
-    it('lists users for a platform admin', async () => {
-        const admin = await seed.user(UserRole.Admin);
-        await seed.user();
-
-        const res = await request(ctx.app, userRoutes.list, { as: admin.id });
-
-        expect(res.status).toBe(200);
-        expect(res.data().length).toBeGreaterThanOrEqual(2);
-    });
-
-    it('forbids the user list for a regular user', async () => {
-        const user = await seed.user();
-
-        const res = await request(ctx.app, userRoutes.list, { as: user.id });
-
-        expectError(res, 403, 'Authentication::Forbidden');
-    });
-
-    it('creates and deletes a user as a platform admin', async () => {
-        const admin = await seed.user(UserRole.Admin);
-
-        const created = await request(ctx.app, userRoutes.create, {
-            as: admin.id,
-            body: {
-                username: 'createduser01',
-                fullname: 'Created User One',
-                email: 'created@quantum.test',
-                password: TEST_PASSWORD,
-                role: UserRole.User
-            }
-        });
-
-        expect(created.status).toBe(201);
-        const userId = created.data().id;
-        expect(await User.findOneBy({ id: userId })).toBeTruthy();
-
-        const removed = await request(ctx.app, userRoutes.remove, { as: admin.id, params: { id: userId } });
-        expect(removed.status).toBe(204);
-        expect(await User.findOneBy({ id: userId })).toBeNull();
     });
 });

@@ -7,6 +7,7 @@ import Repository from '@/modules/repository/models/Repository';
 import { internalHostname } from '@/modules/docker/services/containerAddress';
 import { containerEnvironment } from './containerEnvironment';
 import { joinOrganizationNetwork, organizationNetworkName } from './NetworkOps';
+import { pullImage } from './pullImage';
 import { ContainerStatus } from '@quantum/contracts/modules/docker/domain';
 import { logger } from '@/shared/utils/Logger';
 
@@ -242,10 +243,7 @@ export default class ContainerOps{
         if(imageOverride) return;
         const image = await new ContainerOptionsResolver(this.container).resolve({});
         if(!image.Image) throw new Error('Container::Image::Required');
-        const stream = await this.#docker.pull(image.Image);
-        await new Promise<void>((resolve, reject) => {
-            this.#docker.modem.followProgress(stream, (err: Error | null) => (err ? reject(err) : resolve()));
-        });
+        await pullImage(this.#docker, image.Image, { organizationId: this.container.organizationId, userId: this.container.userId });
     }
 
     async #removeVolumes(): Promise<void>{

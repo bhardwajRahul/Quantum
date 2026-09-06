@@ -10,6 +10,7 @@ import EmptyState from '@/shared/components/EmptyState';
 import DeleteConfirmDialog from '@/shared/components/DeleteConfirmDialog';
 import Form from '@/shared/components/forms/Form';
 import Field from '@/shared/components/forms/Field';
+import RegistrySection from '@/modules/registry/components/RegistrySection';
 import { useForm } from '@/shared/hooks/forms/use-form';
 import { useTenancy } from '@/modules/organization/hooks/use-tenancy';
 import { organizationApi } from '@/modules/organization/api/api';
@@ -127,12 +128,13 @@ const OrganizationSettings = () => {
             <PageHeader
                 eyebrow='Settings'
                 title='Organization'
-                description='Rename the selected organization, review its details, or delete it.'
+                description='Rename the selected organization, review its details, manage registry credentials, or delete it.'
             />
 
             <div className='mt-10 flex flex-col'>
                 <RenameOrganizationForm key={current.id} organization={current} onSaved={reload} />
                 <OrganizationDetails organization={current} />
+                <RegistrySection key={`registries-${current.id}`} organizationId={current.id} />
                 <DangerZone organization={current} />
             </div>
         </PageBody>

@@ -2,7 +2,7 @@ import { GitHub } from 'arctic';
 import { config } from '@/shared/config';
 import { GithubError } from '../contracts/domain/errors';
 
-const SCOPES = ['user', 'repo'];
+const SCOPES = ['user', 'repo', 'read:packages'];
 
 export default class GithubOAuthService{
     startUrl(state: string): string{

@@ -98,7 +98,7 @@ const CreateCompose = () => {
 
                 <SettingsSection
                     title='Compose file'
-                    description='image, command, environment, ports, volumes and depends_on are honoured. Published ports are assigned by Quantum; build contexts and host bind mounts are not supported.'
+                    description='image, command, environment, ports, volumes and depends_on are honoured. Published ports are assigned by Quantum; build contexts and host bind mounts are not supported. Private images need registry credentials under Settings → Organization.'
                 >
                     <MonacoEditor
                         value={compose}

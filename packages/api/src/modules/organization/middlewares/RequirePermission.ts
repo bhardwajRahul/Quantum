@@ -10,12 +10,13 @@ export type TenantAction =
     | 'project:delete'
     | 'member:manage'
     | 'token:manage'
+    | 'registry:manage'
     | 'org:settings'
     | 'org:delete';
 
 const PERMISSIONS: Record<OrganizationRole, Set<TenantAction>> = {
-    [OrganizationRole.Owner]: new Set<TenantAction>(['read', 'deploy', 'repo:write', 'project:write', 'project:delete', 'member:manage', 'token:manage', 'org:settings', 'org:delete']),
-    [OrganizationRole.Admin]: new Set<TenantAction>(['read', 'deploy', 'repo:write', 'project:write', 'project:delete', 'member:manage', 'token:manage']),
+    [OrganizationRole.Owner]: new Set<TenantAction>(['read', 'deploy', 'repo:write', 'project:write', 'project:delete', 'member:manage', 'token:manage', 'registry:manage', 'org:settings', 'org:delete']),
+    [OrganizationRole.Admin]: new Set<TenantAction>(['read', 'deploy', 'repo:write', 'project:write', 'project:delete', 'member:manage', 'token:manage', 'registry:manage']),
     [OrganizationRole.Member]: new Set<TenantAction>(['read', 'deploy', 'repo:write']),
     [OrganizationRole.Viewer]: new Set<TenantAction>(['read'])
 };

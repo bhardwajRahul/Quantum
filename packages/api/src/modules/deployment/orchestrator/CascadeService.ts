@@ -8,6 +8,7 @@ import Domain from '@/modules/domain/models/Domain';
 import HealthCheck from '@/modules/health-check/models/HealthCheck';
 import Database from '@/modules/database/models/Database';
 import TemplateInstall from '@/modules/template/models/TemplateInstall';
+import RegistryCredential from '@/modules/registry/models/RegistryCredential';
 import Metric from '@/modules/metric/models/Metric';
 import PortBinding from '@/modules/docker/models/PortBinding';
 import ContainerOps from './ContainerOps';
@@ -27,6 +28,7 @@ export default class CascadeService{
         deleted.healthChecks = await this.#safe(() => HealthCheck.delete({ organizationId }));
         deleted.databases = await this.#safe(() => Database.delete({ organizationId }));
         deleted.templateInstalls = await this.#safe(() => TemplateInstall.delete({ organizationId }));
+        deleted.registryCredentials = await this.#safe(() => RegistryCredential.delete({ organizationId }));
         deleted.metrics = await this.#safe(() => Metric.delete({ organizationId }));
         deleted.portBindings = await this.#safe(() => PortBinding.delete({ organizationId }));
         deleted.images = await this.#safe(() => DockerImage.delete({ organizationId }));

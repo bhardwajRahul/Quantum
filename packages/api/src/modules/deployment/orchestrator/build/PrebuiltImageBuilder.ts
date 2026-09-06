@@ -1,5 +1,5 @@
-import type Dockerode from 'dockerode';
 import { getDockerHost } from '../DockerHost';
+import { pullImage } from '../pullImage';
 import { artifactTag } from './DockerfileBuilder';
 import { emitBuildLog, type BuilderStrategy, type BuildContext } from './BuildContext';
 import { logger } from '@/shared/utils/Logger';
@@ -23,7 +23,7 @@ export default class PrebuiltImageBuilder implements BuilderStrategy{
         const docker = getDockerHost(nodeId).client();
 
         emitBuildLog(deployment, `[build] Pulling prebuilt image ${name}:${srcTag}\n`);
-        await this.#pull(docker, `${name}:${srcTag}`);
+        await pullImage(docker, `${name}:${srcTag}`, { organizationId: repository.organizationId ?? 0, userId: repository.userId });
 
         await docker.getImage(`${name}:${srcTag}`).tag({ repo: `quantum-${nodeId}/${repository.id}`, tag: String(deployment.id) });
         emitBuildLog(deployment, `[build] Tagged as ${targetTag}\n`);
@@ -34,18 +34,5 @@ export default class PrebuiltImageBuilder implements BuilderStrategy{
         logger.info(`tagged ${source} as ${targetTag} (${digest})`, { scope: 'orchestrator.build' });
 
         return { image: source, tag: targetTag, digest, builder: 'prebuilt-image', sizeBytes };
-    }
-
-    async #pull(docker: Dockerode, ref: string): Promise<void>{
-        try{
-            const stream = await docker.pull(ref);
-            await new Promise<void>((resolve, reject) => {
-                docker.modem.followProgress(stream, (err: Error | null) => (err ? reject(err) : resolve()));
-            });
-        }catch(error){
-            const message = (error as Error).message || String(error);
-            if(/unauthorized|denied|401/i.test(message)) throw new Error('Build::Registry::Unauthorized');
-            throw error;
-        }
     }
 }

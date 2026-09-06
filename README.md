@@ -8,7 +8,7 @@
 ## Table of Contents
 - [Quick Start](#quick-start)
 - [Configuration Reference](#configuration-reference)
-- [Automatic Domains and HTTPS](#automatic-domains-and-https)
+- [HTTPS for the Dashboard](#https-for-the-dashboard)
 - [Docker Compose Stacks and Internal Addresses](#docker-compose-stacks-and-internal-addresses)
 - [Day-to-Day Operations](#day-to-day-operations)
 - [Deploying Without Docker](#deploying-without-docker)
@@ -96,29 +96,31 @@ Everything lives in a single `.env` at the repository root; [`.env.example`](.en
 | `POSTGRES_PASSWORD` | yes | Generated for you. |
 | `DOMAIN`, `CLIENT_HOST` | yes | Full URLs *with* scheme and port, as the **browser** sees them. Never `0.0.0.0` here — the API allows CORS only from exactly `CLIENT_HOST`, so it must match the hostname in your address bar (`localhost` locally, or `127.0.0.1` if that's what you type). |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | for repo deploys | See [GitHub OAuth](#obtaining-github-client-secret-and-client-id). |
-| `BASE_DOMAIN`, `ACME_EMAIL` | optional | Enables per-deployment subdomains with HTTPS. |
+| `PANEL_HOST`, `ACME_EMAIL` | optional | Serves the dashboard over HTTPS on a hostname of yours. |
 | `SMTP_*`, `WEBMASTER_MAIL` | optional | Password resets and alert emails. |
 
 `DOMAIN` is compiled into the frontend bundle at image build time, so rebuild the web app after changing it: `docker compose up -d --build web`.
 
-## Automatic Domains and HTTPS
+## HTTPS for the Dashboard
 
-The stack ships with [Traefik](https://traefik.io/), so you do not need to configure a reverse proxy by hand for your deployments. Point a wildcard DNS record at the server:
+The stack ships with [Traefik](https://traefik.io/), so the dashboard can be served over HTTPS on a hostname of yours without configuring a reverse proxy by hand. Point an A record at the server:
 
 ```
-*.apps.example.com    A    <your server IP>
+panel.example.com    A    <your server IP>
 ```
 
 then set in `.env`:
 
 ```bash
-BASE_DOMAIN=apps.example.com
+PANEL_HOST=panel.example.com
 ACME_EMAIL=you@example.com
 # once staging certificates work, switch to the rate-limited production CA:
 ACME_CA_SERVER=https://acme-v02.api.letsencrypt.org/directory
 ```
 
-Every deployment now gets its own HTTPS subdomain with a Let's Encrypt certificate, issued and renewed automatically. Leave `BASE_DOMAIN` empty to skip this entirely — deployments still work and stay reachable through their published ports.
+Traefik then issues and renews a Let's Encrypt certificate for that hostname and routes both the web app and the API behind it. Leave `PANEL_HOST` empty to skip this entirely — the dashboard stays reachable on its published ports.
+
+Your deployments are reachable through their published ports; see [Custom domains for your deployments](#custom-domains-for-your-deployments) to put a hostname in front of one.
 
 Traefik needs ports **80** and **443**. If they're already taken on the host, set `TRAEFIK_HTTP_PORT` / `TRAEFIK_HTTPS_PORT`, but note that Let's Encrypt's HTTP challenge only works on the standard ports.
 
@@ -195,9 +197,9 @@ It is important that you do this step, otherwise NO ONE will simply be able to u
 
 ## Using NGINX as a reverse proxy
 
-> For **your deployments**, you don't need this — the bundled Traefik already issues certificates and routes subdomains automatically. See [Automatic Domains and HTTPS](#automatic-domains-and-https).
+> If all you want is HTTPS on **Quantum's own dashboard**, the bundled Traefik already does it — see [HTTPS for the Dashboard](#https-for-the-dashboard).
 >
-> This section is for putting a custom domain in front of **Quantum's own dashboard**, if you'd rather not expose ports 5050/7080 directly.
+> This section is for putting a custom domain in front of the dashboard with your own NGINX, if you'd rather not expose ports 5050/7080 directly.
 
 Personally, I recommend you use [NGINX Proxy Manager](https://nginxproxymanager.com/).
 ![NGINX Proxy Manager](/screenshots/NGINX-Proxy-Manager.png)
@@ -281,9 +283,7 @@ docker compose up -d --build api
 ```
 
 ## Custom domains for your deployments
-The easiest route is [BASE_DOMAIN](#automatic-domains-and-https): set it once and every deployment gets its own HTTPS subdomain automatically, no per-app configuration.
-
-If you'd rather map your own domain to a single service, expose its port and point a reverse proxy at it:
+To map your own domain to a service, expose its port and point a reverse proxy at it:
 
 1. Use the public IP of the server where Quantum is hosted along with the exposed port of your service to set up the reverse proxy.
 

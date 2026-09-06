@@ -82,7 +82,7 @@ describe('optimistic writes', () => {
         const server: Row[] = [{ id: 1, name: 'a' }, { id: 2, name: 'b' }];
 
         callMock.mockImplementation((async (endpoint: Endpoint) => {
-            if(endpoint === routes.remove) throw new Error('Domain::Forbidden');
+            if(endpoint === routes.remove) throw new Error('Repository::Forbidden');
             if(endpoint === routes.list) return server;
             throw new Error(`unexpected ${endpoint.path}`);
         }) as unknown as never);
@@ -97,7 +97,7 @@ describe('optimistic writes', () => {
 
         await settle(harness, (state) => (state.data ?? []).length === 2);
         expect(harness.current.data).toEqual(server);
-        expect(harness.current.error?.message).toBe('Domain::Forbidden');
+        expect(harness.current.error?.message).toBe('Repository::Forbidden');
     });
 
     it('patch exposes the same edit with its undo, for callers that own the dialog', async () => {

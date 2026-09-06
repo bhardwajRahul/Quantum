@@ -2,11 +2,9 @@ import {
     Activity,
     AppWindow,
     ArrowLeft,
-    BarChart3,
     Building2,
     FolderClosed,
     Gauge,
-    Globe,
     KeyRound,
     LayoutTemplate,
     ScrollText,
@@ -20,15 +18,13 @@ export const navGroups: NavGroup[] = [
     {
         items: [
             { label: 'Applications', to: '/applications', icon: AppWindow },
-            { label: 'Projects', to: '/projects', icon: FolderClosed },
-            { label: 'Domains', to: '/domains', icon: Globe }
+            { label: 'Projects', to: '/projects', icon: FolderClosed }
         ]
     },
     {
         heading: 'Observe',
         items: [
             { label: 'Metrics', to: '/metrics', icon: Activity },
-            { label: 'Analytics', to: '/web-analytics', icon: BarChart3 },
             { label: 'Usage', to: '/usage', icon: Gauge },
             { label: 'Events', to: '/events', icon: ScrollText }
         ]

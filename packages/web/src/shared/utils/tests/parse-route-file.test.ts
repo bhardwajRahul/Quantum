@@ -15,8 +15,8 @@ describe('parseRouteFile', () => {
     });
 
     it('kebab-cases every other segment and drops the module name', () => {
-        expect(parseRouteFile('/src/modules/web-analytics/pages/protected/WebAnalytics/index.tsx'))
-            .toEqual({ tier: 'protected', kind: 'page', path: '/web-analytics' });
+        expect(parseRouteFile('/src/modules/auth/pages/protected/ChangePassword/index.tsx'))
+            .toEqual({ tier: 'protected', kind: 'page', path: '/change-password' });
     });
 
     it('reads the tier from the directory, not the module', () => {

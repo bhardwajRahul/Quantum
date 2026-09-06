@@ -138,7 +138,7 @@ describe('JobRunner', () => {
 
     it('marks a job failed when no handler is registered', async () => {
         const orchestrator = new OrchestratorService();
-        const job = await orchestrator.enqueue({ type: JobType.AnalyticsSample, maxAttempts: 1, lockKey: 'analytics:local' });
+        const job = await orchestrator.enqueue({ type: JobType.MetricsSample, maxAttempts: 1, lockKey: 'metrics:local' });
 
         const runner = new JobRunner({});
         await runner.processDue();

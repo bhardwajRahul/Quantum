@@ -1,18 +1,14 @@
 import { DefineEventGroup, Event } from '@/shared/events/EventGroup';
 import { eventBus } from '@/shared/events/EventBus';
 import OrchestratorService from './OrchestratorService';
-import IngressHandler from './handlers/IngressHandler';
-import Repository from '@/modules/repository/models/Repository';
 import { startOrchestrator } from './bootstrap';
 import { JobType } from '@quantum/contracts/modules/deployment/domain';
-import { writeUpstreamConfig } from '@/modules/domain/services/UpstreamRouterFile';
 import { logger } from '@/shared/utils/Logger';
 import type { DeployOptions } from './OrchestratorService';
 import type { DeploymentRequestedPayload, DeploymentRollbackRequestedPayload } from '@/modules/repository/contracts/domain/events';
 import type { TemplateInstalledPayload, TemplateUninstalledPayload } from '@/modules/template/contracts/domain/events';
 import type { DatabaseProvisionRequestedPayload } from '@/modules/database/contracts/domain/events';
 import type { HealthCheckChangedPayload } from '@/modules/health-check/contracts/domain/events';
-import type { DomainCreatedPayload, DomainDeletedPayload } from '@/modules/domain/contracts/domain/events';
 import type { OrganizationDeletedPayload } from '@/modules/organization/contracts/domain/events';
 import type { ProjectDeletedPayload } from '@/modules/project/contracts/domain/events';
 import type { UserDeletedPayload } from '@/modules/user/contracts/domain/events';
@@ -30,7 +26,6 @@ const DB_ACTION_TO_JOB: Record<string, DbJobType | undefined> = {
 @DefineEventGroup('deployment')
 export default class DeploymentEvents{
     #orchestrator = new OrchestratorService();
-    #ingress = new IngressHandler();
 
     constructor(){
         startOrchestrator();
@@ -38,8 +33,6 @@ export default class DeploymentEvents{
         eventBus.subscribe('template.uninstalled', (payload) => this.#templateUninstalled(payload as TemplateUninstalledPayload));
         eventBus.subscribe('database.provisionRequested', (payload) => this.#databaseProvision(payload as DatabaseProvisionRequestedPayload));
         eventBus.subscribe('healthcheck.changed', (payload) => this.#healthCheckChanged(payload as HealthCheckChangedPayload));
-        eventBus.subscribe('domain.created', (payload) => this.#domainChanged(payload as DomainCreatedPayload));
-        eventBus.subscribe('domain.deleted', (payload) => this.#domainChanged(payload as DomainDeletedPayload));
         eventBus.subscribe('organization.deleted', (payload) => this.#organizationDeleted(payload as OrganizationDeletedPayload));
         eventBus.subscribe('project.deleted', (payload) => this.#projectDeleted(payload as ProjectDeletedPayload));
         eventBus.subscribe('user.deleted', (payload) => this.#userDeleted(payload as UserDeletedPayload));
@@ -92,16 +85,6 @@ export default class DeploymentEvents{
 
     #healthCheckChanged(_payload: HealthCheckChangedPayload): Promise<unknown>{
         return this.#orchestrator.healthCheck();
-    }
-
-    async #domainChanged(payload: { repositoryId: number | null }): Promise<void>{
-        await writeUpstreamConfig();
-
-        if(payload.repositoryId === null) return;
-        const repository = await Repository.findOneBy({ id: payload.repositoryId });
-        if(!repository) return;
-        await this.#ingress.applyIngress(repository).catch((error) =>
-            logger.error('ingress sync on domain change failed', error, { scope: 'deployment.events' }));
     }
 
     #organizationDeleted(payload: OrganizationDeletedPayload): Promise<unknown>{

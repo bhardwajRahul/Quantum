@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { authApi } from '@/modules/auth/api/api';
 import { call } from '@/shared/api/call';
 import { authRoutes } from '@quantum/contracts/modules/auth/routes';
-import { domainRoutes } from '@quantum/contracts/modules/domain/routes';
+import { repositoryRoutes } from '@quantum/contracts/modules/repository/routes';
 import { toRequest } from '@/shared/tests/fetch-stub';
 
 interface Captured{
@@ -31,10 +31,10 @@ beforeEach(() => {
 
 describe('outgoing content type', () => {
     it('omits it on a bodyless DELETE', async () => {
-        await call(domainRoutes.remove, { path: { id: 7 } });
+        await call(repositoryRoutes.remove, { path: { id: 7 } });
 
         expect(captured[0]?.method).toBe('DELETE');
-        expect(captured[0]?.url).toContain('/domain/7');
+        expect(captured[0]?.url).toContain('/repository/7');
         expect(captured[0]?.contentType).toBeNull();
     });
 

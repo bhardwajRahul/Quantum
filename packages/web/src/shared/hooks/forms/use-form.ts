@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { ApiError } from '@/shared/services/ApiError';
+import { useAutosave } from '@/shared/hooks/forms/use-autosave';
 import type { FormEvent } from 'react';
 import type { IValidation } from 'typia';
 import type { ErrorMap, FieldBinding, FormApi, TouchedMap, UseFormOptions } from '@/shared/contracts/form';
@@ -39,7 +40,9 @@ export const useForm = <T extends object>({
     validate: validateInput,
     initialValues,
     onSubmit,
-    validateOn = 'blur',
+    autosave = false,
+    autosaveDelayMs,
+    validateOn = autosave ? 'change' : 'blur',
     submitErrorMessages,
     submitErrorFields
 }: UseFormOptions<T>): FormApi<T> => {
@@ -96,8 +99,8 @@ export const useForm = <T extends object>({
         touchedRef.current[key] = true;
         if(validateOn === 'submit') return;
 
-        if(submittingRef.current) return;
-        applyFieldError(key, validate(valuesRef.current));
+        if(!submittingRef.current) applyFieldError(key, validate(valuesRef.current));
+        if(autosave) saver.flush();
     };
 
     const applySubmitError = (error: unknown) => {
@@ -114,9 +117,31 @@ export const useForm = <T extends object>({
         setSubmitError(error instanceof Error ? error.message : 'Something went wrong');
     };
 
+    const submitValues = (input: T): Promise<void> => {
+        setSubmitError(null);
+        commitSubmitting(true);
+
+        return Promise.resolve()
+            .then(() => onSubmit(input))
+            .then(() => {
+                commitSubmitting(false);
+            }, (error: unknown) => {
+                commitSubmitting(false);
+                applySubmitError(error);
+                throw error;
+            });
+    };
+
+    const saver = useAutosave<T>({
+        value: values,
+        enabled: autosave,
+        delayMs: autosaveDelayMs,
+        canSave: (input) => Object.keys(validate(input)).length === 0,
+        save: submitValues
+    });
+
     const handleSubmit = (event?: FormEvent) => {
         event?.preventDefault();
-        if(submittingRef.current) return;
 
         const current = valuesRef.current;
         const map = validate(current);
@@ -124,15 +149,13 @@ export const useForm = <T extends object>({
         setErrors(map);
         if(Object.keys(map).length > 0) return;
 
-        setSubmitError(null);
-        commitSubmitting(true);
-        Promise.resolve()
-            .then(() => onSubmit(current))
-            .then(() => commitSubmitting(false))
-            .catch((error: unknown) => {
-                commitSubmitting(false);
-                applySubmitError(error);
-            });
+        if(autosave){
+            saver.flush();
+            return;
+        }
+
+        if(submittingRef.current) return;
+        void submitValues(current).catch(() => undefined);
     };
 
     const field = <K extends keyof T>(name: K): FieldBinding<T[K]> => {
@@ -170,6 +193,8 @@ export const useForm = <T extends object>({
         submitting,
         submitError,
         isValid: validateInput(values).success,
+        autosave,
+        saveState: saver.state,
         field,
         handleSubmit,
         setValues,

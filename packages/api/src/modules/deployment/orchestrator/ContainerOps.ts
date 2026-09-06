@@ -13,7 +13,6 @@ import { logger } from '@/shared/utils/Logger';
 
 export interface ContainerOverrides{
     imageOverride?: string;
-    extraLabels?: Record<string, string>;
     extraEnv?: string[];
     cmd?: string[];
     aliases?: string[];

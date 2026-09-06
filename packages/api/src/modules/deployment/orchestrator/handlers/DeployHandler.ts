@@ -3,7 +3,6 @@ import Deployment from '../../models/Deployment';
 import DockerContainer from '@/modules/docker/models/DockerContainer';
 import ProvisionService from '../ProvisionService';
 import ContainerOps from '../ContainerOps';
-import IngressService from '../IngressService';
 import ActivityStepContext from '@/modules/activity/services/ActivityStepContext';
 import { resolveStrategy, getBuilder } from '../build';
 import type { BuildContext } from '../build/BuildContext';
@@ -15,7 +14,6 @@ import type Job from '../../models/Job';
 
 export default class DeployHandler{
     #provision = new ProvisionService();
-    #ingress = new IngressService();
 
     async run(job: Job): Promise<void>{
         if(!job.repositoryId) throw new Error('Deploy::Repository::Required');
@@ -48,7 +46,7 @@ export default class DeployHandler{
         const container = await this.#provision.ensureRepositoryInfra(repository);
         const ops = new ContainerOps(container);
         await ops.removeContainer();
-        await ops.createAndStartContainer({ imageOverride: tag, extraLabels: await this.#labels(repository) });
+        await ops.createAndStartContainer({ imageOverride: tag });
 
         await Deployment.update(
             { repositoryId: repository.id, status: DeploymentStatus.Success },
@@ -116,16 +114,10 @@ export default class DeployHandler{
         deployment.artifact = artifact;
         await deployment.save();
 
-        await this.#ingress.ensureSubdomain(repository).catch(() => undefined);
-
         if(strategy === BuildStrategy.Exec) return;
 
         const ops = new ContainerOps(container);
         await ops.removeContainer();
-        await ops.createAndStartContainer({ imageOverride: artifact.tag, extraLabels: await this.#labels(repository) });
-    }
-
-    async #labels(repository: Repository): Promise<Record<string, string>>{
-        return this.#ingress.getIngressLabels(repository).catch(() => ({}));
+        await ops.createAndStartContainer({ imageOverride: artifact.tag });
     }
 }

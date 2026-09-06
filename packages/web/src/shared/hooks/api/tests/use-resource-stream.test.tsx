@@ -80,14 +80,14 @@ describe('useResourceStream', () => {
     });
 
     it('opens a new window for changes that arrive after a flush', async () => {
-        emit(changed('Domain'));
+        emit(changed('Project'));
         await vi.advanceTimersByTimeAsync(1_000);
         await flush();
-        expect(invalidate.mock.calls.map(([segment]) => segment)).toEqual(['domain']);
+        expect(invalidate.mock.calls.map(([segment]) => segment)).toEqual(['project']);
 
-        emit(changed('Domain'));
+        emit(changed('Project'));
         await vi.advanceTimersByTimeAsync(1_000);
         await flush();
-        expect(invalidate.mock.calls.map(([segment]) => segment)).toEqual(['domain', 'domain']);
+        expect(invalidate.mock.calls.map(([segment]) => segment)).toEqual(['project', 'project']);
     });
 });

@@ -37,8 +37,7 @@ export enum JobType{
     TemplateInstall = 'template:install',
     TemplateUninstall = 'template:uninstall',
     OrgCascadeDelete = 'org:cascade-delete',
-    ProjectCascadeDelete = 'project:cascade-delete',
-    AnalyticsSample = 'analytics:sample'
+    ProjectCascadeDelete = 'project:cascade-delete'
 }
 
 export interface DeploymentCommitAuthor{

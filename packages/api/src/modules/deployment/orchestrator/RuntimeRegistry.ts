@@ -7,8 +7,6 @@ export const RUNTIME_IMAGES: Record<Runtime, { versions: Record<string, string>;
     static: { versions: { '1': 'nginx:alpine' }, default: '1' }
 };
 
-export const DEFAULT_PORTS: Record<Runtime, number> = { node: 3000, python: 8000, go: 8080, static: 80 };
-
 const has = (table: object, key?: string | null): boolean =>
     typeof key === 'string' && Object.prototype.hasOwnProperty.call(table, key);
 
@@ -19,6 +17,3 @@ export const getRuntimeImage = (runtime?: string | null, version?: string | null
     const [name, tag] = (image ?? '').split(':');
     return name && tag ? { name, tag } : { name: 'node', tag: '20-alpine' };
 };
-
-export const getDefaultPort = (runtime?: string | null): number =>
-    has(DEFAULT_PORTS, runtime) ? DEFAULT_PORTS[runtime as Runtime] : 3000;

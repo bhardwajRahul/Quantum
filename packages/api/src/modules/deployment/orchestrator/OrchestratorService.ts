@@ -124,10 +124,6 @@ export default class OrchestratorService{
         return this.enqueue({ type: JobType.HealthCheck, nodeId, lockKey: `health:${nodeId}`, maxAttempts: 1 });
     }
 
-    analyticsSample(nodeId: string = this.nodeId): Promise<Job>{
-        return this.enqueue({ type: JobType.AnalyticsSample, nodeId, lockKey: `analytics:${nodeId}`, maxAttempts: 1 });
-    }
-
     templateJob(
         type: JobType.TemplateInstall | JobType.TemplateUninstall,
         templateInstallId: number,

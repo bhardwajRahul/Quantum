@@ -2,10 +2,8 @@ import { In } from 'typeorm';
 import DockerContainer from '@/modules/docker/models/DockerContainer';
 import PortBinding from '@/modules/docker/models/PortBinding';
 import Deployment from '../../models/Deployment';
-import Repository from '@/modules/repository/models/Repository';
 import Job from '../../models/Job';
 import ContainerOps from '../ContainerOps';
-import IngressService from '../IngressService';
 import { getDockerHost } from '../DockerHost';
 import { ContainerDesiredState, ContainerStatus } from '@quantum/contracts/modules/docker/domain';
 import { DeploymentStatus, JobStatus, JobType } from '@quantum/contracts/modules/deployment/domain';
@@ -17,7 +15,6 @@ const DEPLOY_LOCKING_JOB_TYPES: JobType[] = [
 ];
 
 export default class ReconcileHandler{
-    #ingress = new IngressService();
 
     async run(): Promise<void>{
         const desired = await DockerContainer.find();
@@ -96,12 +93,10 @@ export default class ReconcileHandler{
 
     async #recreate(ops: ContainerOps, container: DockerContainer): Promise<void>{
         let imageOverride: string | undefined;
-        let extraLabels: Record<string, string> | undefined;
         if(container.repositoryId){
             imageOverride = await this.#lastSuccessTag(container.repositoryId);
-            if(imageOverride) extraLabels = await this.#labels(container.repositoryId);
         }
-        await ops.createAndStartContainer({ imageOverride, extraLabels });
+        await ops.createAndStartContainer({ imageOverride });
         await ops.relaunchRepositoryApp();
     }
 
@@ -120,12 +115,5 @@ export default class ReconcileHandler{
             order: { createdAt: 'DESC', id: 'DESC' }
         });
         return last?.artifact?.tag || undefined;
-    }
-
-    async #labels(repositoryId: number): Promise<Record<string, string> | undefined>{
-        const repository = await Repository.findOneBy({ id: repositoryId });
-        if(!repository) return undefined;
-        const labels = await this.#ingress.getIngressLabels(repository).catch(() => ({}));
-        return Object.keys(labels).length > 0 ? labels : undefined;
     }
 }

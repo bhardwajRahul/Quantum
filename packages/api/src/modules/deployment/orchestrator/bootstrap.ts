@@ -1,7 +1,5 @@
 import JobRunner from './JobRunner';
 import { buildHandlerMap } from './HandlerRegistry';
-import { writeUpstreamConfig } from '@/modules/domain/services/UpstreamRouterFile';
-import { ensureEdgeNetwork } from './NetworkOps';
 import OrchestratorService from './OrchestratorService';
 import { config } from '@/shared/config';
 import { logger } from '@/shared/utils/Logger';
@@ -28,10 +26,6 @@ export const startOrchestrator = (): void => {
     runner = new JobRunner(buildHandlerMap());
     runner.start();
 
-    ensureEdgeNetwork().catch((error) => logger.error('ensureEdgeNetwork failed', error, { scope: 'orchestrator' }));
-
-    writeUpstreamConfig().catch((error) =>
-        logger.error('publishing the upstream routes on boot failed', error, { scope: 'orchestrator' }));
     orchestrator.reconcile().catch((error) => logger.error('initial reconcile enqueue failed', error, { scope: 'orchestrator' }));
 
     schedule(interval('RECONCILE_INTERVAL_MS', 300000), () => orchestrator.reconcile(), 'reconcile');
@@ -40,9 +34,6 @@ export const startOrchestrator = (): void => {
     }
     if(process.env.HEALTH_ENABLED !== 'false'){
         schedule(interval('HEALTH_INTERVAL_MS', 30000), () => orchestrator.healthCheck(), 'health');
-    }
-    if(process.env.ANALYTICS_ENABLED !== 'false'){
-        schedule(interval('ANALYTICS_INTERVAL_MS', 30000), () => orchestrator.analyticsSample(), 'analytics');
     }
 
     logger.info('orchestrator started', { scope: 'orchestrator' });

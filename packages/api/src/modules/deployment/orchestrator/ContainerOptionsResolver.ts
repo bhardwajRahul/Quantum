@@ -35,9 +35,6 @@ export default class ContainerOptionsResolver{
                 RestartPolicy: { Name: 'always' }
             }
         };
-        if(overrides.extraLabels && Object.keys(overrides.extraLabels).length > 0){
-            options.Labels = { ...overrides.extraLabels };
-        }
         if(overrides.cmd !== undefined && overrides.cmd.length > 0) options.Cmd = [...overrides.cmd];
         if(overrides.aliases !== undefined && overrides.aliases.length > 0){
             options.NetworkingConfig = { EndpointsConfig: { [networkName]: { Aliases: [...overrides.aliases] } } };

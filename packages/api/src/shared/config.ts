@@ -60,13 +60,5 @@ export const config = {
 
     docker: {
         apkStarterPackages: optional('DOCKER_APK_STARTER_PACKAGES') ?? 'git nodejs npm python3 py3-pip'
-    },
-
-    ingress: {
-        enabled: optional('INGRESS_ENABLED') !== 'false',
-        baseDomain: optional('BASE_DOMAIN'),
-        acmeEmail: optional('ACME_EMAIL'),
-        acmeCaServer: optional('ACME_CA_SERVER') ?? 'https://acme-staging-v02.api.letsencrypt.org/directory',
-        dynamicDir: optional('INGRESS_DYNAMIC_DIR') ?? '/var/lib/quantum/ingress'
     }
 } as const;

@@ -9,7 +9,6 @@ import DatabaseHandler from './handlers/DatabaseHandler';
 import TemplateHandler from './handlers/TemplateHandler';
 import HealthHandler from './handlers/HealthHandler';
 import MetricsHandler from './handlers/MetricsHandler';
-import AnalyticsHandler from './handlers/AnalyticsHandler';
 import OrgCascadeHandler from './handlers/OrgCascadeHandler';
 import ProjectCascadeHandler from './handlers/ProjectCascadeHandler';
 
@@ -31,6 +30,5 @@ export const buildHandlerMap = (): JobHandlerMap => ({
     [JobType.TemplateInstall]: (job) => new TemplateHandler().run(job),
     [JobType.TemplateUninstall]: (job) => new TemplateHandler().run(job),
     [JobType.OrgCascadeDelete]: (job) => new OrgCascadeHandler().run(job),
-    [JobType.ProjectCascadeDelete]: (job) => new ProjectCascadeHandler().run(job),
-    [JobType.AnalyticsSample]: () => new AnalyticsHandler().run()
+    [JobType.ProjectCascadeDelete]: (job) => new ProjectCascadeHandler().run(job)
 });

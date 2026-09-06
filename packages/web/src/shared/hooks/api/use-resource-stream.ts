@@ -6,14 +6,11 @@ import type { ResourceChangedFrame } from '@quantum/contracts/modules/resource/g
 
 const SEGMENT_BY_ENTITY: Readonly<Record<string, string>> = {
     ActivityEvent: 'activity',
-    AnalyticsEvent: 'analytics',
-    AnalyticsRollup: 'analytics',
     Database: 'database',
     Deployment: 'deployment',
     DockerContainer: 'docker',
     DockerImage: 'docker',
     DockerNetwork: 'docker',
-    Domain: 'domain',
     HealthCheck: 'health-check',
     Job: 'deployment',
     Metric: 'metric',

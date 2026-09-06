@@ -84,6 +84,7 @@ have working defaults.
 | `SECRET_KEY` | Signs sessions. Any long random string. |
 | `ENCRYPTION_KEY` | 64 hex chars, or base64 of exactly 32 bytes. Encrypts stored GitHub and registry tokens. |
 | `POSTGRES_PASSWORD` | Generated for you. |
+| `SERVER_PORT`, `CLIENT_WEB_APP_PORT`, `POSTGRES_PORT` | Host ports of the API (7080), the web app (5050) and Postgres (5432). Change one when it is already taken. |
 | `DOMAIN`, `CLIENT_HOST` | API and web URLs as the browser sees them, with scheme and port. CORS allows exactly `CLIENT_HOST`. |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | The OAuth app above. |
 | `PANEL_HOST`, `ACME_EMAIL`, `ACME_CA_SERVER` | HTTPS for the dashboard through Traefik. Empty `PANEL_HOST` disables it. |

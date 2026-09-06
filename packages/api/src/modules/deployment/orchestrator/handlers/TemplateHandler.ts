@@ -202,7 +202,7 @@ export default class TemplateHandler{
             aliases: [name]
         });
 
-        return { name, kind: spec.kind ?? 'app', image: ref, containerId: container.id, ports };
+        return { name, kind: spec.kind ?? 'app', image: ref, containerId: container.id, ports, address: null };
     }
 
     async #image(name: string, tag: string, userId: number, organizationId: number): Promise<DockerImage>{

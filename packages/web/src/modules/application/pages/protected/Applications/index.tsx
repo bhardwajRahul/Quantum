@@ -22,6 +22,7 @@ import DeleteConfirmDialog from '@/shared/components/DeleteConfirmDialog';
 import Modal from '@/shared/components/Modal';
 import InlineError from '@/shared/components/InlineError';
 import EntitySelect from '@/shared/components/EntitySelect';
+import InternalAddress from '@/shared/components/InternalAddress';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { useResource } from '@/shared/hooks/api/use-resource';
 import { useMutation } from '@/shared/hooks/api/use-mutation';
@@ -48,7 +49,7 @@ import { DatabaseEngine } from '@quantum/contracts/modules/database/domain';
 import type { Database } from '@quantum/contracts/modules/database/domain';
 import type { CreateDatabaseInput } from '@quantum/contracts/modules/database/http';
 import type { Repository } from '@quantum/contracts/modules/repository/domain';
-import type { TemplateInstall } from '@quantum/contracts/modules/template/domain';
+import type { TemplateInstall, TemplateInstallService } from '@quantum/contracts/modules/template/domain';
 
 const copy = errorCopy(applicationErrorMessages);
 
@@ -119,14 +120,17 @@ const ApplicationsHeader = ({ canAddDatabase, onAddApplication, onAddDatabase }:
     />
 );
 
-const installPorts = (install: TemplateInstall): RepositoryPort[] => {
-    const app = install.services.find((service) => service.kind === 'app') ?? install.services[0];
-    return (app?.ports ?? []).map((port) => ({
+const primaryService = (install: TemplateInstall): TemplateInstallService | undefined =>
+    install.services.find((service) => service.kind === 'app' && service.ports.length > 0)
+        ?? install.services.find((service) => service.kind === 'app')
+        ?? install.services[0];
+
+const installPorts = (install: TemplateInstall): RepositoryPort[] =>
+    (primaryService(install)?.ports ?? []).map((port) => ({
         internalPort: port.internalPort,
         externalPort: port.externalPort,
         protocol: port.protocol === 'udp' ? PortBindingProtocol.Udp : PortBindingProtocol.Tcp
     }));
-};
 
 interface RowActionHandlers{
     onNavigate: (path: string) => void;
@@ -218,6 +222,7 @@ const ApplicationsTable = ({ rows, ...handlers }: ApplicationsTableProps) => (
                     <Table.Column isRowHeader>Name</Table.Column>
                     <Table.Column>Status</Table.Column>
                     <Table.Column>Address</Table.Column>
+                    <Table.Column>Ports</Table.Column>
                     <Table.Column>Created</Table.Column>
                     <Table.Column><span className='sr-only'>Actions</span></Table.Column>
                 </Table.Header>
@@ -255,6 +260,12 @@ const ApplicationsTable = ({ rows, ...handlers }: ApplicationsTableProps) => (
                                             isTransient={isInstallTransient(row.install.status)}
                                         />
                                     )}
+                                </Table.Cell>
+
+                                <Table.Cell>
+                                    {row.kind === 'app' && <InternalAddress address={row.repository.address} />}
+                                    {row.kind === 'install' && <InternalAddress address={primaryService(row.install)?.address ?? null} />}
+                                    {row.kind === 'database' && <InternalAddress address={row.database.address} />}
                                 </Table.Cell>
 
                                 <Table.Cell>

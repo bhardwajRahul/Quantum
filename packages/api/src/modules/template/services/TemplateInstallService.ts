@@ -4,6 +4,7 @@ import Project from '@/modules/project/models/Project';
 import DockerContainer from '@/modules/docker/models/DockerContainer';
 import ContainerOps from '@/modules/deployment/orchestrator/ContainerOps';
 import { repositoryTenantOf } from '@/modules/repository/services/repositoryTenant';
+import { containerAddresses } from '@/modules/docker/services/containerAddress';
 import { ContainerDesiredState } from '@quantum/contracts/modules/docker/domain';
 import { TemplateInstallStatus } from '@quantum/contracts/modules/template/domain';
 import Template from '../models/Template';
@@ -14,12 +15,13 @@ import TemplateService from './TemplateService';
 import { TemplateInstallError } from '../contracts/domain/errors';
 import type { Tenant } from '@/modules/organization/contracts/types/fastify';
 import type { InstallTemplateInput, TemplateInstallOperation } from '@quantum/contracts/modules/template/http';
+import type { TemplateInstall as TemplateInstallPayload } from '@quantum/contracts/modules/template/domain';
 
 export default class TemplateInstallService{
     #templates = new TemplateService();
     #cipher = new SecretCipher();
 
-    async install(userId: number, tenant: Tenant, projectId: number, input: InstallTemplateInput): Promise<TemplateInstall>{
+    async install(userId: number, tenant: Tenant, projectId: number, input: InstallTemplateInput): Promise<TemplateInstallPayload>{
         const project = await this.#projectFor(tenant, projectId);
         const template = await this.#templates.get(tenant, input.templateId);
         const inputsEnc = this.#resolveInputs(template, input.inputs ?? {});
@@ -35,7 +37,7 @@ export default class TemplateInstallService{
         }).save();
 
         this.#startProvisioning(install, userId);
-        return install;
+        return this.present(install);
     }
 
     #resolveInputs(template: Template, supplied: Record<string, string | number | boolean>): string | null{
@@ -64,12 +66,12 @@ export default class TemplateInstallService{
         return this.#cipher.encrypt(JSON.stringify(resolved));
     }
 
-    async listForProject(tenant: Tenant, projectId: number): Promise<TemplateInstall[]>{
+    async listForProject(tenant: Tenant, projectId: number): Promise<TemplateInstallPayload[]>{
         if(!tenant.isPlatformAdmin){
             const project = await Project.findOneBy({ id: projectId });
             if(!project || !this.#inCallerOrg(project, tenant)) throw TemplateInstallError.Forbidden();
         }
-        return TemplateInstall.find({ where: { projectId }, order: { id: 'ASC' } });
+        return this.#presentAll(await TemplateInstall.find({ where: { projectId }, order: { id: 'ASC' } }));
     }
 
     async get(tenant: Tenant, id: number): Promise<TemplateInstall>{
@@ -90,7 +92,7 @@ export default class TemplateInstallService{
         eventBus.emit('template.uninstalled', { templateInstallId: id, userId, services, networkId });
     }
 
-    async operate(tenant: Tenant, id: number, operation: TemplateInstallOperation): Promise<TemplateInstall>{
+    async operate(tenant: Tenant, id: number, operation: TemplateInstallOperation): Promise<TemplateInstallPayload>{
         const install = await this.get(tenant, id);
         const ids = install.services.map((service) => service.containerId).filter((value): value is number => value !== null);
         const containers = ids.length === 0 ? [] : await DockerContainer.findBy({ id: In(ids) });
@@ -112,7 +114,7 @@ export default class TemplateInstallService{
 
         install.status = operation === 'stop' ? TemplateInstallStatus.Stopped : TemplateInstallStatus.Running;
         await install.save();
-        return install;
+        return this.present(install);
     }
 
     async containerForUser(userId: number, installId: number, service?: string): Promise<DockerContainer>{
@@ -134,6 +136,23 @@ export default class TemplateInstallService{
             templateId: install.templateId,
             userId
         });
+    }
+
+    async present(install: TemplateInstall): Promise<TemplateInstallPayload>{
+        const [payload] = await this.#presentAll([install]);
+        return payload;
+    }
+
+    async #presentAll(installs: TemplateInstall[]): Promise<TemplateInstallPayload[]>{
+        const addresses = await containerAddresses(installs.flatMap((install) => install.services.map((service) => service.containerId)));
+
+        return installs.map((install) => ({
+            ...install.toJSON(),
+            services: install.services.map((service) => ({
+                ...service,
+                address: service.containerId === null ? null : addresses.get(service.containerId) ?? null
+            }))
+        }) as unknown as TemplateInstallPayload);
     }
 
     async #projectFor(tenant: Tenant, projectId: number): Promise<Project>{

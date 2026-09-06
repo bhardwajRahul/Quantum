@@ -58,6 +58,7 @@ export default class ReconcileHandler{
             }
             if(await this.#portsDrifted(ops, container)) return await this.#replace(ops, container);
             if(container.status !== ContainerStatus.Running) return await this.#startOrRecreate(ops, container);
+            await ops.ensureAddress();
             return 'started';
         }catch(error){
             logger.error(`reconcile failed for ${container.dockerContainerName}`, error, { scope: 'orchestrator.handler.reconcile' });

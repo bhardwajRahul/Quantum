@@ -6,6 +6,39 @@ import { config } from '@/shared/config';
 
 export const EDGE_NETWORK_NAME = `quantum-edge-${config.nodeEnv}`;
 
+export const organizationNetworkName = (organizationId: number): string =>
+    `quantum-org-${config.nodeEnv}-${organizationId}`;
+
+const ALREADY_CONNECTED = new Set([403, 409]);
+
+const ensureAttachableNetwork = async (name: string): Promise<void> => {
+    const docker = getDockerHost().client();
+    const existing = await docker.listNetworks({ filters: { name: [name] } });
+    if(existing.some((network) => network.Name === name)) return;
+
+    try{
+        await docker.createNetwork({ Name: name, Driver: 'bridge', Attachable: true });
+        logger.info(`created network ${name}`, { scope: 'orchestrator.network' });
+    }catch(error){
+        if((error as { statusCode?: number }).statusCode !== 409) throw error;
+    }
+};
+
+export const joinOrganizationNetwork = async (containerRef: string, organizationId: number, alias: string): Promise<string> => {
+    const name = organizationNetworkName(organizationId);
+    await ensureAttachableNetwork(name);
+
+    try{
+        await getDockerHost().client().getNetwork(name).connect({
+            Container: containerRef,
+            EndpointConfig: { Aliases: [alias] }
+        });
+    }catch(error){
+        if(!ALREADY_CONNECTED.has((error as { statusCode?: number }).statusCode ?? 0)) throw error;
+    }
+    return name;
+};
+
 export const ensureEdgeNetwork = async (): Promise<string> => {
     try{
         const docker = getDockerHost().client();

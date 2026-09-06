@@ -4,7 +4,9 @@ import { getDockerHost } from './DockerHost';
 import ContainerOptionsResolver from './ContainerOptionsResolver';
 import DockerContainer from '@/modules/docker/models/DockerContainer';
 import Repository from '@/modules/repository/models/Repository';
+import { internalHostname } from '@/modules/docker/services/containerAddress';
 import { containerEnvironment } from './containerEnvironment';
+import { joinOrganizationNetwork, organizationNetworkName } from './NetworkOps';
 import { ContainerStatus } from '@quantum/contracts/modules/docker/domain';
 import { logger } from '@/shared/utils/Logger';
 
@@ -43,6 +45,7 @@ export default class ContainerOps{
         await live.stop({ t: 10 });
         this.container.status = ContainerStatus.Stopped;
         this.container.stoppedAt = new Date();
+        this.container.ipAddress = '';
         await this.container.save();
         logger.info(`stopped container ${this.container.dockerContainerName}`, { scope: 'orchestrator.container' });
     }
@@ -51,9 +54,8 @@ export default class ContainerOps{
         const live = this.#docker.getContainer(this.container.dockerContainerName);
         const { State } = await live.inspect();
         if(!State.Running) await live.start();
-        this.container.status = ContainerStatus.Running;
-        this.container.startedAt = new Date();
-        await this.container.save();
+        await this.#join(this.container.dockerContainerName);
+        await this.#markRunning(live);
         logger.info(`started container ${this.container.dockerContainerName}`, { scope: 'orchestrator.container' });
     }
 
@@ -62,10 +64,19 @@ export default class ContainerOps{
         this.container.status = ContainerStatus.Restarting;
         await this.container.save();
         await live.restart({ t: 10 });
-        this.container.status = ContainerStatus.Running;
-        this.container.startedAt = new Date();
-        await this.container.save();
+        await this.#join(this.container.dockerContainerName);
+        await this.#markRunning(live);
         logger.info(`restarted container ${this.container.dockerContainerName}`, { scope: 'orchestrator.container' });
+    }
+
+    async ensureAddress(): Promise<void>{
+        const live = this.#docker.getContainer(this.container.dockerContainerName);
+        await this.#join(this.container.dockerContainerName);
+
+        const ip = await this.#addressOf(live);
+        if(ip === this.container.ipAddress) return;
+        this.container.ipAddress = ip;
+        await this.container.save();
     }
 
     async publishedPorts(): Promise<Set<number>>{
@@ -138,10 +149,9 @@ export default class ContainerOps{
         await this.#pullBaseImage(overrides.imageOverride);
         const options = await new ContainerOptionsResolver(this.container).resolve(overrides);
         const created = await this.#docker.createContainer(options);
+        await this.#join(created.id);
         await created.start();
-        this.container.status = ContainerStatus.Running;
-        this.container.startedAt = new Date();
-        await this.container.save();
+        await this.#markRunning(created);
         return created;
     }
 
@@ -182,13 +192,13 @@ export default class ContainerOps{
         options.Image = overrides.imageOverride || tempImage;
 
         const created = await this.#docker.createContainer(options);
+        await this.#join(created.id);
         const wasRunning = info.State.Running;
         if(wasRunning){
             await created.start();
             await this.relaunchRepositoryApp();
         }
-        this.container.status = ContainerStatus.Running;
-        await this.container.save();
+        await this.#markRunning(created);
         logger.info(`reloaded container ${this.container.dockerContainerName}`, { scope: 'orchestrator.container' });
     }
 
@@ -202,6 +212,30 @@ export default class ContainerOps{
         this.executeCommand(['sh', '-c', relaunchScript(repository.startCommand)], { WorkingDir: workingDir, Env: env })
             .catch(() => undefined);
         logger.info(`re-launched start command for ${this.container.dockerContainerName}`, { scope: 'orchestrator.container' });
+    }
+
+    async #join(containerRef: string): Promise<void>{
+        try{
+            await joinOrganizationNetwork(containerRef, this.container.organizationId, internalHostname(this.container));
+        }catch(error){
+            logger.warn(
+                `could not attach ${this.container.dockerContainerName} to its organization network — ${(error as Error).message}`,
+                { scope: 'orchestrator.container' }
+            );
+        }
+    }
+
+    async #addressOf(live: Dockerode.Container): Promise<string>{
+        const info = await live.inspect().catch(() => null);
+        const endpoint = info?.NetworkSettings?.Networks?.[organizationNetworkName(this.container.organizationId)];
+        return endpoint?.IPAddress ?? '';
+    }
+
+    async #markRunning(live: Dockerode.Container): Promise<void>{
+        this.container.ipAddress = await this.#addressOf(live);
+        this.container.status = ContainerStatus.Running;
+        this.container.startedAt = new Date();
+        await this.container.save();
     }
 
     async #pullBaseImage(imageOverride?: string): Promise<void>{

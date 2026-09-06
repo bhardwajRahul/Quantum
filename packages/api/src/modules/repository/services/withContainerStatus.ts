@@ -1,6 +1,7 @@
 import { In } from 'typeorm';
 import DockerContainer from '@/modules/docker/models/DockerContainer';
 import PortBinding from '@/modules/docker/models/PortBinding';
+import { containerAddress } from '@/modules/docker/services/containerAddress';
 import type Repository from '../models/Repository';
 import type { Repository as RepositoryPayload, RepositoryPort } from '@quantum/contracts/modules/repository/domain';
 
@@ -11,6 +12,7 @@ export const withContainerStatus = async (repositories: Repository[]): Promise<R
         where: { repositoryId: In(repositories.map((repository) => repository.id)) }
     });
     const statusByRepository = new Map(containers.map((container) => [container.repositoryId, container.status]));
+    const addressByRepository = new Map(containers.map((container) => [container.repositoryId, containerAddress(container)]));
 
     const bindings = containers.length === 0
         ? []
@@ -27,7 +29,8 @@ export const withContainerStatus = async (repositories: Repository[]): Promise<R
     return repositories.map((repository) => ({
         ...repository,
         containerStatus: statusByRepository.get(repository.id) ?? null,
-        ports: portsByRepository.get(repository.id) ?? []
+        ports: portsByRepository.get(repository.id) ?? [],
+        address: addressByRepository.get(repository.id) ?? null
     }) as unknown as RepositoryPayload);
 };
 

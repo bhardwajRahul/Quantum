@@ -19,8 +19,8 @@ export default class TemplateInstallController extends BaseController{
     }
 
     @Route(templateInstallRoutes.get)
-    get(@Tenant() tenant: Tenant, @NumericParam('id') id: number){
-        return this.#service.get(tenant, id);
+    async get(@Tenant() tenant: Tenant, @NumericParam('id') id: number){
+        return this.#service.present(await this.#service.get(tenant, id));
     }
 
     @Route(templateInstallRoutes.operate)

@@ -1,4 +1,5 @@
 import type { BaseEntity } from '../../shared/base';
+import type { ContainerAddress } from '../docker/domain';
 
 export enum TemplateSource{
     Builtin = 'builtin',
@@ -79,6 +80,7 @@ export interface TemplateInstallService{
     image: string;
     containerId: number | null;
     ports: TemplateInstallPort[];
+    address: ContainerAddress | null;
 }
 
 export interface TemplateInstall extends BaseEntity{

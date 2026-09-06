@@ -5,10 +5,11 @@ import { saveOrConflict } from '@/shared/models/isUniqueViolation';
 import { assertOrg, assertProject } from '@/shared/tenancy';
 import SecretCipher from '@/shared/services/SecretCipher';
 import Project from '@/modules/project/models/Project';
+import { containerAddresses } from '@/modules/docker/services/containerAddress';
 import Database from '../models/Database';
 import { DatabaseError } from '../contracts/domain/errors';
 import { DatabaseEngine, DatabaseStatus } from '@quantum/contracts/modules/database/domain';
-import type { DatabaseCredentials } from '@quantum/contracts/modules/database/domain';
+import type { Database as DatabasePayload, DatabaseCredentials } from '@quantum/contracts/modules/database/domain';
 import type { Tenant } from '@/modules/organization/contracts/types/fastify';
 import type { ConnectionStringOutput, CreateDatabaseInput } from '@quantum/contracts/modules/database/http';
 import type { ProvisionAction } from '../contracts/domain/events';
@@ -29,9 +30,15 @@ const ENGINE_SPECS: Record<DatabaseEngine, EngineSpec> = {
 export default class DatabaseService{
     #cipher = new SecretCipher();
 
-    async listForProject(tenant: Tenant, projectId: number): Promise<Database[]>{
+    async listForProject(tenant: Tenant, projectId: number): Promise<DatabasePayload[]>{
         const project = await this.#resolveProject(tenant, projectId);
-        return Database.find({ where: { projectId: project.id }, order: { id: 'ASC' } });
+        const databases = await Database.find({ where: { projectId: project.id }, order: { id: 'ASC' } });
+        const addresses = await containerAddresses(databases.map((database) => database.containerId));
+
+        return databases.map((database) => ({
+            ...database.toJSON(),
+            address: database.containerId === null ? null : addresses.get(database.containerId) ?? null
+        }) as unknown as DatabasePayload);
     }
 
     async create(userId: number, tenant: Tenant, projectId: number, input: CreateDatabaseInput): Promise<Database>{

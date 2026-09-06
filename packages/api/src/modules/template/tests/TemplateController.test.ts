@@ -1,0 +1,204 @@
+import { describe, expect, it } from 'vitest';
+import { useApp, flushEvents } from '@tests/harness';
+import { request, expectError } from '@tests/request';
+import { seed } from '@tests/Seed';
+import { eventBus } from '@/shared/events/EventBus';
+import { OrganizationRole } from '@quantum/contracts/modules/organization/domain';
+import { TemplateSource } from '@quantum/contracts/modules/template/domain';
+import { templateInstallRoutes, templateRoutes } from '@quantum/contracts/modules/template/routes';
+import Template from '../models/Template';
+import TemplateInstall from '../models/TemplateInstall';
+import type { TemplateSpec } from '@quantum/contracts/modules/template/domain';
+import type { CreateTemplateInput } from '@quantum/contracts/modules/template/http';
+import type { TemplateInstalledPayload } from '../contracts/domain/events';
+import type { TemplateFields } from '../contracts/domain/template';
+
+const ctx = useApp();
+
+const spec = (image: string): TemplateSpec => ({ services: { app: { image } } });
+
+const seedBuiltin = (overrides: Partial<Omit<TemplateFields, 'createdAt' | 'updatedAt'>> = {}) => Template.create({
+    name: 'Postgres',
+    slug: 'postgres',
+    description: null,
+    icon: null,
+    website: null,
+    source: TemplateSource.Builtin,
+    organizationId: null,
+    spec: spec('postgres:16'),
+    ...overrides
+}).save();
+
+const createTemplate = (userId: number, orgId: number, overrides: Partial<CreateTemplateInput> = {}) => Template.create({
+    name: overrides.name ?? 'Redis Cache',
+    slug: overrides.slug ?? 'redis-cache',
+    description: overrides.description ?? null,
+    icon: overrides.icon ?? null,
+    website: overrides.website ?? null,
+    source: TemplateSource.Custom,
+    organizationId: orgId,
+    spec: overrides.spec ?? spec('redis:7'),
+    inputsSchema: overrides.inputsSchema ?? []
+}).save();
+
+const installTemplate = (userId: number, projectId: number, templateId: number, name = 'My Redis') =>
+    request(ctx.app, templateRoutes.install, {
+        as: userId,
+        params: { projectId },
+        body: { templateId, name }
+    });
+
+const collect = <T>(event: keyof EventMap): T[] => {
+    const received: T[] = [];
+    eventBus.subscribe(event, (payload) => {
+        received.push(payload as T);
+    });
+    return received;
+};
+
+describe('template', () => {
+    it('rejects unauthenticated requests', async () => {
+        const res = await request(ctx.app, templateRoutes.list);
+
+        expectError(res, 401, 'Authentication::Unauthorized');
+    });
+
+    it('lists builtin templates for everyone and custom templates only for member organizations', async () => {
+        await seedBuiltin();
+        await seedBuiltin({ name: 'Nginx', slug: 'nginx', spec: spec('nginx:1') });
+        const { user, org } = await seed.orgContext();
+        await createTemplate(user.id, org.id);
+        const outsider = await seed.user();
+
+        const mine = await request(ctx.app, templateRoutes.list, { as: user.id });
+        expect(mine.status).toBe(200);
+        expect(mine.data().map((template) => template.name).sort()).toEqual(['Nginx', 'Postgres', 'Redis Cache']);
+
+        const theirs = await request(ctx.app, templateRoutes.list, { as: outsider.id });
+        expect(theirs.status).toBe(200);
+        expect(theirs.data()).toHaveLength(2);
+        expect(theirs.data().every((template) => template.source === TemplateSource.Builtin)).toBe(true);
+    });
+
+    it('installs a template into a project and emits template.installed', async () => {
+        const { user, org, project } = await seed.orgContext();
+        const created = await createTemplate(user.id, org.id);
+        const installed = collect<TemplateInstalledPayload>('template.installed');
+
+        const res = await installTemplate(user.id, project.id, created.id);
+
+        expect(res.status).toBe(201);
+        expect(res.data()).toMatchObject({
+            templateId: created.id,
+            name: 'My Redis',
+            projectId: project.id,
+            organizationId: org.id,
+            userId: user.id,
+            nodeId: 'local'
+        });
+
+        await flushEvents();
+        expect(installed).toEqual([{
+            templateInstallId: res.data().id,
+            projectId: project.id,
+            templateId: created.id,
+            userId: user.id
+        }]);
+    });
+
+    it('answers 404 when installing into a missing project', async () => {
+        const { user } = await seed.orgContext();
+        const builtin = await seedBuiltin();
+
+        const res = await installTemplate(user.id, 999999, builtin.id, 'Ghost');
+
+        expectError(res, 404, 'TemplateInstall::NotFound');
+    });
+
+    it('refuses to install a template the caller cannot see', async () => {
+        const owner = await seed.user();
+        const foreignOrg = await seed.org(owner);
+        const created = await createTemplate(owner.id, foreignOrg.id);
+
+        const { user, project } = await seed.orgContext();
+
+        const res = await installTemplate(user.id, project.id, created.id, 'Steal');
+
+        expectError(res, 404, 'Template::NotFound');
+    });
+
+    it('forbids install for the viewer role', async () => {
+        const { user, project } = await seed.orgContext(OrganizationRole.Viewer);
+        const builtin = await seedBuiltin();
+
+        const res = await installTemplate(user.id, project.id, builtin.id, 'Denied');
+
+        expectError(res, 403, 'Tenancy::InsufficientPermissions');
+    });
+
+    it('forbids installing into a project outside the caller organizations', async () => {
+        const { org } = await seed.orgContext();
+        const outsider = await seed.user();
+        const project = await seed.project(org);
+        const builtin = await seedBuiltin();
+
+        const res = await installTemplate(outsider.id, project.id, builtin.id, 'Intruder');
+
+        expectError(res, 403, 'TemplateInstall::Forbidden');
+    });
+
+    it('lists the installs of a project', async () => {
+        const { user, org, project } = await seed.orgContext();
+        const created = await createTemplate(user.id, org.id);
+        await installTemplate(user.id, project.id, created.id);
+
+        const res = await request(ctx.app, templateInstallRoutes.listByProject, {
+            as: user.id,
+            params: { projectId: project.id }
+        });
+
+        expect(res.status).toBe(200);
+        expect(res.data()).toHaveLength(1);
+        expect(res.data()[0]).toMatchObject({ name: 'My Redis', projectId: project.id });
+    });
+
+    it('forbids the install list for a non-member', async () => {
+        const { project } = await seed.orgContext();
+        const outsider = await seed.user();
+
+        const res = await request(ctx.app, templateInstallRoutes.listByProject, {
+            as: outsider.id,
+            params: { projectId: project.id }
+        });
+
+        expectError(res, 403, 'TemplateInstall::Forbidden');
+    });
+
+    it('deletes an install', async () => {
+        const { user, org, project } = await seed.orgContext();
+        const created = await createTemplate(user.id, org.id);
+        const installed = await installTemplate(user.id, project.id, created.id);
+
+        const res = await request(ctx.app, templateInstallRoutes.remove, {
+            as: user.id,
+            params: { id: installed.data().id }
+        });
+
+        expect(res.status).toBe(204);
+        expect(await TemplateInstall.findOneBy({ id: installed.data().id })).toBeNull();
+    });
+
+    it('forbids install deletion for the viewer role', async () => {
+        const { user, org, project } = await seed.orgContext();
+        const viewer = await seed.member(org, OrganizationRole.Viewer);
+        const created = await createTemplate(user.id, org.id);
+        const installed = await installTemplate(user.id, project.id, created.id);
+
+        const res = await request(ctx.app, templateInstallRoutes.remove, {
+            as: viewer.id,
+            params: { id: installed.data().id }
+        });
+
+        expectError(res, 403, 'Tenancy::InsufficientPermissions');
+    });
+});

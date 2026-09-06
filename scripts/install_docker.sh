@@ -1,86 +1,42 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Operating system detection
-os=$(uname -s)
-
-# Feature to install Docker on Linux
-function install_docker_linux(){
-  # Check if Docker is already installed
-  if command -v docker &> /dev/null; then
-    echo "@install_docker.sh: Docker already installed. Skipping installation."
-    return
-  fi
-  apt-get update
-  apt-get install ca-certificates curl
-  install -m 0755 -d /etc/apt/keyrings
-  curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-  chmod a+r /etc/apt/keyrings/docker.asc
-
-  echo \
-    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-    $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-    sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-  apt-get update
-
-  sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-  echo "@install_docker.sh: Docker installed correctly."
-}
-
-# Feature to install Docker on macOS (not tested yet)
-function install_docker_macos() {
-  # Check if Docker is already installed
-  if command -v docker &> /dev/null; then
-    echo "@install_docker.sh: Docker already installed. Skipping installation."
-    return
-  fi
-
-  # Download the latest version of Docker Desktop
-  curl -fsSL https://get.docker.com/Macintosh/Docker.dmg -o Docker.dmg
-
-  # Open the Docker installer
-  hdiutil attach Docker.dmg
-
-  # Install Docker
-  sudo installer -pkg /Volumes/Docker/Docker.pkg -target /
-
-  # Unmount disk image
-  hdiutil detach /Volumes/Docker
-
-  echo "@install_docker.sh: Docker installed correctly."
-}
-
-# Function to install Docker Compose
-function install_docker_compose(){
-  # Check if Docker Compose is already installed
-  if command -v docker-compose &> /dev/null; then
-    echo "@install_docker.sh: Docker Compose already installed. Skipping installation."
-    return
-  fi
-
-  # Download the latest version of Docker Compose
-  curl -L https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m) -o docker-compose
-
-  # Make the file executable
-  chmod +x docker-compose
-
-  # Move the file to the /usr/local/bin folder
-  sudo mv docker-compose /usr/local/bin
-
-  echo "install_docker.sh: Docker Compose installed correctly."
-}
-
-# Run the installation function based on the operating system
-if [[ "$os" == "Linux" ]]; then
-  install_docker_linux
-elif [[ "$os" == "Darwin" ]]; then
-  install_docker_macos
-else
-  echo "@install_docker.sh: Windows is not supported yet."
-  exit 1
+if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+    echo "Docker $(docker version --format '{{.Client.Version}}') and the Compose plugin are already installed."
+    exit 0
 fi
 
-# Install Docker Compose
-install_docker_compose
+if [ "$(uname -s)" = "Darwin" ]; then
+    echo "On macOS install Docker Desktop: https://docs.docker.com/desktop/install/mac-install/"
+    exit 1
+fi
 
-echo "@install_docker.sh: Ready! Docker and Docker Compose are installed and ready to use."
+if [ "$(uname -s)" != "Linux" ]; then
+    echo "Unsupported platform: $(uname -s). See https://docs.docker.com/engine/install/"
+    exit 1
+fi
+
+SUDO=""
+if [ "$(id -u)" -ne 0 ]; then
+    command -v sudo >/dev/null 2>&1 || { echo "Run this as root, or install sudo."; exit 1; }
+    SUDO=sudo
+fi
+
+SCRIPT="$(mktemp)"
+trap 'rm -f "$SCRIPT"' EXIT
+
+echo "Downloading the official installer to $SCRIPT ..."
+curl -fsSL https://get.docker.com -o "$SCRIPT"
+
+echo "Running it (this installs docker-ce, the CLI, containerd and the compose plugin)..."
+$SUDO sh "$SCRIPT"
+
+$SUDO systemctl enable --now docker 2>/dev/null || true
+
+echo
+echo "Docker installed. To use it without sudo, add yourself to the docker group"
+echo "and start a new login session:"
+echo
+echo "    $SUDO usermod -aG docker \$USER"
+echo
+echo "Then deploy Quantum with: bash scripts/deploy.sh"

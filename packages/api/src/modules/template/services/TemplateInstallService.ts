@@ -29,7 +29,6 @@ export default class TemplateInstallService{
             name: input.name,
             organizationId: project.organizationId,
             projectId: project.id,
-            environmentId: input.environmentId ?? null,
             userId,
             nodeId: process.env.NODE_ID ?? 'local',
             inputsEnc

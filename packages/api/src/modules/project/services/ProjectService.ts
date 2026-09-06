@@ -4,12 +4,11 @@ import { eventBus } from '@/shared/events/EventBus';
 import { saveOrConflict } from '@/shared/models/isUniqueViolation';
 import { assertOrg } from '@/shared/tenancy';
 import Project from '../models/Project';
-import Environment from '../models/Environment';
 import { ProjectError } from '../contracts/domain/errors';
 import type { Tenant } from '@/modules/organization/contracts/types/fastify';
 import type { CreateProjectInput, UpdateProjectInput } from '@quantum/contracts/modules/project/http';
 
-const DEFAULT_PROJECT_NAME = 'Default Environment';
+const DEFAULT_PROJECT_NAME = 'Default Project';
 
 export default class ProjectService{
     async listForOrg(tenant: Tenant, orgId: number): Promise<Project[]>{
@@ -76,7 +75,6 @@ export default class ProjectService{
 
     async remove(tenant: Tenant, projectId: number): Promise<void>{
         const project = await this.getOwned(tenant, projectId);
-        await Environment.delete({ projectId: project.id });
         await project.remove();
 
         eventBus.emit('project.deleted', {

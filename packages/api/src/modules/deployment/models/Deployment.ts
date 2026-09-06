@@ -17,9 +17,6 @@ export default class Deployment extends BaseModel implements DeploymentFields{
     @Column({ type: 'int', nullable: true })
     organizationId!: number | null;
 
-    @Column({ type: 'int', nullable: true })
-    environmentId!: number | null;
-
     @Column({ type: 'varchar', nullable: true })
     githubDeploymentId!: string | null;
 

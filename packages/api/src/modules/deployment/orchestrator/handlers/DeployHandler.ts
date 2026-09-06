@@ -88,7 +88,6 @@ export default class DeployHandler{
             repositoryId: repository.id,
             userId: job.userId ?? repository.userId,
             organizationId: repository.organizationId,
-            environmentId: repository.environmentId,
             githubDeploymentId: null,
             status: DeploymentStatus.Building,
             error: null,

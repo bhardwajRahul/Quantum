@@ -94,7 +94,6 @@ describe('template', () => {
             projectId: project.id,
             organizationId: org.id,
             userId: user.id,
-            environmentId: null,
             nodeId: 'local'
         });
 

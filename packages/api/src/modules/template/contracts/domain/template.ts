@@ -18,7 +18,6 @@ export interface TemplateInstallFields{
     name: string;
     templateId: number;
     projectId: number;
-    environmentId: number | null;
     organizationId: number | null;
     userId: number | null;
     nodeId: string;

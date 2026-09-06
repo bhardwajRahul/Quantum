@@ -24,9 +24,6 @@ export default class Database extends BaseModel implements DatabaseFields{
     projectId!: number;
 
     @Column({ type: 'int', nullable: true })
-    environmentId!: number | null;
-
-    @Column({ type: 'int', nullable: true })
     userId!: number | null;
 
     @Column({ type: 'varchar', default: 'local' })

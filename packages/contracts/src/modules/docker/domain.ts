@@ -37,6 +37,11 @@ export interface DockerContainerVolume{
     mode: 'rw' | 'ro';
 }
 
+export interface ContainerAddress{
+    ip: string | null;
+    hostname: string;
+}
+
 export interface PortBinding extends BaseEntity{
     containerId: number;
     userId: number;

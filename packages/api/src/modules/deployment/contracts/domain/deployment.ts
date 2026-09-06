@@ -4,7 +4,6 @@ export interface DeploymentFields{
     repositoryId: number;
     userId: number;
     organizationId: number | null;
-    environmentId: number | null;
     githubDeploymentId: string | null;
     status: DeploymentStatus;
     commit: DeploymentCommit | null;

@@ -12,7 +12,7 @@ import type { Tenant } from '../contracts/types/fastify';
 import type { TenantContext } from '@quantum/contracts/modules/organization/domain';
 import type { CreateOrganizationInput, UpdateOrganizationInput } from '@quantum/contracts/modules/organization/http';
 
-const DEFAULT_PROJECT_NAME = 'Default Environment';
+const DEFAULT_PROJECT_NAME = 'Default Project';
 
 export default class OrganizationService{
     async listForTenant(tenant: Tenant): Promise<Organization[]>{

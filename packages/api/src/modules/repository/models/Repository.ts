@@ -69,9 +69,6 @@ export default class Repository extends BaseModel implements RepositoryFields{
     @Column('int')
     projectId!: number;
 
-    @Column({ type: 'int', nullable: true })
-    environmentId!: number | null;
-
     @Column({ type: 'simple-enum', enum: SourceType, default: SourceType.Github })
     sourceType!: SourceType;
 }

@@ -7,7 +7,6 @@ import ListPageShell from '@/shared/components/ListPageShell';
 import DeleteConfirmDialog from '@/shared/components/DeleteConfirmDialog';
 import CreateProjectDialog from '@/modules/project/components/CreateProjectDialog';
 import RenameProjectDialog from '@/modules/project/components/RenameProjectDialog';
-import ManageEnvironmentsDialog from '@/modules/project/components/ManageEnvironmentsDialog';
 import { useResource } from '@/shared/hooks/api/use-resource';
 import { projectApi } from '@/modules/project/api/api';
 import { projectRoutes } from '@quantum/contracts/modules/project/routes';
@@ -49,7 +48,7 @@ const DeleteProjectDialog = ({ project, onClose, onDeleted, onOptimisticDelete }
         title='Delete project'
         description={project === null
             ? ''
-            : `This permanently removes "${project.name}" and its environments. This action cannot be undone.`}
+            : `This permanently removes "${project.name}" and its resources. This action cannot be undone.`}
         entityId={project?.id ?? null}
         remove={(projectId) => projectApi.remove({ path: { id: projectId } })}
         getErrorMessage={copy}
@@ -62,11 +61,10 @@ const DeleteProjectDialog = ({ project, onClose, onDeleted, onOptimisticDelete }
 interface ProjectsTableProps{
     projects: Project[];
     onRename: (project: Project) => void;
-    onManageEnvironments: (project: Project) => void;
     onDelete: (project: Project) => void;
 }
 
-const ProjectsTable = ({ projects, onRename, onManageEnvironments, onDelete }: ProjectsTableProps) => (
+const ProjectsTable = ({ projects, onRename, onDelete }: ProjectsTableProps) => (
     <Table>
         <Table.ScrollContainer>
             <Table.Content aria-label='Projects'>
@@ -105,11 +103,8 @@ const ProjectsTable = ({ projects, onRename, onManageEnvironments, onDelete }: P
 
                                         <Dropdown.Popover placement='bottom end'>
                                             <Dropdown.Menu aria-label={`Actions for ${project.name}`}>
-                                                <Dropdown.Item onAction={() => onRename(project)}>Rename</Dropdown.Item>
-                                                <Dropdown.Item onAction={() => onManageEnvironments(project)}>
-                                                    Manage environments
-                                                </Dropdown.Item>
-                                                <Dropdown.Item variant='danger' onAction={() => onDelete(project)}>
+<Dropdown.Item onAction={() => onRename(project)}>Rename</Dropdown.Item>
+                                                 <Dropdown.Item variant='danger' onAction={() => onDelete(project)}>
                                                     Delete
                                                 </Dropdown.Item>
                                             </Dropdown.Menu>
@@ -133,7 +128,6 @@ const Projects = () => {
     });
     const [createOpen, setCreateOpen] = useState(false);
     const [renameTarget, setRenameTarget] = useState<Project | null>(null);
-    const [environmentsTarget, setEnvironmentsTarget] = useState<Project | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
 
     if(organizationId === null || projects.loading || projects.error !== undefined){
@@ -178,7 +172,6 @@ const Projects = () => {
                     <ProjectsTable
                         projects={items}
                         onRename={setRenameTarget}
-                        onManageEnvironments={setEnvironmentsTarget}
                         onDelete={setDeleteTarget}
                     />
                 </ListPageShell>
@@ -196,12 +189,6 @@ const Projects = () => {
                 project={renameTarget}
                 onClose={() => setRenameTarget(null)}
                 onRenamed={projects.refresh}
-            />
-
-            <ManageEnvironmentsDialog
-                key={environmentsTarget?.id ?? 'environments'}
-                project={environmentsTarget}
-                onClose={() => setEnvironmentsTarget(null)}
             />
 
             <DeleteProjectDialog

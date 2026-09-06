@@ -46,7 +46,6 @@ export default class DatabaseService{
             version: input.version ?? ENGINE_SPECS[input.engine].defaultVersion,
             organizationId: project.organizationId,
             projectId: project.id,
-            environmentId: null,
             userId,
             nodeId: 'local',
             status: DatabaseStatus.Pending,

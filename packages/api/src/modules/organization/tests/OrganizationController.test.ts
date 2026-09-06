@@ -40,7 +40,7 @@ describe('organization', () => {
         expect(updated?.defaultOrganizationId).toBe(org.id);
 
         const project = await Project.findOneBy({ organizationId: org.id });
-        expect(project).toMatchObject({ name: 'Default Environment', isDefault: true });
+        expect(project).toMatchObject({ name: 'Default Project', isDefault: true });
 
         await flushEvents();
     });

@@ -66,7 +66,6 @@ describe('repository container status', () => {
             repositoryId,
             userId: user.id,
             organizationId: org.id,
-            environmentId: null,
             githubDeploymentId: null,
             status: DeploymentStatus.Success,
             error: null,

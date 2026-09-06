@@ -19,6 +19,5 @@ export interface TemplateInstallOperationInput{
 export interface InstallTemplateInput{
     templateId: number;
     name: string;
-    environmentId?: number | null;
     inputs?: Record<string, string | number | boolean>;
 }

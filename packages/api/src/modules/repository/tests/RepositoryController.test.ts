@@ -74,8 +74,7 @@ describe('repository', () => {
             sourceType: 'github',
             userId: user.id,
             organizationId: org.id,
-            projectId: project.id,
-            environmentId: null
+            projectId: project.id
         });
 
         await flushEvents();

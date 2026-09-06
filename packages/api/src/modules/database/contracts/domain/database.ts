@@ -6,7 +6,6 @@ export interface DatabaseFields{
     version: string | null;
     organizationId: number;
     projectId: number;
-    environmentId: number | null;
     userId: number | null;
     nodeId: string;
     status: DatabaseStatus;

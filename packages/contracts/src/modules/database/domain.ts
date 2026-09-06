@@ -1,4 +1,5 @@
 import type { BaseEntity } from '../../shared/base';
+import type { ContainerAddress } from '../docker/domain';
 
 export enum DatabaseEngine{
     Postgres = 'postgres',
@@ -37,10 +38,10 @@ export interface Database extends BaseEntity{
     version: string | null;
     organizationId: number;
     projectId: number;
-    environmentId: number | null;
     userId: number | null;
     nodeId: string;
     status: DatabaseStatus;
     containerId: number | null;
     backups: DatabaseBackup[];
+    address: ContainerAddress | null;
 }

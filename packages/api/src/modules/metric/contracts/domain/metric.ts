@@ -3,7 +3,6 @@ export interface MetricFields{
     containerId: number | null;
     repositoryId: number | null;
     projectId: number | null;
-    environmentId: number | null;
     userId: number | null;
     nodeId: string;
     cpuPercent: number;

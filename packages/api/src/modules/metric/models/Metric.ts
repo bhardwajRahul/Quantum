@@ -21,9 +21,6 @@ export default class Metric extends BaseModel implements MetricFields{
     projectId!: number | null;
 
     @Column({ type: 'int', nullable: true })
-    environmentId!: number | null;
-
-    @Column({ type: 'int', nullable: true })
     userId!: number | null;
 
     @Column({ type: 'varchar', default: 'local' })

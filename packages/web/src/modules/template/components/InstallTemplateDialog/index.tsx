@@ -1,21 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { Button, FieldError, Input, Label, ListBox, ListBoxItem, Select, TextField } from '@heroui/react';
+import { Button, FieldError, Input, Label, TextField } from '@heroui/react';
 import Modal from '@/shared/components/Modal';
 import InlineError from '@/shared/components/InlineError';
 import EntitySelect from '@/shared/components/EntitySelect';
 import { useResource } from '@/shared/hooks/api/use-resource';
 import { useMutation } from '@/shared/hooks/api/use-mutation';
 import { templateApi } from '@/modules/template/api/api';
-import { environmentRoutes, projectRoutes } from '@quantum/contracts/modules/project/routes';
+import { projectRoutes } from '@quantum/contracts/modules/project/routes';
 import { useCurrentOrganizationId } from '@/modules/organization/hooks/use-current-organization-id';
 import { templateErrorMessages } from '@/modules/template/utils/error-messages';
 import { errorCopy } from '@/shared/utils/error-copy';
 import type { Template } from '@quantum/contracts/modules/template/domain';
 
 const copy = errorCopy(templateErrorMessages);
-
-const NO_ENVIRONMENT = '__none__';
 
 const inputTypeOf = (type: string): string => {
     if(type === 'number') return 'number';
@@ -38,21 +36,15 @@ const InstallTemplateDialog = ({ template, onClose, onInstalled }: InstallTempla
         enabled: template !== null
     });
     const [projectId, setProjectId] = useState<number | null>(null);
-    const environments = useResource(environmentRoutes, {
-        list: 'list',
-        request: projectId === null ? null : { path: { projectId } }
-    });
-    const [environmentId, setEnvironmentId] = useState<number | null>(null);
     const [name, setName] = useState('');
     const [inputs, setInputs] = useState<Record<string, string | number | boolean>>({});
 
-    const install = useMutation((targetProjectId: number, body: { name: string; environmentId: number | null; inputs: Record<string, string | number | boolean> }) =>
+    const install = useMutation((targetProjectId: number, body: { name: string; inputs: Record<string, string | number | boolean> }) =>
         templateApi.install({
             path: { projectId: targetProjectId },
             body: {
                 templateId: template?.id ?? 0,
                 name: body.name,
-                environmentId: body.environmentId,
                 inputs: body.inputs
             }
         }));
@@ -61,7 +53,6 @@ const InstallTemplateDialog = ({ template, onClose, onInstalled }: InstallTempla
 
     const selectProject = (id: number) => {
         setProjectId(id);
-        setEnvironmentId(null);
     };
 
     useEffect(() => {
@@ -82,7 +73,7 @@ const InstallTemplateDialog = ({ template, onClose, onInstalled }: InstallTempla
         if(projectId === null || name.trim() === '') return;
 
         const installed = await install
-            .run(projectId, { name: name.trim(), environmentId, inputs })
+            .run(projectId, { name: name.trim(), inputs })
             .then(() => true, () => false);
 
         if(!installed) return;
@@ -123,7 +114,6 @@ const InstallTemplateDialog = ({ template, onClose, onInstalled }: InstallTempla
                         emptyLabel='This organization has no projects yet'
                     />
 
-                    {}
                     {projects.data !== null && projects.data.length === 0 && (
                         <p className='text-[0.8125rem] text-muted'>
                             A template installs into a project, and this organization has none yet.{' '}
@@ -138,34 +128,6 @@ const InstallTemplateDialog = ({ template, onClose, onInstalled }: InstallTempla
                         </p>
                     )}
                 </div>
-
-                {projectId !== null && (
-                    <div className='flex flex-col gap-1.5'>
-                        <Label>Environment</Label>
-                        <Select
-                            aria-label='Environment'
-                            selectedKey={environmentId ?? NO_ENVIRONMENT}
-                            isDisabled={install.loading || environments.loading}
-                            onSelectionChange={(key) => setEnvironmentId(key === NO_ENVIRONMENT ? null : Number(key))}
-                        >
-                            <Select.Trigger>
-                                <Select.Value />
-                                <Select.Indicator />
-                            </Select.Trigger>
-
-                            <Select.Popover>
-                                <ListBox>
-                                    <ListBoxItem id={NO_ENVIRONMENT} textValue='None'>None</ListBoxItem>
-                                    {(environments.data ?? []).map((environment) => (
-                                        <ListBoxItem key={environment.id} id={environment.id} textValue={environment.name}>
-                                            {environment.name}
-                                        </ListBoxItem>
-                                    ))}
-                                </ListBox>
-                            </Select.Popover>
-                        </Select>
-                    </div>
-                )}
 
                 {fields.map((def) => (
                     <TextField

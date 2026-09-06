@@ -64,7 +64,6 @@ export interface Deployment extends BaseEntity{
     repositoryId: number;
     userId: number;
     organizationId: number | null;
-    environmentId: number | null;
     githubDeploymentId: string | null;
     status: DeploymentStatus;
     error: string | null;

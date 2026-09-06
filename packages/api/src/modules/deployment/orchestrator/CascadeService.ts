@@ -10,7 +10,6 @@ import Database from '@/modules/database/models/Database';
 import TemplateInstall from '@/modules/template/models/TemplateInstall';
 import Metric from '@/modules/metric/models/Metric';
 import PortBinding from '@/modules/docker/models/PortBinding';
-import Environment from '@/modules/project/models/Environment';
 import ContainerOps from './ContainerOps';
 import { teardownNetwork } from './NetworkOps';
 import { logger } from '@/shared/utils/Logger';
@@ -31,7 +30,6 @@ export default class CascadeService{
         deleted.metrics = await this.#safe(() => Metric.delete({ organizationId }));
         deleted.portBindings = await this.#safe(() => PortBinding.delete({ organizationId }));
         deleted.images = await this.#safe(() => DockerImage.delete({ organizationId }));
-        deleted.environments = await this.#safe(() => Environment.delete({ organizationId }));
         logger.info(`organization ${organizationId} cascade complete`, { scope: 'orchestrator.cascade' });
         return deleted;
     }
@@ -49,7 +47,6 @@ export default class CascadeService{
         deleted.databases = await this.#safe(() => Database.delete({ projectId }));
         deleted.templateInstalls = await this.#safe(() => TemplateInstall.delete({ projectId }));
         deleted.metrics = await this.#safe(() => Metric.delete({ projectId }));
-        deleted.environments = await this.#safe(() => Environment.delete({ projectId }));
         logger.info(`project ${projectId} cascade complete`, { scope: 'orchestrator.cascade' });
         return deleted;
     }

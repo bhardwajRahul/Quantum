@@ -22,7 +22,6 @@ export interface RepositoryFields{
     userId: number;
     organizationId: number | null;
     projectId: number;
-    environmentId: number | null;
     sourceType: SourceType;
     createdAt: Date;
     updatedAt: Date;

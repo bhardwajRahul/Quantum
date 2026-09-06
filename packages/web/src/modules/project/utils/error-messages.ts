@@ -1,10 +1,8 @@
-import type { EnvironmentErrorCode, ProjectErrorCode } from '@quantum/contracts/modules/project/errors';
+import type { ProjectErrorCode } from '@quantum/contracts/modules/project/errors';
 import { forbidden, notFound } from '@/shared/utils/error-messages';
 
-export const projectErrorMessages: Partial<Record<ProjectErrorCode | EnvironmentErrorCode, string>> = {
+export const projectErrorMessages: Partial<Record<ProjectErrorCode, string>> = {
     'Project::NotFound': notFound('project'),
     'Project::Forbidden': forbidden('project'),
-    'Project::SlugAlreadyTaken': 'A project with that identifier already exists.',
-    'Environment::NotFound': notFound('environment'),
-    'Environment::NameAlreadyTaken': 'An environment with that name already exists.'
+    'Project::SlugAlreadyTaken': 'A project with that identifier already exists.'
 };

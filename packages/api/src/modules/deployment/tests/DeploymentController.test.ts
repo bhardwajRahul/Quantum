@@ -26,7 +26,6 @@ const createDeployment = async (repository: Repository, overrides: Record<string
         repositoryId: repository.id,
         userId: repository.userId,
         organizationId: repository.organizationId,
-        environmentId: null,
         githubDeploymentId: null,
         status: DeploymentStatus.Success,
         commit: null,

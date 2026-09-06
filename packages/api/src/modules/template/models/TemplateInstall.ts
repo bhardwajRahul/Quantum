@@ -20,9 +20,6 @@ export default class TemplateInstall extends BaseModel implements TemplateInstal
     projectId!: number;
 
     @Column({ type: 'int', nullable: true })
-    environmentId!: number | null;
-
-    @Column({ type: 'int', nullable: true })
     userId!: number | null;
 
     @Column({ type: 'varchar', default: 'local' })

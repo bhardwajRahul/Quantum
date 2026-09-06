@@ -2,11 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { useApp, flushEvents } from '@tests/harness';
 import { request, expectError } from '@tests/request';
 import { seed } from '@tests/Seed';
-import { projectRoutes, environmentRoutes } from '@quantum/contracts/modules/project/routes';
-import { EnvironmentType } from '@quantum/contracts/modules/project/domain';
+import { projectRoutes } from '@quantum/contracts/modules/project/routes';
 import { OrganizationRole } from '@quantum/contracts/modules/organization/domain';
 import Project from '../models/Project';
-import Environment from '../models/Environment';
 
 const ctx = useApp();
 
@@ -127,18 +125,8 @@ describe('project', () => {
         expectError(res, 403, 'Tenancy::InsufficientPermissions');
     });
 
-    it('deletes a project and its environments', async () => {
+    it('deletes a project', async () => {
         const { user, project } = await seed.orgContext();
-        await request(ctx.app, environmentRoutes.create, {
-            as: user.id,
-            params: { projectId: project.id },
-            body: { name: 'production', type: EnvironmentType.Production }
-        });
-        await request(ctx.app, environmentRoutes.create, {
-            as: user.id,
-            params: { projectId: project.id },
-            body: { name: 'staging', type: EnvironmentType.Staging }
-        });
 
         const res = await request(ctx.app, projectRoutes.remove, {
             as: user.id,
@@ -147,7 +135,6 @@ describe('project', () => {
 
         expect(res.status).toBe(204);
         expect(await Project.findOneBy({ id: project.id })).toBeNull();
-        expect(await Environment.countBy({ projectId: project.id })).toBe(0);
 
         await flushEvents();
     });
@@ -177,137 +164,6 @@ describe('project', () => {
             as: user.id,
             params: { orgId: org.id },
             body: { name: 'Denied' }
-        });
-        expectError(write, 403, 'Tenancy::InsufficientPermissions');
-    });
-});
-
-describe('environment', () => {
-    it('creates an environment under a project', async () => {
-        const { user, org, project } = await seed.orgContext();
-
-        const res = await request(ctx.app, environmentRoutes.create, {
-            as: user.id,
-            params: { projectId: project.id },
-            body: { name: 'production-eu', type: EnvironmentType.Staging }
-        });
-
-        expect(res.status).toBe(201);
-        expect(res.data()).toMatchObject({
-            name: 'production-eu',
-            type: EnvironmentType.Staging,
-            projectId: project.id,
-            organizationId: org.id,
-            isDefault: false
-        });
-    });
-
-    it('rejects a duplicate environment name with 409', async () => {
-        const { user, project } = await seed.orgContext();
-
-        await request(ctx.app, environmentRoutes.create, {
-            as: user.id,
-            params: { projectId: project.id },
-            body: { name: 'web', type: EnvironmentType.Production }
-        });
-
-        const res = await request(ctx.app, environmentRoutes.create, {
-            as: user.id,
-            params: { projectId: project.id },
-            body: { name: 'web', type: EnvironmentType.Staging }
-        });
-
-        expectError(res, 409, 'Environment::NameAlreadyTaken');
-    });
-
-    it('rejects an invalid environment body', async () => {
-        const { user, project } = await seed.orgContext();
-
-        const res = await request(ctx.app, environmentRoutes.create, {
-            as: user.id,
-            params: { projectId: project.id },
-            body: { name: '', type: EnvironmentType.Production }
-        });
-
-        expectError(res, 400, 'Request::ValidationFailed');
-    });
-
-    it('forbids environment create for a viewer', async () => {
-        const { user, project } = await seed.orgContext(OrganizationRole.Viewer);
-
-        const res = await request(ctx.app, environmentRoutes.create, {
-            as: user.id,
-            params: { projectId: project.id },
-            body: { name: 'web', type: EnvironmentType.Production }
-        });
-
-        expectError(res, 403, 'Tenancy::InsufficientPermissions');
-    });
-
-    it('lists the environments of a project', async () => {
-        const { user, project } = await seed.orgContext();
-        for(const name of ['web', 'api']){
-            await request(ctx.app, environmentRoutes.create, {
-                as: user.id,
-                params: { projectId: project.id },
-                body: { name, type: EnvironmentType.Production }
-            });
-        }
-
-        const res = await request(ctx.app, environmentRoutes.list, {
-            as: user.id,
-            params: { projectId: project.id }
-        });
-
-        expect(res.status).toBe(200);
-        expect(res.data()).toHaveLength(2);
-        for(const environment of res.data()){
-            expect(environment.projectId).toBe(project.id);
-        }
-    });
-
-    it('forbids listing environments of a foreign project', async () => {
-        const owner = await seed.orgContext();
-        const outsider = await seed.orgContext();
-
-        const res = await request(ctx.app, environmentRoutes.list, {
-            as: outsider.user.id,
-            params: { projectId: owner.project.id }
-        });
-
-        expectError(res, 403, 'Project::Forbidden');
-    });
-
-    it('deletes an environment', async () => {
-        const { user, project } = await seed.orgContext();
-        const created = await request(ctx.app, environmentRoutes.create, {
-            as: user.id,
-            params: { projectId: project.id },
-            body: { name: 'web', type: EnvironmentType.Production }
-        });
-
-        const res = await request(ctx.app, environmentRoutes.remove, {
-            as: user.id,
-            params: { id: created.data().id }
-        });
-
-        expect(res.status).toBe(204);
-        expect(await Environment.findOneBy({ id: created.data().id })).toBeNull();
-    });
-
-    it('lets a viewer read environments but not write them', async () => {
-        const { user, project } = await seed.orgContext(OrganizationRole.Viewer);
-
-        const list = await request(ctx.app, environmentRoutes.list, {
-            as: user.id,
-            params: { projectId: project.id }
-        });
-        expect(list.status).toBe(200);
-
-        const write = await request(ctx.app, environmentRoutes.create, {
-            as: user.id,
-            params: { projectId: project.id },
-            body: { name: 'web', type: EnvironmentType.Production }
         });
         expectError(write, 403, 'Tenancy::InsufficientPermissions');
     });

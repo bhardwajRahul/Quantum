@@ -4,7 +4,6 @@ import { assertProject } from '@/shared/tenancy';
 import ValidationError from '@/shared/errors/ValidationError';
 import { TenancyError } from '@/modules/organization/contracts/domain/errors';
 import Project from '@/modules/project/models/Project';
-import Environment from '@/modules/project/models/Environment';
 import Repository from '../models/Repository';
 import { oneWithContainerStatus, withContainerStatus } from './withContainerStatus';
 import { RepositoryError } from '../contracts/domain/errors';
@@ -52,7 +51,6 @@ export default class RepositoryService{
             userId,
             organizationId: tenant.organizationId,
             projectId: project.id,
-            environmentId: await this.#defaultEnvironmentId(project.id),
             sourceType: SourceType.Github
         }).save(), RepositoryError.AliasAlreadyTaken);
 
@@ -142,10 +140,5 @@ export default class RepositoryService{
         if(!project) throw TenancyError.ProjectNotFound();
         assertProject(tenant, project.id, TenancyError.ProjectForbidden);
         return project;
-    }
-
-    async #defaultEnvironmentId(projectId: number): Promise<number | null>{
-        const environment = await Environment.findOne({ where: { projectId, isDefault: true } });
-        return environment?.id ?? null;
     }
 }

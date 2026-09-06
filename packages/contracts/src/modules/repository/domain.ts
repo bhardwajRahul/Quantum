@@ -1,4 +1,4 @@
-import type { ContainerStatus, PortBindingProtocol } from '../docker/domain';
+import type { ContainerAddress, ContainerStatus, PortBindingProtocol } from '../docker/domain';
 import type { BaseEntity } from '../../shared/base';
 
 export enum BuildStrategy{
@@ -45,10 +45,10 @@ export interface Repository extends BaseEntity{
     port: number | null;
     containerStatus: ContainerStatus | null;
     ports: RepositoryPort[];
+    address: ContainerAddress | null;
     userId: number;
     organizationId: number | null;
     projectId: number;
-    environmentId: number | null;
     sourceType: SourceType;
 }
 

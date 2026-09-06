@@ -41,7 +41,7 @@ describe('auth', () => {
         expect(organization?.name).toBe('Default');
 
         const project = await Project.findOneBy({ organizationId: organization!.id });
-        expect(project).toMatchObject({ name: 'Default Environment', isDefault: true });
+        expect(project).toMatchObject({ name: 'Default Project', isDefault: true });
     });
 
     it('rejects sign-up with mismatched passwords', async () => {

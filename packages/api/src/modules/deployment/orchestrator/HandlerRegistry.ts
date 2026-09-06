@@ -9,7 +9,6 @@ import DatabaseHandler from './handlers/DatabaseHandler';
 import TemplateHandler from './handlers/TemplateHandler';
 import CodespaceHandler from './handlers/CodespaceHandler';
 import RepositoryTeardownHandler from './handlers/RepositoryTeardownHandler';
-import HealthHandler from './handlers/HealthHandler';
 import MetricsHandler from './handlers/MetricsHandler';
 import OrgCascadeHandler from './handlers/OrgCascadeHandler';
 import ProjectCascadeHandler from './handlers/ProjectCascadeHandler';
@@ -28,7 +27,6 @@ export const buildHandlerMap = (): JobHandlerMap => ({
     [JobType.DbRestore]: (job) => new DatabaseHandler().run(job),
     [JobType.DbDelete]: (job) => new DatabaseHandler().run(job),
     [JobType.MetricsSample]: (job) => new MetricsHandler().run(job.nodeId),
-    [JobType.HealthCheck]: () => new HealthHandler().run(),
     [JobType.TemplateInstall]: (job) => new TemplateHandler().run(job),
     [JobType.TemplateUninstall]: (job) => new TemplateHandler().run(job),
     [JobType.CodespaceProvision]: (job) => new CodespaceHandler().run(job),

@@ -9,7 +9,6 @@ import type { DeploymentRequestedPayload, DeploymentRollbackRequestedPayload, Re
 import type { TemplateInstalledPayload, TemplateUninstalledPayload } from '@/modules/template/contracts/domain/events';
 import type { CodespaceProvisionRequestedPayload } from '@/modules/codespace/contracts/domain/events';
 import type { DatabaseProvisionRequestedPayload } from '@/modules/database/contracts/domain/events';
-import type { HealthCheckChangedPayload } from '@/modules/health-check/contracts/domain/events';
 import type { OrganizationDeletedPayload } from '@/modules/organization/contracts/domain/events';
 import type { ProjectDeletedPayload } from '@/modules/project/contracts/domain/events';
 import type { UserDeletedPayload } from '@/modules/user/contracts/domain/events';
@@ -35,7 +34,6 @@ export default class DeploymentEvents{
         eventBus.subscribe('codespace.provisionRequested', (payload) => this.#codespaceRequested(payload as CodespaceProvisionRequestedPayload));
         eventBus.subscribe('repository.deleted', (payload) => this.#orchestrator.repositoryTeardown((payload as RepositoryDeletedPayload).repositoryId));
         eventBus.subscribe('database.provisionRequested', (payload) => this.#databaseProvision(payload as DatabaseProvisionRequestedPayload));
-        eventBus.subscribe('healthcheck.changed', (payload) => this.#healthCheckChanged(payload as HealthCheckChangedPayload));
         eventBus.subscribe('organization.deleted', (payload) => this.#organizationDeleted(payload as OrganizationDeletedPayload));
         eventBus.subscribe('project.deleted', (payload) => this.#projectDeleted(payload as ProjectDeletedPayload));
         eventBus.subscribe('user.deleted', (payload) => this.#userDeleted(payload as UserDeletedPayload));
@@ -94,10 +92,6 @@ export default class DeploymentEvents{
             backupId: payload.backupId,
             containerId: payload.containerId
         });
-    }
-
-    #healthCheckChanged(_payload: HealthCheckChangedPayload): Promise<unknown>{
-        return this.#orchestrator.healthCheck();
     }
 
     #organizationDeleted(payload: OrganizationDeletedPayload): Promise<unknown>{

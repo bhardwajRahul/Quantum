@@ -2,7 +2,6 @@ import Deployment from '../../models/Deployment';
 import DockerContainer from '@/modules/docker/models/DockerContainer';
 import DockerNetwork from '@/modules/docker/models/DockerNetwork';
 import PortBinding from '@/modules/docker/models/PortBinding';
-import HealthCheck from '@/modules/health-check/models/HealthCheck';
 import ContainerOps from '../ContainerOps';
 import { teardownNetwork } from '../NetworkOps';
 import { failureMessage } from '../failureMessage';
@@ -28,7 +27,6 @@ export default class RepositoryTeardownHandler{
         }
 
         await Deployment.delete({ repositoryId });
-        await HealthCheck.delete({ repositoryId });
         logger.info(`repository ${repositoryId} torn down`, { scope: 'orchestrator.handler.teardown' });
     }
 }

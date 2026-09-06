@@ -120,10 +120,6 @@ export default class OrchestratorService{
         return this.enqueue({ type: JobType.MetricsSample, nodeId, lockKey: `metrics:${nodeId}`, maxAttempts: 1 });
     }
 
-    healthCheck(nodeId: string = this.nodeId): Promise<Job>{
-        return this.enqueue({ type: JobType.HealthCheck, nodeId, lockKey: `health:${nodeId}`, maxAttempts: 1 });
-    }
-
     repositoryTeardown(repositoryId: number): Promise<Job>{
         return this.enqueue({
             type: JobType.RepositoryTeardown,

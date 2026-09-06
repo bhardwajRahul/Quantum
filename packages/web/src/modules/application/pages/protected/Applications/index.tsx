@@ -196,6 +196,9 @@ const rowActions = (row: Row, handlers: RowActionHandlers) => {
     const running = isInstallRunning(install.status);
     const busy = isInstallTransient(install.status);
     return [
+        <Dropdown.Item key='services' onAction={() => handlers.onNavigate(`/installs/${install.id}/services`)}>
+            Services
+        </Dropdown.Item>,
         <Dropdown.Item key='logs' onAction={() => handlers.onNavigate(`/installs/${install.id}/logs`)}>
             Logs
         </Dropdown.Item>,

@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useParams } from 'react-router-dom';
 import { Button } from '@heroui/react';
-import { ArrowUpRight, Play, RefreshCw, RotateCw, Square } from 'lucide-react';
+import { Play, RefreshCw, RotateCw, Square } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
 import EmptyState from '@/shared/components/EmptyState';
 import ErrorState from '@/shared/components/ErrorState';
@@ -8,7 +8,6 @@ import CenterState from '@/shared/components/CenterState';
 import StatusDot from '@/shared/components/StatusDot';
 import InlineError from '@/shared/components/InlineError';
 import WorkspaceButton from '@/modules/codespace/components/WorkspaceButton';
-import { portUrl, usePublicHost } from '@/shared/hooks/use-public-host';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { usePolledQuery } from '@/shared/hooks/api/use-polled-query';
 import { useMutation } from '@/shared/hooks/api/use-mutation';
@@ -16,12 +15,13 @@ import { templateInstallApi } from '@/modules/template/api/api';
 import { installStatusColor, installStatusLabel, isInstallRunning, isInstallTransient } from '@/modules/template/utils/install-status';
 import { templateErrorMessages } from '@/modules/template/utils/error-messages';
 import { errorCopy } from '@/shared/utils/error-copy';
-import type { TemplateInstall, TemplateInstallService } from '@quantum/contracts/modules/template/domain';
+import type { TemplateInstall } from '@quantum/contracts/modules/template/domain';
 import type { TemplateInstallOperation } from '@quantum/contracts/modules/template/http';
 
 const copy = errorCopy(templateErrorMessages);
 
 const TABS = [
+    { label: 'Services', to: 'services' },
     { label: 'Logs', to: 'logs' },
     { label: 'Shell', to: 'shell' },
     { label: 'Environment', to: 'environment' }
@@ -38,37 +38,6 @@ const tabClass = (active: boolean): string =>
         active ? 'border-foreground text-foreground' : 'border-transparent text-muted hover:text-foreground'
     }`;
 
-interface ServicesProps{
-    services: TemplateInstallService[];
-}
-
-const Services = ({ services }: ServicesProps) => {
-    const host = usePublicHost();
-
-    return (
-    <ul className='mt-4 flex flex-wrap gap-x-6 gap-y-1.5 text-[0.8125rem] text-muted'>
-        {services.map((service) => (
-            <li key={service.name} className='flex items-center gap-2'>
-                <span className='text-foreground'>{service.name}</span>
-                <span className='font-mono'>{service.image}</span>
-                {service.ports.map((port) => (
-                    <a
-                        key={`${port.internalPort}/${port.protocol}`}
-                        href={portUrl(host, port.externalPort)}
-                        target='_blank'
-                        rel='noreferrer'
-                        className='inline-flex items-center gap-1 font-mono transition-colors hover:text-foreground motion-reduce:transition-none'
-                    >
-                        :{port.externalPort} → {port.internalPort}
-                        <ArrowUpRight aria-hidden='true' className='size-3.5' />
-                    </a>
-                ))}
-            </li>
-        ))}
-    </ul>
-    );
-};
-
 interface InstallHeaderProps{
     install: TemplateInstall;
     isOperating: boolean;
@@ -81,6 +50,7 @@ interface InstallHeaderProps{
 const InstallHeader = ({ install, isOperating, isRedeploying, redeployError, onOperate, onRedeploy }: InstallHeaderProps) => {
     const running = isInstallRunning(install.status);
     const busy = isOperating || isInstallTransient(install.status);
+    const published = install.services.filter((service) => service.ports.length > 0).length;
 
     return (
         <header className='flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between'>
@@ -101,10 +71,10 @@ const InstallHeader = ({ install, isOperating, isRedeploying, redeployError, onO
                         label={installStatusLabel(install.status)}
                         isTransient={isInstallTransient(install.status)}
                     />
-                    <span>· {kindLabel(install)} · {install.services.length} {install.services.length === 1 ? 'service' : 'services'}</span>
+                    <span>
+                        · {kindLabel(install)} · {install.services.length} {install.services.length === 1 ? 'service' : 'services'} · {published} published
+                    </span>
                 </div>
-
-                {install.services.length > 0 && <Services services={install.services} />}
             </div>
 
             <div className='flex shrink-0 flex-col gap-2 lg:items-end'>

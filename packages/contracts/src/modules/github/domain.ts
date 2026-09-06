@@ -5,6 +5,8 @@ export interface GithubAccount extends BaseEntity{
     githubId: string;
     username: string;
     avatarUrl: string | null;
+    organizationAccessUrl: string | null;
+    scopes: string[];
 }
 
 export interface GithubOAuthStart{

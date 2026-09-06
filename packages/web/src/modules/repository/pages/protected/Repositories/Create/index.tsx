@@ -33,7 +33,7 @@ import {
 } from '@/modules/repository/utils/create-repository-form';
 import type { IValidation } from 'typia';
 import type { CreateRepositoryFormValues } from '@/modules/repository/utils/create-repository-form';
-import type { GithubRepository, RepositoryDetection } from '@quantum/contracts/modules/github/domain';
+import type { GithubAccount, GithubRepository, RepositoryDetection } from '@quantum/contracts/modules/github/domain';
 import type { Project } from '@quantum/contracts/modules/project/domain';
 
 const githubCopy = errorCopy(githubErrorMessages);
@@ -281,7 +281,11 @@ const RepositoryConfigForm = ({ repository, onBack }: RepositoryConfigFormProps)
     );
 };
 
-const RepositoryCreateFlow = () => {
+interface RepositoryCreateFlowProps{
+    account: GithubAccount | null;
+}
+
+const RepositoryCreateFlow = ({ account }: RepositoryCreateFlowProps) => {
     const repositories = useQuery(githubApi.repositories);
     const [selected, setSelected] = useState<GithubRepository | null>(null);
 
@@ -302,7 +306,7 @@ const RepositoryCreateFlow = () => {
     }
 
     if(selected === null){
-        return <RepositoryPicker repositories={repositories.data ?? []} onSelect={setSelected} />;
+        return <RepositoryPicker repositories={repositories.data ?? []} account={account} onSelect={setSelected} />;
     }
 
     return <RepositoryConfigForm repository={selected} onBack={() => setSelected(null)} />;
@@ -325,7 +329,7 @@ const CreateRepository = () => {
                 ) : account.error !== undefined ? (
                     <CenterState><ConnectGithubPrompt /></CenterState>
                 ) : (
-                    <RepositoryCreateFlow />
+                    <RepositoryCreateFlow account={account.data} />
                 )}
             </div>
         </PageBody>

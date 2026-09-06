@@ -260,7 +260,7 @@ const FromRepository = (props: StackFormProps) => {
         );
     }
 
-    if(selected === null) return <RepositoryPicker repositories={repositories.data ?? []} onSelect={setSelected} />;
+    if(selected === null) return <RepositoryPicker repositories={repositories.data ?? []} account={account.data} onSelect={setSelected} />;
 
     return <SourceForm key={selected.fullName} repository={selected} onBack={() => setSelected(null)} {...props} />;
 };

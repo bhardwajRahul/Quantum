@@ -40,8 +40,8 @@ export default class GithubController extends BaseController{
 
     @Route(githubRoutes.account)
     @Middleware(AuthenticatedRoute)
-    account(@CurrentUser() userId: number){
-        return this.#accounts.requireForUser(userId);
+    async account(@CurrentUser() userId: number){
+        return this.#accounts.present(await this.#accounts.requireForUser(userId));
     }
 
     @Route(githubRoutes.repositories)

@@ -85,7 +85,7 @@ describe('deploy a stack', () => {
 
     it('starts from a repository, reads its compose file and deploys with the variables it needs', async () => {
         stub();
-        vi.spyOn(githubApi, 'account').mockResolvedValue({} as never);
+        vi.spyOn(githubApi, 'account').mockResolvedValue({ organizationAccessUrl: 'https://github.com/settings/connections/applications/abc', scopes: ['repo', 'user', 'read:packages'] } as never);
         vi.spyOn(githubApi, 'repositories').mockResolvedValue([LEARN]);
         vi.spyOn(templateInstallApi, 'inspectSource').mockResolvedValue({
             composeFiles: ['docker-compose.yml', 'compose.dokploy.yml'],
@@ -98,6 +98,7 @@ describe('deploy a stack', () => {
 
         const combo = container?.querySelector('input');
         expect(combo?.getAttribute('placeholder')).toContain('Search your repositories');
+        expect(container?.querySelector('a[href="https://github.com/settings/connections/applications/abc"]')).not.toBeNull();
 
         await type(combo as HTMLInputElement, 'learn');
         const option = [...document.querySelectorAll('[role="option"]')].find((node) => node.textContent?.includes('pollium/learn'));

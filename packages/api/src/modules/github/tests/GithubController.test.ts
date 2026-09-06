@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { flushEvents, useApp } from '@tests/harness';
 import { expectError, request } from '@tests/request';
 import { seed } from '@tests/Seed';
@@ -71,6 +71,9 @@ describe('github account', () => {
     it('returns the connected account without the access token', async () => {
         const user = await seed.user();
         await new GithubAccountService().upsertFromGithub(user.id, GITHUB_PROFILE, 'gh-secret-token');
+        const client = vi.spyOn(GithubAccountService.prototype, 'createClient').mockReturnValue({
+            request: async () => ({ headers: { 'x-oauth-scopes': 'repo, user' } })
+        } as never);
 
         const res = await request(ctx.app, githubRoutes.account, { as: user.id });
 
@@ -79,10 +82,13 @@ describe('github account', () => {
             userId: user.id,
             githubId: '42',
             username: 'octocat',
-            avatarUrl: 'https://avatars.githubusercontent.com/u/42'
+            avatarUrl: 'https://avatars.githubusercontent.com/u/42',
+            organizationAccessUrl: null,
+            scopes: ['repo', 'user']
         });
         expect(res.body).not.toContain('gh-secret-token');
         expect(res.body).not.toContain('accessToken');
+        client.mockRestore();
 
         await flushEvents();
     });

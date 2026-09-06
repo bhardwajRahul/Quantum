@@ -25,7 +25,7 @@ const REPOS = [
     repository('jinwolf2/gyaru_frontend', true)
 ];
 
-const ACCOUNT = { id: 1, userId: 1, githubId: '1', username: 'rodyherrera', avatarUrl: null,
+const ACCOUNT = { id: 1, userId: 1, githubId: '1', username: 'rodyherrera', avatarUrl: null, organizationAccessUrl: null, scopes: ['repo', 'user'],
     createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' } satisfies GithubAccount;
 
 let container: HTMLDivElement | undefined;

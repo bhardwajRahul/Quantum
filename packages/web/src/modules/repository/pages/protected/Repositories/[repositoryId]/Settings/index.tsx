@@ -1,9 +1,9 @@
 import { useState } from 'react';
+import { FieldsSkeleton } from '@/shared/components/skeletons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Label, ListBox, ListBoxItem, Select } from '@heroui/react';
 import { ArrowRight } from 'lucide-react';
 import typia from 'typia';
-import EmptyState from '@/shared/components/EmptyState';
 import ErrorState from '@/shared/components/ErrorState';
 import SettingsSection from '@/shared/components/SettingsSection';
 import DeleteConfirmDialog from '@/shared/components/DeleteConfirmDialog';
@@ -278,7 +278,7 @@ const RepositorySettings = () => {
 
     const repository = useQuery((repositoryId: number) => repositoryApi.get({ path: { id: repositoryId } }), [id]);
 
-    if(repository.loading) return <EmptyState title='Loading repository' compact />;
+    if(repository.loading) return <FieldsSkeleton rows={5} />;
     if(repository.error !== undefined){
         return (
             <ErrorState

@@ -1,6 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import PageBody from '@/shared/components/layout/PageBody';
-import EmptyState from '@/shared/components/EmptyState';
+import { PageSkeleton } from '@/shared/components/skeletons';
 import ErrorState from '@/shared/components/ErrorState';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { useMutation } from '@/shared/hooks/api/use-mutation';
@@ -16,19 +16,7 @@ const Authenticate = () => {
         onSuccess: ({ url }) => { window.location.href = url; }
     });
 
-    if(account.loading){
-        return (
-            <PageBody height='full'>
-                <div className='flex flex-1 flex-col items-center justify-center'>
-                    <EmptyState
-                        title='Connecting to GitHub'
-                        description='Exchanging the authorization code with GitHub.'
-                        loading
-                    />
-                </div>
-            </PageBody>
-        );
-    }
+    if(account.loading) return <PageSkeleton actions={2} columns={5} />;
 
     if(account.error !== undefined){
         return (

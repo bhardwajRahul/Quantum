@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PageSkeleton } from '@/shared/components/skeletons';
 import { Button, Label, Table } from '@heroui/react';
 import { ArrowRight, Trash2, Users } from 'lucide-react';
 import typia from 'typia';
@@ -247,7 +248,7 @@ const Team = () => {
             <ListPageShell
                 fill
                 loading={organizationId === null || members.loading}
-                loadingTitle={organizationId === null ? 'Loading team' : 'Loading team members'}
+                skeleton={<PageSkeleton actions={1} columns={4} />}
                 error={organizationId === null ? undefined : members.error}
                 errorTitle='Could not load team members'
                 getErrorDescription={copy}
@@ -264,7 +265,6 @@ const Team = () => {
 
             <div className='mt-10 flex flex-1 flex-col'>
                 <ListPageShell
-                    loadingTitle='Loading team members'
                     errorTitle='Could not load team members'
                     getErrorDescription={copy}
                     onRetry={members.refresh}

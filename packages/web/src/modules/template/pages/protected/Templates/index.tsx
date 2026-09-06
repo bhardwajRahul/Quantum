@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { SplitSkeleton } from '@/shared/components/skeletons';
 import { Input, Label, TextField } from '@heroui/react';
 import { Boxes, Search } from 'lucide-react';
 import ListPageShell from '@/shared/components/ListPageShell';
@@ -91,7 +92,7 @@ const Templates = () => {
             <ListPageShell
                 fill
                 loading={templates.loading}
-                loadingTitle='Loading templates'
+                skeleton={<SplitSkeleton />}
                 error={templates.error}
                 errorTitle='Could not load templates'
                 getErrorDescription={copy}

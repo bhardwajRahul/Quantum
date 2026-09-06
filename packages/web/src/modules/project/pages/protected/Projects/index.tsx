@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PageSkeleton } from '@/shared/components/skeletons';
 import { Button, Chip, Dropdown, Table } from '@heroui/react';
 import { ArrowRight, FolderKanban, MoreVertical } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
@@ -135,7 +136,7 @@ const Projects = () => {
             <ListPageShell
                 fill
                 loading={organizationId === null || projects.loading}
-                loadingTitle='Loading projects'
+                skeleton={<PageSkeleton actions={1} columns={4} />}
                 error={organizationId === null ? undefined : projects.error}
                 errorTitle='Could not load projects'
                 getErrorDescription={copy}
@@ -152,7 +153,6 @@ const Projects = () => {
 
             <div className='mt-6 flex flex-1 flex-col'>
                 <ListPageShell
-                    loadingTitle='Loading projects'
                     errorTitle='Could not load projects'
                     getErrorDescription={copy}
                     onRetry={projects.refresh}

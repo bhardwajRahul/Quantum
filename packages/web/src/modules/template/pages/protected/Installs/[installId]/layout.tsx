@@ -1,10 +1,9 @@
 import { NavLink, Outlet, useParams } from 'react-router-dom';
+import { DetailHeaderSkeleton } from '@/shared/components/skeletons';
 import { Button } from '@heroui/react';
 import { Play, RefreshCw, RotateCw, Square } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
-import EmptyState from '@/shared/components/EmptyState';
 import ErrorState from '@/shared/components/ErrorState';
-import CenterState from '@/shared/components/CenterState';
 import StatusDot from '@/shared/components/StatusDot';
 import InlineError from '@/shared/components/InlineError';
 import WorkspaceButton from '@/modules/codespace/components/WorkspaceButton';
@@ -121,9 +120,7 @@ const InstallLayout = () => {
     if(install.loading){
         return (
             <PageBody width='wide' height='full'>
-                <CenterState className='h-full'>
-                    <EmptyState title='Loading install' loading compact />
-                </CenterState>
+                <DetailHeaderSkeleton actions={5} tabs={4} />
             </PageBody>
         );
     }

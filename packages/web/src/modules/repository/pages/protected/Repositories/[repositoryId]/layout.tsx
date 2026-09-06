@@ -1,9 +1,8 @@
 import { NavLink, Outlet, useParams } from 'react-router-dom';
+import { DetailHeaderSkeleton } from '@/shared/components/skeletons';
 import { ArrowUpRight } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
-import EmptyState from '@/shared/components/EmptyState';
 import ErrorState from '@/shared/components/ErrorState';
-import CenterState from '@/shared/components/CenterState';
 import StatusDot from '@/shared/components/StatusDot';
 import WorkspaceButton from '@/modules/codespace/components/WorkspaceButton';
 import { useQuery } from '@/shared/hooks/api/use-query';
@@ -86,9 +85,7 @@ const RepositoryLayout = () => {
     if(repository.loading && repository.data === null){
         return (
             <PageBody width='wide' height='full'>
-                <CenterState className='h-full'>
-                    <EmptyState title='Loading repository' loading compact />
-                </CenterState>
+                <DetailHeaderSkeleton actions={4} tabs={5} />
             </PageBody>
         );
     }

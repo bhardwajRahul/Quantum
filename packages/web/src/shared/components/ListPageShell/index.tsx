@@ -1,6 +1,7 @@
 import EmptyState from '@/shared/components/EmptyState';
 import ErrorState from '@/shared/components/ErrorState';
 import CenterState from '@/shared/components/CenterState';
+import { TableSkeleton } from '@/shared/components/skeletons';
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -13,9 +14,7 @@ export interface ListPageStateSpec{
 
 interface ListPageShellProps{
     loading?: boolean;
-    loadingTitle: string;
-    loadingDescription?: string;
-    compact?: boolean;
+    skeleton?: ReactNode;
     error?: Error | undefined;
     errorTitle: string;
     getErrorDescription: (error: Error) => string;
@@ -31,9 +30,7 @@ interface ListPageShellProps{
 
 const ListPageShell = ({
     loading = false,
-    loadingTitle,
-    loadingDescription,
-    compact = true,
+    skeleton,
     error = undefined,
     errorTitle,
     getErrorDescription,
@@ -59,9 +56,7 @@ const ListPageShell = ({
         );
     }
 
-    if(loading){
-        return wrap(<EmptyState title={loadingTitle} description={loadingDescription} compact={compact} />);
-    }
+    if(loading) return <>{skeleton ?? <TableSkeleton />}</>;
 
     if(error !== undefined){
         return wrap(<ErrorState title={errorTitle} description={getErrorDescription(error)} onRetry={onRetry} />);

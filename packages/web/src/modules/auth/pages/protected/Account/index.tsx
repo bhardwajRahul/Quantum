@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { FieldsSkeleton, PageHeaderSkeleton } from '@/shared/components/skeletons';
 import { Button } from '@heroui/react';
 import { ArrowRight } from 'lucide-react';
 import { useSession } from '@/modules/auth/hooks/use-session';
@@ -6,14 +7,18 @@ import PageBody from '@/shared/components/layout/PageBody';
 import PageHeader from '@/shared/components/layout/PageHeader';
 import SettingsRow from '@/shared/components/SettingsRow';
 import SettingsSection from '@/shared/components/SettingsSection';
-import EmptyState from '@/shared/components/EmptyState';
 
 const Account = () => {
     const { user } = useSession();
     const navigate = useNavigate();
 
     if(user === null){
-        return <EmptyState title='Loading your account' compact />;
+        return (
+            <PageBody>
+                <PageHeaderSkeleton />
+                <FieldsSkeleton className='mt-10' rows={4} />
+            </PageBody>
+        );
     }
 
     const facts: [string, string, boolean][] = [

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FieldsSkeleton, TableSkeleton } from '@/shared/components/skeletons';
 import { useNavigate } from 'react-router-dom';
 import { Button, Chip, ComboBox, Input, Label, ListBox, ListBoxItem, Select } from '@heroui/react';
 import { ArrowRight, FolderGit2, Search } from 'lucide-react';
@@ -330,7 +331,7 @@ const RepositoryConfigForm = ({ repository, onBack }: RepositoryConfigFormProps)
     const detection = useQuery((owner: string, repo: string) => githubApi.detect({ path: { owner, repo } }), [repository.owner, repository.name]);
 
     if(projects.loading || detection.loading){
-        return <CenterState className='h-full'><EmptyState title='Preparing repository setup' loading compact /></CenterState>;
+        return <FieldsSkeleton rows={4} />;
     }
 
     if(projects.error !== undefined){
@@ -361,7 +362,7 @@ const RepositoryCreateFlow = () => {
     const [selected, setSelected] = useState<GithubRepository | null>(null);
 
     if(repositories.loading){
-        return <CenterState className='h-full'><EmptyState title='Loading GitHub repositories' loading compact /></CenterState>;
+        return <TableSkeleton rows={6} columns={2} />;
     }
 
     if(repositories.error !== undefined){
@@ -396,7 +397,7 @@ const CreateRepository = () => {
 
             <div className='mt-8 flex flex-1 flex-col'>
                 {account.loading ? (
-                    <CenterState><EmptyState title='Checking GitHub connection' loading compact /></CenterState>
+                    <TableSkeleton rows={6} columns={2} />
                 ) : account.error !== undefined ? (
                     <CenterState><ConnectGithubPrompt /></CenterState>
                 ) : (

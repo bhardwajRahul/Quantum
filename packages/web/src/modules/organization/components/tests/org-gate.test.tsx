@@ -61,7 +61,7 @@ describe('OrgGate', () => {
 
         await render(gated);
 
-        expect(container?.textContent).toContain('Preparing your workspace');
+        expect(container?.querySelector('[role="status"]')).not.toBeNull();
         expect(container?.textContent).not.toContain('protected content');
     });
 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FieldsSkeleton, PageHeaderSkeleton } from '@/shared/components/skeletons';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@heroui/react';
 import { ArrowRight } from 'lucide-react';
@@ -6,7 +7,6 @@ import typia from 'typia';
 import PageBody from '@/shared/components/layout/PageBody';
 import PageHeader from '@/shared/components/layout/PageHeader';
 import SettingsSection from '@/shared/components/SettingsSection';
-import EmptyState from '@/shared/components/EmptyState';
 import DeleteConfirmDialog from '@/shared/components/DeleteConfirmDialog';
 import Form from '@/shared/components/forms/Form';
 import Field from '@/shared/components/forms/Field';
@@ -121,7 +121,14 @@ const DangerZone = ({ organization }: { organization: Organization }) => {
 const OrganizationSettings = () => {
     const { current, reload } = useTenancy();
 
-    if(current === null) return <EmptyState title='Loading organization' compact />;
+    if(current === null){
+        return (
+            <PageBody>
+                <PageHeaderSkeleton />
+                <FieldsSkeleton className='mt-10' rows={3} />
+            </PageBody>
+        );
+    }
 
     return (
         <PageBody>

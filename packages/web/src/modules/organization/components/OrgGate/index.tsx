@@ -1,4 +1,5 @@
 import { Building2 } from 'lucide-react';
+import { PageSkeleton } from '@/shared/components/skeletons';
 import ErrorState from '@/shared/components/ErrorState';
 import EmptyState from '@/shared/components/EmptyState';
 import CenterState from '@/shared/components/CenterState';
@@ -17,13 +18,7 @@ interface OrgGateProps{
 const OrgGate = ({ children }: OrgGateProps) => {
     const { organizations, loading, error, reload } = useTenancy();
 
-    if(loading){
-        return (
-            <CenterState className='h-full'>
-                <EmptyState title='Preparing your workspace' description='Loading your organizations.' />
-            </CenterState>
-        );
-    }
+    if(loading) return <PageSkeleton />;
 
     if(error !== undefined){
         return (

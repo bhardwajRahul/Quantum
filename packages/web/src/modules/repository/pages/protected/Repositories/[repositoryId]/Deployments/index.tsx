@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { TableSkeleton } from '@/shared/components/skeletons';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Button, Spinner, Table } from '@heroui/react';
 import {
@@ -421,7 +422,7 @@ const Deployments = () => {
             <ListPageShell
                 fill
                 loading={id === undefined || repository.loading || deploymentsQuery.loading}
-                loadingTitle='Loading deployments'
+                skeleton={<TableSkeleton columns={5} />}
                 error={id === undefined ? undefined : repository.error ?? deploymentsQuery.error}
                 errorTitle={failedRepository ? 'Could not load repository' : 'Could not load deployments'}
                 getErrorDescription={copy}

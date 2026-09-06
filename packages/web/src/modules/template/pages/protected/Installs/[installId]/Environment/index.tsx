@@ -1,7 +1,7 @@
 import { useRef } from 'react';
+import { FieldsSkeleton } from '@/shared/components/skeletons';
 import { useOutletContext, useParams } from 'react-router-dom';
 import ErrorState from '@/shared/components/ErrorState';
-import EmptyState from '@/shared/components/EmptyState';
 import CenterState from '@/shared/components/CenterState';
 import EnvironmentVariablesEditor from '@/shared/components/EnvironmentVariablesEditor';
 import { useQuery } from '@/shared/hooks/api/use-query';
@@ -20,7 +20,7 @@ const InstallEnvironment = () => {
     const overrides = useRef<ServiceEnvironment>(install.environment);
 
     if(id === undefined || environment.loading){
-        return <CenterState className='h-full'><EmptyState title='Loading environment variables' loading compact /></CenterState>;
+        return <FieldsSkeleton rows={4} />;
     }
 
     if(environment.error !== undefined || environment.data === null){

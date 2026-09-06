@@ -1,8 +1,8 @@
 import { useState } from 'react';
+import { LinesSkeleton } from '@/shared/components/skeletons';
 import { Button } from '@heroui/react';
 import { ArrowUpRight, Check, Copy, Square } from 'lucide-react';
 import Modal from '@/shared/components/Modal';
-import EmptyState from '@/shared/components/EmptyState';
 import InlineError from '@/shared/components/InlineError';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { codespaceApi } from '@/modules/codespace/api/api';
@@ -62,7 +62,7 @@ const CodespaceAccessDialog = ({ codespace, onClose, onStop, isStopping = false 
             title={codespace === null ? 'Access' : `Access · ${codespace.name}`}
         >
             <div className='flex flex-col gap-4'>
-                {access.loading && <EmptyState title='Loading access details' compact />}
+                {access.loading && <LinesSkeleton lines={2} />}
 
                 {!access.loading && access.error !== undefined && (
                     <div className='flex flex-col gap-2'>

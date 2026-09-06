@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { LinesSkeleton, PageSkeleton, TableSkeleton } from '@/shared/components/skeletons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button, Dropdown, Input, Label, ListBox, ListBoxItem, Select, Table, TextField } from '@heroui/react';
 import {
@@ -16,7 +17,6 @@ import PageBody from '@/shared/components/layout/PageBody';
 import PageHeader from '@/shared/components/layout/PageHeader';
 import ListPageShell from '@/shared/components/ListPageShell';
 import ErrorState from '@/shared/components/ErrorState';
-import EmptyState from '@/shared/components/EmptyState';
 import CenterState from '@/shared/components/CenterState';
 import StatusDot from '@/shared/components/StatusDot';
 import DeleteConfirmDialog from '@/shared/components/DeleteConfirmDialog';
@@ -485,7 +485,7 @@ const ConnectionStringDialog = ({ database, onClose }: ConnectionStringDialogPro
             title={database === null ? 'Connection string' : `Connection string · ${database.name}`}
         >
             <div className='flex flex-col gap-4'>
-                {connectionString.loading && <EmptyState title='Loading connection string' compact />}
+                {connectionString.loading && <LinesSkeleton lines={2} />}
 
                 {!connectionString.loading && connectionString.error !== undefined && (
                     <div className='flex flex-col gap-2'>
@@ -695,7 +695,7 @@ const Applications = () => {
     };
 
     if(organizationId === null || projects.loading || repositoriesQuery.loading){
-        return <CenterState className='h-full'><EmptyState title='Loading applications' compact /></CenterState>;
+        return <PageSkeleton actions={2} columns={5} />;
     }
 
     if(projects.error !== undefined){
@@ -764,7 +764,7 @@ const Applications = () => {
             <div className='mt-6 flex flex-1 flex-col'>
                 <ListPageShell
                     loading={scopedLoading}
-                    loadingTitle='Loading applications'
+                    skeleton={<TableSkeleton columns={5} />}
                     errorTitle='Could not load applications'
                     getErrorDescription={copy}
                     onRetry={databases.reload}

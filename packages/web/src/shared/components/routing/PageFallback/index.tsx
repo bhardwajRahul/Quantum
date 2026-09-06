@@ -1,9 +1,5 @@
-import { Spinner } from '@heroui/react';
+import { PageSkeleton } from '@/shared/components/skeletons';
 
-const PageFallback = () => (
-    <div className='flex h-full items-center justify-center'>
-        <Spinner color='current' className='text-muted' />
-    </div>
-);
+const PageFallback = () => <PageSkeleton />;
 
 export default PageFallback;

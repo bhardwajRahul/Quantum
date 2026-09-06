@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { ChartSkeleton, FieldsSkeleton, PageSkeleton, StatBandSkeleton } from '@/shared/components/skeletons';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useRememberedSelection } from '@/shared/hooks/use-remembered-selection';
 import { Activity } from 'lucide-react';
@@ -123,7 +124,7 @@ const Metrics = () => {
             <ListPageShell
                 bare
                 loading={containers.loading}
-                loadingTitle='Loading applications'
+                skeleton={<PageSkeleton><FieldsSkeleton rows={1} className='max-w-sm' /><div className='mt-6'><StatBandSkeleton columns={5} /></div><ChartSkeleton className='mt-10' /></PageSkeleton>}
                 error={containers.error}
                 errorTitle='Could not load applications'
                 getErrorDescription={copy}
@@ -158,7 +159,7 @@ const Metrics = () => {
             <div className='mt-6 flex flex-1 flex-col'>
                 <ListPageShell
                     loading={metrics.loading}
-                    loadingTitle='Loading metrics'
+                    skeleton={<><StatBandSkeleton columns={5} /><ChartSkeleton className='mt-10' /></>}
                     error={metrics.error}
                     errorTitle='Could not load metrics'
                     getErrorDescription={copy}

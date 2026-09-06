@@ -1,4 +1,5 @@
 import { useParams } from 'react-router-dom';
+import { FieldsSkeleton } from '@/shared/components/skeletons';
 import { Rocket } from 'lucide-react';
 import ErrorState from '@/shared/components/ErrorState';
 import EmptyState from '@/shared/components/EmptyState';
@@ -28,7 +29,7 @@ const EnvironmentVariables = () => {
     const environment = useQuery((repositoryId: number) => deploymentApi.environment({ path: { repositoryId } }), [id]);
 
     if(id === undefined || environment.loading){
-        return <CenterState className='h-full'><EmptyState title='Loading environment variables' loading compact /></CenterState>;
+        return <FieldsSkeleton rows={4} />;
     }
 
     if(environment.error !== undefined){

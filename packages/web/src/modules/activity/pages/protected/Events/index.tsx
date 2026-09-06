@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { PageSkeleton } from '@/shared/components/skeletons';
 import { Table } from '@heroui/react';
 import { Activity } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
@@ -87,7 +88,7 @@ const Events = () => {
             <ListPageShell
                 fill
                 loading={history.loading}
-                loadingTitle='Loading events'
+                skeleton={<PageSkeleton columns={4} />}
                 error={history.error}
                 errorTitle='Could not load events'
                 getErrorDescription={copy}
@@ -105,7 +106,6 @@ const Events = () => {
 
             <div className='mt-6 flex flex-1 flex-col'>
                 <ListPageShell
-                    loadingTitle='Loading events'
                     errorTitle='Could not load events'
                     getErrorDescription={copy}
                     onRetry={history.reload}

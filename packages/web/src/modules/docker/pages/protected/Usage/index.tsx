@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ChartSkeleton, PageSkeleton, StatBandSkeleton } from '@/shared/components/skeletons';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Activity } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
@@ -155,7 +156,7 @@ const Usage = () => {
             <ListPageShell
                 fill
                 loading={network.loading || resources.loading}
-                loadingTitle='Loading usage'
+                skeleton={<PageSkeleton><StatBandSkeleton columns={4} /><div className='mt-10 grid gap-x-14 gap-y-10 lg:grid-cols-2'><ChartSkeleton /><ChartSkeleton /></div></PageSkeleton>}
                 error={network.error ?? resources.error}
                 errorTitle='Could not load usage'
                 getErrorDescription={describe}
@@ -182,7 +183,6 @@ const Usage = () => {
 
             <div className='mt-6 flex flex-1 flex-col'>
                 <ListPageShell
-                    loadingTitle='Loading usage'
                     errorTitle='Could not load usage'
                     getErrorDescription={describe}
                     onRetry={retry}

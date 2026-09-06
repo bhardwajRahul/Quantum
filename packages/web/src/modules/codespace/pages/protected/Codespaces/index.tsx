@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { PageSkeleton, TableSkeleton } from '@/shared/components/skeletons';
 import { useRememberedSelection } from '@/shared/hooks/use-remembered-selection';
 import { Button, Table } from '@heroui/react';
 import { Plus, Terminal } from 'lucide-react';
@@ -132,7 +133,7 @@ const Codespaces = () => {
             <ListPageShell
                 bare
                 loading={organizationId === null || projects.loading}
-                loadingTitle={organizationId === null ? 'Loading codespaces' : 'Loading projects'}
+                skeleton={<PageSkeleton actions={1} columns={3} />}
                 error={organizationId === null ? undefined : projects.error}
                 errorTitle='Could not load projects'
                 getErrorDescription={copy}
@@ -162,7 +163,7 @@ const Codespaces = () => {
             <div className='mt-6 flex flex-1 flex-col'>
                 <ListPageShell
                     loading={codespaces.loading}
-                    loadingTitle='Loading codespaces'
+                    skeleton={<TableSkeleton columns={3} />}
                     error={codespaces.error}
                     errorTitle='Could not load codespaces'
                     getErrorDescription={copy}

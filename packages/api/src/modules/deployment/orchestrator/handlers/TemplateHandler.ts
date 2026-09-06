@@ -220,18 +220,21 @@ export default class TemplateHandler{
             mode: volume.mode === 'ro' ? 'ro' as const : 'rw' as const
         }));
 
-        if(containerId !== null){
-            const existing = await DockerContainer.findOneBy({ id: containerId });
-            if(existing){
-                existing.environmentVariables = environment;
-                existing.volumes = volumes;
-                await existing.save();
-                return existing;
-            }
+        const containerName = `install-${install.id}-${name}`;
+        const existing = containerId !== null
+            ? await DockerContainer.findOneBy({ id: containerId })
+            : await DockerContainer.findOneBy({ organizationId, name: containerName });
+        if(existing){
+            existing.environmentVariables = environment;
+            existing.volumes = volumes;
+            existing.imageId = imageId;
+            existing.networkId = networkId;
+            await existing.save();
+            return existing;
         }
 
         const container = await DockerContainer.create({
-            name: `install-${install.id}-${name}`,
+            name: containerName,
             dockerContainerName: '',
             command: null,
             userId,

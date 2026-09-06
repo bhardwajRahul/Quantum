@@ -12,16 +12,12 @@ const AuthShell = ({ children, aside }: AuthShellProps) => (
             {aside}
         </header>
 
-        <div className='relative grid flex-1 lg:grid-cols-2'>
+        <div className='relative grid flex-1'>
             <div className='auth-stars pointer-events-none absolute inset-0' aria-hidden='true' />
 
             <section className='relative z-10 flex flex-col justify-center px-6 pb-24 pt-10 sm:px-10 lg:px-24'>
                 <div className='w-full max-w-md'>{children}</div>
             </section>
-
-            <div className='relative hidden lg:block' aria-hidden='true'>
-                <div className='planet' />
-            </div>
         </div>
 
         <p className='label-caps absolute bottom-9 left-6 z-10 text-muted/70 sm:left-10 lg:left-24'>

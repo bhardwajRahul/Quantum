@@ -363,43 +363,6 @@
     mask-image: radial-gradient(ellipse at 50% 55%, #000 15%, transparent 72%);
 }
 
-.planet {
-    position: absolute;
-    top: 6%;
-    right: -34%;
-    width: 128%;
-    aspect-ratio: 1;
-    border-radius: 50%;
-    background: radial-gradient(circle at 28% 32%, #8a8a8a 0, #585858 22%, #2f2f2f 46%, #cfcfcf 66%, #ffffff 100%);
-    box-shadow: -30px 0 140px 10px rgb(0 0 0 / 0.08);
-}
-
-.planet::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    background:
-        radial-gradient(ellipse at 30% 62%, rgb(0 0 0 / 0.4), transparent 30%),
-        radial-gradient(ellipse at 22% 38%, rgb(255 255 255 / 0.08), transparent 22%),
-        radial-gradient(ellipse at 40% 48%, rgb(0 0 0 / 0.35), transparent 16%);
-}
-
-.dark .planet,
-[data-theme="dark"] .planet {
-    background: radial-gradient(circle at 28% 32%, #e29468 0, #c6683b 20%, #8e4321 42%, #3e1a0c 62%, #0a0402 80%, #000 100%);
-    box-shadow: -30px 0 140px 10px rgb(226 148 104 / 0.1);
-}
-
-.dark .planet::after,
-[data-theme="dark"] .planet::after {
-    background:
-        radial-gradient(ellipse at 30% 62%, rgb(40 15 5 / 0.45), transparent 30%),
-        radial-gradient(ellipse at 22% 38%, rgb(255 220 190 / 0.1), transparent 22%),
-        radial-gradient(ellipse at 40% 48%, rgb(30 10 4 / 0.35), transparent 16%),
-        radial-gradient(ellipse at 18% 56%, rgb(60 25 10 / 0.4), transparent 20%);
-}
-
 .auth-stars {
     background-image:
         radial-gradient(color-mix(in oklab, var(--foreground) 55%, transparent) 0.6px, transparent 1px),

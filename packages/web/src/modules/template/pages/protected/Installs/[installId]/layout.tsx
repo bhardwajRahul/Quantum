@@ -8,6 +8,7 @@ import CenterState from '@/shared/components/CenterState';
 import StatusDot from '@/shared/components/StatusDot';
 import InlineError from '@/shared/components/InlineError';
 import WorkspaceButton from '@/modules/codespace/components/WorkspaceButton';
+import { portUrl, usePublicHost } from '@/shared/hooks/use-public-host';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { usePolledQuery } from '@/shared/hooks/api/use-polled-query';
 import { useMutation } from '@/shared/hooks/api/use-mutation';
@@ -37,14 +38,14 @@ const tabClass = (active: boolean): string =>
         active ? 'border-foreground text-foreground' : 'border-transparent text-muted hover:text-foreground'
     }`;
 
-const hostAddress = (externalPort: number): string =>
-    `http://${typeof window === 'undefined' ? 'localhost' : window.location.hostname}:${externalPort}`;
-
 interface ServicesProps{
     services: TemplateInstallService[];
 }
 
-const Services = ({ services }: ServicesProps) => (
+const Services = ({ services }: ServicesProps) => {
+    const host = usePublicHost();
+
+    return (
     <ul className='mt-4 flex flex-wrap gap-x-6 gap-y-1.5 text-[0.8125rem] text-muted'>
         {services.map((service) => (
             <li key={service.name} className='flex items-center gap-2'>
@@ -53,7 +54,7 @@ const Services = ({ services }: ServicesProps) => (
                 {service.ports.map((port) => (
                     <a
                         key={`${port.internalPort}/${port.protocol}`}
-                        href={hostAddress(port.externalPort)}
+                        href={portUrl(host, port.externalPort)}
                         target='_blank'
                         rel='noreferrer'
                         className='inline-flex items-center gap-1 font-mono transition-colors hover:text-foreground motion-reduce:transition-none'
@@ -65,7 +66,8 @@ const Services = ({ services }: ServicesProps) => (
             </li>
         ))}
     </ul>
-);
+    );
+};
 
 interface InstallHeaderProps{
     install: TemplateInstall;

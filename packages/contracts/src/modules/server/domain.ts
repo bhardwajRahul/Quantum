@@ -7,3 +7,7 @@ export interface ServerHealth{
     memTotal: number;
     memFree: number;
 }
+
+export interface PublicAddress{
+    host: string;
+}

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { useApp } from '@tests/harness';
-import { request } from '@tests/request';
+import { request, expectError } from '@tests/request';
+import { seed } from '@tests/Seed';
 import { serverRoutes } from '@quantum/contracts/modules/server/routes';
 
 const ctx = useApp();
@@ -23,5 +24,20 @@ describe('server', () => {
         expect(health.ramPercent).toBeLessThanOrEqual(100);
         expect(health.memTotal).toBeGreaterThan(0);
         expect(health.memFree).toBeGreaterThan(0);
+    });
+
+    it('rejects unauthenticated public address requests', async () => {
+        const res = await request(ctx.app, serverRoutes.publicAddress);
+
+        expectError(res, 401, 'Authentication::Unauthorized');
+    });
+
+    it('tells authenticated users the address their published ports live on', async () => {
+        const user = await seed.user();
+
+        const res = await request(ctx.app, serverRoutes.publicAddress, { as: user.id });
+
+        expect(res.status).toBe(200);
+        expect(res.data().host.length).toBeGreaterThan(0);
     });
 });

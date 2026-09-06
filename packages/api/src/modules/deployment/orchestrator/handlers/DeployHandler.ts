@@ -84,6 +84,11 @@ export default class DeployHandler{
     }
 
     async #createDeployment(job: Job, repository: Repository): Promise<Deployment>{
+        const previous = await Deployment.findOne({
+            where: { repositoryId: repository.id },
+            order: { createdAt: 'DESC', id: 'DESC' }
+        });
+
         return Deployment.create({
             repositoryId: repository.id,
             userId: job.userId ?? repository.userId,
@@ -94,7 +99,7 @@ export default class DeployHandler{
             commit: null,
             artifact: null,
             url: null,
-            environmentVariables: {}
+            environmentVariables: previous?.environmentVariables ?? {}
         }).save();
     }
 

@@ -4,7 +4,7 @@ import { getDockerHost } from './DockerHost';
 import ContainerOptionsResolver from './ContainerOptionsResolver';
 import DockerContainer from '@/modules/docker/models/DockerContainer';
 import Repository from '@/modules/repository/models/Repository';
-import Deployment from '../models/Deployment';
+import { containerEnvironment } from './containerEnvironment';
 import { ContainerStatus } from '@quantum/contracts/modules/docker/domain';
 import { logger } from '@/shared/utils/Logger';
 
@@ -197,20 +197,11 @@ export default class ContainerOps{
         const repository = await Repository.findOneBy({ id: this.container.repositoryId });
         if(!repository || !repository.startCommand) return;
         const workingDir = '/app' + (repository.rootDirectory || '');
-        const env = await this.#environmentArray(repository.id);
+        const env = await containerEnvironment(this.container);
 
         this.executeCommand(['sh', '-c', relaunchScript(repository.startCommand)], { WorkingDir: workingDir, Env: env })
             .catch(() => undefined);
         logger.info(`re-launched start command for ${this.container.dockerContainerName}`, { scope: 'orchestrator.container' });
-    }
-
-    async #environmentArray(repositoryId: number): Promise<string[]>{
-        const deployment = await Deployment.findOne({
-            where: { repositoryId },
-            order: { createdAt: 'DESC', id: 'DESC' }
-        });
-        if(!deployment) return [];
-        return Object.entries(deployment.environmentVariables).map(([key, value]) => `${key.trim()}=${value}`);
     }
 
     async #pullBaseImage(imageOverride?: string): Promise<void>{

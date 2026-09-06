@@ -5,6 +5,7 @@ import DockerContainer from '@/modules/docker/models/DockerContainer';
 import DockerImage from '@/modules/docker/models/DockerImage';
 import DockerNetwork from '@/modules/docker/models/DockerNetwork';
 import PortBinding from '@/modules/docker/models/PortBinding';
+import { containerEnvironment } from './containerEnvironment';
 import type { ContainerOverrides } from './ContainerOps';
 
 export default class ContainerOptionsResolver{
@@ -16,10 +17,7 @@ export default class ContainerOptionsResolver{
         const { exposedPorts, bindings } = await this.#portBindings();
         const mounts = await this.#volumeMounts();
         const binds = this.#binds();
-        const env = [
-            ...Object.entries(this.container.environmentVariables).map(([key, value]) => `${key}=${value}`),
-            ...(overrides.extraEnv ?? [])
-        ];
+        const env = [...(await containerEnvironment(this.container)), ...(overrides.extraEnv ?? [])];
 
         const options: Dockerode.ContainerCreateOptions = {
             Image: image,

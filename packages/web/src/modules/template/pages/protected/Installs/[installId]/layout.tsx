@@ -1,11 +1,12 @@
 import { NavLink, Outlet, useParams } from 'react-router-dom';
 import { Button } from '@heroui/react';
-import { ArrowUpRight, Play, RotateCw, Square } from 'lucide-react';
+import { ArrowUpRight, Play, RefreshCw, RotateCw, Square } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
 import EmptyState from '@/shared/components/EmptyState';
 import ErrorState from '@/shared/components/ErrorState';
 import CenterState from '@/shared/components/CenterState';
 import StatusDot from '@/shared/components/StatusDot';
+import InlineError from '@/shared/components/InlineError';
 import WorkspaceButton from '@/modules/codespace/components/WorkspaceButton';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { usePolledQuery } from '@/shared/hooks/api/use-polled-query';
@@ -69,10 +70,13 @@ const Services = ({ services }: ServicesProps) => (
 interface InstallHeaderProps{
     install: TemplateInstall;
     isOperating: boolean;
+    isRedeploying: boolean;
+    redeployError: Error | undefined;
     onOperate: (operation: TemplateInstallOperation) => void;
+    onRedeploy: () => void;
 }
 
-const InstallHeader = ({ install, isOperating, onOperate }: InstallHeaderProps) => {
+const InstallHeader = ({ install, isOperating, isRedeploying, redeployError, onOperate, onRedeploy }: InstallHeaderProps) => {
     const running = isInstallRunning(install.status);
     const busy = isOperating || isInstallTransient(install.status);
 
@@ -101,20 +105,27 @@ const InstallHeader = ({ install, isOperating, onOperate }: InstallHeaderProps) 
                 {install.services.length > 0 && <Services services={install.services} />}
             </div>
 
-            <div className='flex shrink-0 flex-wrap gap-2'>
-                <WorkspaceButton target={{ kind: 'install', id: install.id }} />
-                <Button variant='secondary' isDisabled={running || busy} onPress={() => onOperate('start')}>
-                    <Play aria-hidden='true' className='size-4' />
-                    Start
-                </Button>
-                <Button variant='secondary' isDisabled={!running || busy} onPress={() => onOperate('stop')}>
-                    <Square aria-hidden='true' className='size-4' />
-                    Stop
-                </Button>
-                <Button variant='secondary' isDisabled={busy} onPress={() => onOperate('restart')}>
-                    <RotateCw aria-hidden='true' className='size-4' />
-                    Restart
-                </Button>
+            <div className='flex shrink-0 flex-col gap-2 lg:items-end'>
+                <div className='flex flex-wrap gap-2'>
+                    <WorkspaceButton target={{ kind: 'install', id: install.id }} />
+                    <Button variant='secondary' isDisabled={running || busy} onPress={() => onOperate('start')}>
+                        <Play aria-hidden='true' className='size-4' />
+                        Start
+                    </Button>
+                    <Button variant='secondary' isDisabled={!running || busy} onPress={() => onOperate('stop')}>
+                        <Square aria-hidden='true' className='size-4' />
+                        Stop
+                    </Button>
+                    <Button variant='secondary' isDisabled={busy} onPress={() => onOperate('restart')}>
+                        <RotateCw aria-hidden='true' className='size-4' />
+                        Restart
+                    </Button>
+                    <Button variant='secondary' isDisabled={busy} isPending={isRedeploying} onPress={onRedeploy}>
+                        <RefreshCw aria-hidden='true' className='size-4' />
+                        Redeploy
+                    </Button>
+                </div>
+                {redeployError !== undefined && <InlineError>{copy(redeployError)}</InlineError>}
             </div>
         </header>
     );
@@ -129,6 +140,9 @@ const InstallLayout = () => {
 
     const operate = useMutation((templateInstallId: number, operation: TemplateInstallOperation) =>
         templateInstallApi.operate({ path: { id: templateInstallId }, body: { operation } }), {
+        onSuccess: () => install.reload()
+    });
+    const redeploy = useMutation((templateInstallId: number) => templateInstallApi.redeploy({ path: { id: templateInstallId } }), {
         onSuccess: () => install.reload()
     });
 
@@ -157,7 +171,10 @@ const InstallLayout = () => {
             <InstallHeader
                 install={install.data}
                 isOperating={operate.loading}
+                isRedeploying={redeploy.loading}
+                redeployError={redeploy.error}
                 onOperate={(operation) => { void operate.run(id, operation).catch(() => undefined); }}
+                onRedeploy={() => { void redeploy.run(id).catch(() => undefined); }}
             />
 
             <nav aria-label='Install' className='mt-8 flex shrink-0 gap-8 overflow-x-auto border-b border-border'>

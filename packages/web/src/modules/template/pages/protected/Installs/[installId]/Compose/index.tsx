@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
-import { Button } from '@heroui/react';
-import { FileCode2, RotateCw } from 'lucide-react';
+import { FileCode2 } from 'lucide-react';
 import EmptyState from '@/shared/components/EmptyState';
 import CenterState from '@/shared/components/CenterState';
 import InlineError from '@/shared/components/InlineError';
@@ -31,8 +30,7 @@ const ComposeEditor = ({ installId, compose: initial }: ComposeEditorProps) => {
             await update.run(text);
         }
     });
-    const redeploy = useMutation(() => templateInstallApi.redeploy({ path: { id: installId } }));
-    const error = update.error ?? redeploy.error;
+    const error = update.error;
 
     return (
         <div className='flex min-h-0 flex-1 flex-col gap-6'>
@@ -45,18 +43,7 @@ const ComposeEditor = ({ installId, compose: initial }: ComposeEditorProps) => {
                     </p>
                 </div>
 
-                <div className='flex flex-wrap items-center gap-4'>
-                    <SaveStatus state={saver.state} />
-                    <Button
-                        variant='secondary'
-                        isPending={redeploy.loading}
-                        isDisabled={saver.state === 'pending' || saver.state === 'saving'}
-                        onPress={() => { void redeploy.run().catch(() => undefined); }}
-                    >
-                        <RotateCw aria-hidden='true' className='size-4' />
-                        Redeploy
-                    </Button>
-                </div>
+                <SaveStatus state={saver.state} />
             </div>
 
             <MonacoEditor value={compose} language='yaml' ariaLabel='Compose file' height='32rem' onChange={setCompose} />

@@ -147,6 +147,7 @@ interface RowActionHandlers{
     onDeleteDatabase: (database: Database) => void;
     onUninstall: (install: TemplateInstall) => void;
     onOperateInstall: (install: TemplateInstall, operation: TemplateInstallOperation) => void;
+    onRedeployInstall: (install: TemplateInstall) => void;
 }
 
 const rowActions = (row: Row, handlers: RowActionHandlers) => {
@@ -217,6 +218,9 @@ const rowActions = (row: Row, handlers: RowActionHandlers) => {
         </Dropdown.Item>,
         <Dropdown.Item key='restart' isDisabled={busy} onAction={() => handlers.onOperateInstall(install, 'restart')}>
             Restart
+        </Dropdown.Item>,
+        <Dropdown.Item key='redeploy' isDisabled={busy} onAction={() => handlers.onRedeployInstall(install)}>
+            Redeploy
         </Dropdown.Item>,
         <Dropdown.Item key='uninstall' variant='danger' onAction={() => handlers.onUninstall(install)}>
             Uninstall
@@ -679,6 +683,10 @@ const Applications = () => {
         void installsQuery.operate({ path: { id: install.id }, body: { operation } }).catch(() => undefined);
     };
 
+    const redeployInstall = (install: TemplateInstall) => {
+        void installsQuery.redeploy({ path: { id: install.id } }).catch(() => undefined);
+    };
+
     const handleBackup = async (database: Database) => {
         await backup.run(database.id).then(() => databases.reload(), () => undefined);
     };
@@ -782,6 +790,7 @@ const Applications = () => {
                         onDeleteDatabase={setDeleteDatabaseTarget}
                         onUninstall={setUninstallTarget}
                         onOperateInstall={operateInstall}
+                        onRedeployInstall={redeployInstall}
                     />
                 </ListPageShell>
             </div>

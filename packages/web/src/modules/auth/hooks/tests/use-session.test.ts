@@ -29,7 +29,6 @@ describe('useSession', () => {
     });
 
     afterEach(async () => {
-        // a probe left mounted re-renders on the next test's setToken and fires a real request
         await harness?.unmount();
         harness = undefined;
         resetStores();

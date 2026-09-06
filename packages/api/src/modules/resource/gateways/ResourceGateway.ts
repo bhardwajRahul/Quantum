@@ -14,10 +14,6 @@ export const resourceConnections = new ConnectionRegistry();
 
 export const resourceRoom = (organizationId: number): string => `resource:org:${organizationId}`;
 
-/**
- * A socket only ever joins rooms for organizations the caller is a member of, so a
- * change frame cannot reach someone who could not have read the row anyway.
- */
 @Channel('/resource/stream')
 @Middleware(SocketAuthenticatedRoute)
 export default class ResourceGateway extends BaseGateway{

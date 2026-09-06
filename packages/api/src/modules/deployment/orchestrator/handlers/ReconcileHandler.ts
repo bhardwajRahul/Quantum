@@ -1,6 +1,6 @@
 import { In } from 'typeorm';
 import DockerContainer from '@/modules/docker/models/DockerContainer';
-import PortBinding from '@/modules/codespace/models/PortBinding';
+import PortBinding from '@/modules/docker/models/PortBinding';
 import Deployment from '../../models/Deployment';
 import Repository from '@/modules/repository/models/Repository';
 import Job from '../../models/Job';
@@ -65,13 +65,6 @@ export default class ReconcileHandler{
         }
     }
 
-    /**
-     * Some containers cannot be started, only replaced: a container's network, mounts and
-     * port bindings are fixed by Docker at creation, so if the network it was created
-     * against is gone, every `start` returns the same 404 and reconciling would retry it
-     * forever. Falling through to a recreate is the same remedy a missing container
-     * already gets.
-     */
     async #startOrRecreate(ops: ContainerOps, container: DockerContainer): Promise<'started' | 'recreated'>{
         try{
             await ops.start();
@@ -85,12 +78,6 @@ export default class ReconcileHandler{
         }
     }
 
-    /**
-     * A container that publishes a different set of host ports than its bindings ask for
-     * cannot be corrected in place — Docker fixes port bindings at creation. Left alone,
-     * the platform would show an address nobody can reach, which is worse than showing
-     * none, so the drift is repaired the same way a broken container is.
-     */
     async #portsDrifted(ops: ContainerOps, container: DockerContainer): Promise<boolean>{
         const bindings = await PortBinding.find({ where: { containerId: container.id } });
         const wanted = new Set(bindings.map((binding) => binding.externalPort));
@@ -101,7 +88,6 @@ export default class ReconcileHandler{
     }
 
     async #replace(ops: ContainerOps, container: DockerContainer): Promise<'recreated'>{
-        // Volumes are kept: this is a repair, not a teardown.
         await ops.destroyContainer();
         await this.#recreate(ops, container);
         return 'recreated';

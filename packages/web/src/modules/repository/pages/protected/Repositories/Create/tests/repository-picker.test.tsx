@@ -48,11 +48,6 @@ const input = (): HTMLInputElement => {
 const options = (): string[] =>
     [...document.querySelectorAll('[role="option"]')].map((node) => node.textContent ?? '');
 
-/**
- * React tracks the value it last wrote to a controlled input, so assigning `.value`
- * directly is swallowed. Going through the prototype's setter is what makes React see
- * the change and run `onInputChange`.
- */
 const type = async (value: string) => {
     const field = input();
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
@@ -84,7 +79,6 @@ describe('repository picker', () => {
         await render();
 
         expect(container?.querySelectorAll('input')).toHaveLength(1);
-        // The old picker rendered a button per repository.
         const labels = [...(container?.querySelectorAll('button') ?? [])].map((node) => node.textContent ?? '');
         expect(labels.some((label) => label.includes('rodyherrera/Quantum'))).toBe(false);
     });

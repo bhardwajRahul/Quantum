@@ -1,15 +1,15 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button, Chip, Input, Label, ListBox, ListBoxItem, Select, Table, TextField } from '@heroui/react';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Button, Dropdown, Input, Label, ListBox, ListBoxItem, Select, Table, TextField } from '@heroui/react';
 import {
     AppWindow,
+    ArrowRight,
     Check,
     Copy,
     Database as DatabaseIcon,
     Eye,
     EyeOff,
-    MoreVertical,
-    Plus
+    MoreVertical
 } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
 import PageHeader from '@/shared/components/layout/PageHeader';
@@ -17,10 +17,10 @@ import ListPageShell from '@/shared/components/ListPageShell';
 import ErrorState from '@/shared/components/ErrorState';
 import EmptyState from '@/shared/components/EmptyState';
 import CenterState from '@/shared/components/CenterState';
+import StatusDot from '@/shared/components/StatusDot';
 import DeleteConfirmDialog from '@/shared/components/DeleteConfirmDialog';
 import Modal from '@/shared/components/Modal';
 import InlineError from '@/shared/components/InlineError';
-import { Dropdown } from '@heroui/react';
 import EntitySelect from '@/shared/components/EntitySelect';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { useResource } from '@/shared/hooks/api/use-resource';
@@ -32,9 +32,13 @@ import { templateInstallApi } from '@/modules/template/api/api';
 import { projectRoutes } from '@quantum/contracts/modules/project/routes';
 import { repositoryRoutes } from '@quantum/contracts/modules/repository/routes';
 import { templateInstallRoutes } from '@quantum/contracts/modules/template/routes';
+import { installStatusColor, installStatusLabel, isInstallRunning, isInstallTransient } from '@/modules/template/utils/install-status';
+import { PortBindingProtocol } from '@quantum/contracts/modules/docker/domain';
+import type { RepositoryPort } from '@quantum/contracts/modules/repository/domain';
+import type { TemplateInstallOperation } from '@quantum/contracts/modules/template/http';
 import { useCurrentOrganizationId } from '@/modules/organization/hooks/use-current-organization-id';
 import { databaseStatusColor, databaseStatusLabel, isDatabaseTransient } from '@/modules/application/utils/status';
-import { containerStatusColor, containerStatusLabel } from '@/modules/application/utils/container-status';
+import { containerStatusColor, containerStatusLabel, isContainerTransient } from '@/modules/application/utils/container-status';
 import PublishedPorts from '@/modules/repository/components/PublishedPorts';
 import { formatDate } from '@/shared/utils/format-date';
 import { copyText } from '@/shared/utils/clipboard';
@@ -84,7 +88,7 @@ const buildRows = (repositories: Repository[], databases: Database[], installs: 
         kind: 'install',
         key: `install-${install.id}`,
         name: install.name,
-        subtitle: `Template · v${install.templateVersion}`,
+        subtitle: 'Template',
         date: install.createdAt,
         install
     }))
@@ -107,13 +111,22 @@ const ApplicationsHeader = ({ canAddDatabase, onAddApplication, onAddDatabase }:
                     New database
                 </Button>
                 <Button onPress={onAddApplication}>
-                    <Plus aria-hidden='true' className='size-4' />
                     New application
+                    <ArrowRight aria-hidden='true' className='size-4' />
                 </Button>
             </div>
         )}
     />
 );
+
+const installPorts = (install: TemplateInstall): RepositoryPort[] => {
+    const app = install.services.find((service) => service.kind === 'app') ?? install.services[0];
+    return (app?.ports ?? []).map((port) => ({
+        internalPort: port.internalPort,
+        externalPort: port.externalPort,
+        protocol: port.protocol === 'udp' ? PortBindingProtocol.Udp : PortBindingProtocol.Tcp
+    }));
+};
 
 interface RowActionHandlers{
     onNavigate: (path: string) => void;
@@ -123,6 +136,7 @@ interface RowActionHandlers{
     onRestore: (database: Database) => void;
     onDeleteDatabase: (database: Database) => void;
     onUninstall: (install: TemplateInstall) => void;
+    onOperateInstall: (install: TemplateInstall, operation: TemplateInstallOperation) => void;
 }
 
 const rowActions = (row: Row, handlers: RowActionHandlers) => {
@@ -167,8 +181,26 @@ const rowActions = (row: Row, handlers: RowActionHandlers) => {
         ];
     }
 
+    const install = row.install;
+    const running = isInstallRunning(install.status);
+    const busy = isInstallTransient(install.status);
     return [
-        <Dropdown.Item key='uninstall' variant='danger' onAction={() => handlers.onUninstall(row.install)}>
+        <Dropdown.Item key='logs' onAction={() => handlers.onNavigate(`/installs/${install.id}/logs`)}>
+            Logs
+        </Dropdown.Item>,
+        <Dropdown.Item key='shell' onAction={() => handlers.onNavigate(`/installs/${install.id}/shell`)}>
+            Shell
+        </Dropdown.Item>,
+        <Dropdown.Item key='start' isDisabled={running || busy} onAction={() => handlers.onOperateInstall(install, 'start')}>
+            Start
+        </Dropdown.Item>,
+        <Dropdown.Item key='stop' isDisabled={!running || busy} onAction={() => handlers.onOperateInstall(install, 'stop')}>
+            Stop
+        </Dropdown.Item>,
+        <Dropdown.Item key='restart' isDisabled={busy} onAction={() => handlers.onOperateInstall(install, 'restart')}>
+            Restart
+        </Dropdown.Item>,
+        <Dropdown.Item key='uninstall' variant='danger' onAction={() => handlers.onUninstall(install)}>
             Uninstall
         </Dropdown.Item>
     ];
@@ -203,22 +235,32 @@ const ApplicationsTable = ({ rows, ...handlers }: ApplicationsTableProps) => (
 
                                 <Table.Cell>
                                     {row.kind === 'app' && (
-                                        <Chip size='sm' variant='soft' color={containerStatusColor(row.repository.containerStatus)}>
-                                            {containerStatusLabel(row.repository.containerStatus)}
-                                        </Chip>
+                                        <StatusDot
+                                            color={containerStatusColor(row.repository.containerStatus)}
+                                            label={containerStatusLabel(row.repository.containerStatus)}
+                                            isTransient={isContainerTransient(row.repository.containerStatus)}
+                                        />
                                     )}
                                     {row.kind === 'database' && (
-                                        <Chip size='sm' variant='soft' color={databaseStatusColor(row.database.status)}>
-                                            {databaseStatusLabel(row.database.status)}
-                                        </Chip>
+                                        <StatusDot
+                                            color={databaseStatusColor(row.database.status)}
+                                            label={databaseStatusLabel(row.database.status)}
+                                            isTransient={isDatabaseTransient(row.database.status)}
+                                        />
                                     )}
-                                    {row.kind === 'install' && <Chip size='sm' variant='soft' color='success'>Installed</Chip>}
+                                    {row.kind === 'install' && (
+                                        <StatusDot
+                                            color={installStatusColor(row.install.status)}
+                                            label={installStatusLabel(row.install.status)}
+                                            isTransient={isInstallTransient(row.install.status)}
+                                        />
+                                    )}
                                 </Table.Cell>
 
                                 <Table.Cell>
-                                    {row.kind === 'app'
-                                        ? <PublishedPorts ports={row.repository.ports} />
-                                        : <span className='text-[0.8125rem] text-muted'>—</span>}
+                                    {row.kind === 'app' && <PublishedPorts ports={row.repository.ports} />}
+                                    {row.kind === 'install' && <PublishedPorts ports={installPorts(row.install)} />}
+                                    {row.kind === 'database' && <span className='text-[0.8125rem] text-muted'>—</span>}
                                 </Table.Cell>
 
                                 <Table.Cell>{formatDate(row.date)}</Table.Cell>
@@ -228,7 +270,7 @@ const ApplicationsTable = ({ rows, ...handlers }: ApplicationsTableProps) => (
                                         <Dropdown>
                                             <Dropdown.Trigger
                                                 aria-label={`Actions for ${row.name}`}
-                                                className='rounded-md p-1.5 text-muted transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground'
+                                                className='p-1.5 text-muted transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground'
                                             >
                                                 <MoreVertical aria-hidden='true' className='size-4' />
                                             </Dropdown.Trigger>
@@ -377,10 +419,10 @@ const ConnectionStringField = ({ value }: ConnectionStringFieldProps) => {
 
     return (
         <div className='flex flex-col gap-1.5'>
-            <span className='text-[0.8125rem] text-muted'>Connection string</span>
+            <span className='label-caps text-muted'>Connection string</span>
 
             <div className='flex items-center gap-2'>
-                <code className='min-w-0 flex-1 truncate rounded-md bg-surface px-3 py-2 text-[0.8125rem] text-foreground'>
+                <code className='min-w-0 flex-1 truncate border border-border px-3 py-2 font-mono text-[0.8125rem] text-foreground'>
                     {revealed ? value : '•'.repeat(24)}
                 </code>
 
@@ -566,6 +608,18 @@ const Applications = () => {
     });
     const [projectId, setProjectId] = useState<number | null>(null);
     const [search, setSearch] = useState('');
+    const [params] = useSearchParams();
+
+    useEffect(() => {
+        if(projectId !== null) return;
+        const list = projects.data ?? [];
+        if(list.length === 0) return;
+        const requested = Number(params.get('project'));
+        const pick = list.find((project) => project.id === requested)
+            ?? list.find((project) => project.isDefault)
+            ?? list[0];
+        if(pick !== undefined) setProjectId(pick.id);
+    }, [projectId, projects.data, params]);
 
     const repositoriesQuery = useResource(repositoryRoutes, { list: 'mine' });
     const databasesQuery = useQuery((databasesProjectId: number) => databaseApi.listByProject({ path: { projectId: databasesProjectId } }), [projectId ?? undefined], { enabled: projectId !== null });
@@ -586,6 +640,19 @@ const Applications = () => {
     const [uninstallTarget, setUninstallTarget] = useState<TemplateInstall | null>(null);
 
     const backup = useMutation((id: number) => databaseApi.backup({ path: { id } }));
+
+    const installs = installsQuery.data;
+    const installsSettling = installs !== null && installs.some((install) => isInstallTransient(install.status));
+    const refreshInstalls = installsQuery.refresh;
+    useEffect(() => {
+        if(!installsSettling) return;
+        const timer = setInterval(refreshInstalls, 4000);
+        return () => clearInterval(timer);
+    }, [installsSettling, refreshInstalls]);
+
+    const operateInstall = (install: TemplateInstall, operation: TemplateInstallOperation) => {
+        void installsQuery.operate({ path: { id: install.id }, body: { operation } }).catch(() => undefined);
+    };
 
     const handleBackup = async (database: Database) => {
         await backup.run(database.id).then(() => databases.reload(), () => undefined);
@@ -673,8 +740,8 @@ const Applications = () => {
                             : 'Create an application, or pick a project above to see its databases and template installs.',
                         action: query === '' ? (
                             <Button onPress={() => navigate('/repositories/create')}>
-                                <Plus aria-hidden='true' className='size-4' />
                                 New application
+                                <ArrowRight aria-hidden='true' className='size-4' />
                             </Button>
                         ) : undefined
                     }}
@@ -688,6 +755,7 @@ const Applications = () => {
                         onRestore={setRestoreTarget}
                         onDeleteDatabase={setDeleteDatabaseTarget}
                         onUninstall={setUninstallTarget}
+                        onOperateInstall={operateInstall}
                     />
                 </ListPageShell>
             </div>

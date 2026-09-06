@@ -31,7 +31,6 @@ interface LegacyDependency{
 
 interface LegacyTemplate{
     name: string;
-    category: string;
     website?: string;
     description: string;
     image: LegacyImage;
@@ -41,16 +40,9 @@ interface LegacyTemplate{
     dependencies?: Record<string, LegacyDependency>;
 }
 
-// Straight port of the legacy catalog (legacy template fixtures). `command: "/bin/sh"` and
-// per-service `notification` blocks were boilerplate/unused in the legacy data and have no
-// equivalent in TemplateSpec, so they're intentionally dropped rather than carried over.
-// `{server_ip}` / `${Service.externalPort}` interpolation is resolved below to the dependency's
-// service key and container-internal port, since services in the new model reach each other by
-// service name on the deployment's private network (there is no "external port" concept here).
 const LEGACY_TEMPLATES: LegacyTemplate[] = [
     {
         name: 'Directus',
-        category: 'cms',
         website: 'https://directus.io/',
         description: 'Turn your data into a headless CMS, admin panels, or apps. Built for devs, used by everyone.',
         image: { name: 'directus/directus', tag: '11.3.2' },
@@ -84,7 +76,6 @@ const LEGACY_TEMPLATES: LegacyTemplate[] = [
     },
     {
         name: 'Uptime Kuma',
-        category: 'monitoring',
         description: 'Self-hosted, open-source, fancy uptime monitoring and alerting system.',
         image: { name: 'louislam/uptime-kuma', tag: 1 },
         ports: [{ protocol: 'tcp', internalPort: 3001 }],
@@ -92,7 +83,6 @@ const LEGACY_TEMPLATES: LegacyTemplate[] = [
     },
     {
         name: 'Appsmith',
-        category: 'low-code',
         description: 'Build better apps, faster, with fewer resources. Leading companies are innovating with Appsmith.',
         image: { name: 'index.docker.io/appsmith/appsmith-ee', tag: 'latest' },
         ports: [{ protocol: 'tcp', internalPort: 80 }],
@@ -100,7 +90,6 @@ const LEGACY_TEMPLATES: LegacyTemplate[] = [
     },
     {
         name: 'ownCloud',
-        category: 'storage',
         website: 'https://owncloud.com/',
         description: 'An open-source file sync, share and content collaboration software.',
         image: { name: 'owncloud/server', tag: 'latest' },
@@ -110,7 +99,6 @@ const LEGACY_TEMPLATES: LegacyTemplate[] = [
     },
     {
         name: 'ActivePieces',
-        category: 'automation',
         website: 'https://www.activepieces.com/',
         description: "Automation software that's AI-first, no-code & open-source.",
         image: { name: 'activepieces/activepieces', tag: 'latest' },
@@ -120,7 +108,6 @@ const LEGACY_TEMPLATES: LegacyTemplate[] = [
     },
     {
         name: 'n8n',
-        category: 'automation',
         website: 'https://n8n.io/',
         description: 'Secure and AI-native workflow automation tool for technical people. Insert code when you need it.',
         image: { name: 'docker.n8n.io/n8nio/n8n', tag: 'latest' },
@@ -148,7 +135,6 @@ const LEGACY_TEMPLATES: LegacyTemplate[] = [
     },
     {
         name: 'Tooljet',
-        category: 'low-code',
         website: 'https://www.tooljet.com/',
         description: 'Open-source low-code framework to build and deploy internal tools with minimal engineering effort.',
         image: { name: 'tooljet/try', tag: 'ee-lts-latest' },
@@ -157,7 +143,6 @@ const LEGACY_TEMPLATES: LegacyTemplate[] = [
     },
     {
         name: 'Ollama',
-        category: 'ai',
         website: 'https://ollama.com/',
         description: 'The easiest way to get up and running with large language models.',
         image: { name: 'ollama/ollama', tag: 'latest' },
@@ -166,7 +151,6 @@ const LEGACY_TEMPLATES: LegacyTemplate[] = [
     },
     {
         name: 'Homarr',
-        category: 'dashboard',
         website: 'https://homarr.dev/',
         description: 'A simple, yet powerful dashboard for your server.',
         image: { name: 'ghcr.io/ajnart/homarr', tag: 'latest' },
@@ -179,7 +163,6 @@ const LEGACY_TEMPLATES: LegacyTemplate[] = [
     },
     {
         name: 'Eclipse Mosquitto',
-        category: 'messaging',
         website: 'https://mosquitto.org/',
         description: 'An open source message broker which implements MQTT version 5, 3.1.1 and 3.1.',
         image: { name: 'eclipse-mosquitto', tag: 'latest' },
@@ -188,7 +171,6 @@ const LEGACY_TEMPLATES: LegacyTemplate[] = [
     },
     {
         name: 'phpMyAdmin',
-        category: 'database',
         website: 'https://www.phpmyadmin.net/',
         description: 'A free software tool written in PHP, intended to handle the administration of MySQL over the Web.',
         image: { name: 'phpmyadmin', tag: 'latest' },
@@ -203,7 +185,6 @@ const LEGACY_TEMPLATES: LegacyTemplate[] = [
     },
     {
         name: 'Mongo',
-        category: 'database',
         website: 'https://www.mongodb.com/',
         description: 'MongoDB document databases provide high availability and easy scalability.',
         image: { name: 'mongo', tag: 'latest' },
@@ -213,7 +194,6 @@ const LEGACY_TEMPLATES: LegacyTemplate[] = [
     },
     {
         name: 'MariaDB',
-        category: 'database',
         description: 'One of the most popular open source relational databases.',
         image: { name: 'mariadb', tag: 'latest' },
         volumes: [{ containerPath: '/var/lib/mysql', mode: 'rw' }],
@@ -222,7 +202,6 @@ const LEGACY_TEMPLATES: LegacyTemplate[] = [
     },
     {
         name: 'PostgreSQL',
-        category: 'database',
         website: 'https://www.postgresql.org/',
         description: 'The PostgreSQL object-relational database system provides reliability and data integrity.',
         image: { name: 'postgres', tag: 'latest' },
@@ -232,7 +211,6 @@ const LEGACY_TEMPLATES: LegacyTemplate[] = [
     },
     {
         name: 'MySQL',
-        category: 'database',
         website: 'https://mysql.com/',
         description: 'MySQL is a widely used, open-source relational database management system (RDBMS).',
         image: { name: 'mysql', tag: 'latest' },
@@ -242,28 +220,24 @@ const LEGACY_TEMPLATES: LegacyTemplate[] = [
     },
     {
         name: 'Kali Linux',
-        category: 'os',
         website: 'https://www.kali.org/',
         description: 'Penetration testing and ethical hacking Linux distribution.',
         image: { name: 'kalilinux/kali-rolling', tag: 'latest' }
     },
     {
         name: 'Alpine Linux',
-        category: 'os',
         website: 'https://alpinelinux.org',
         description: 'A security-oriented, lightweight Linux distribution based on musl libc and busybox.',
         image: { name: 'alpine', tag: 'latest' }
     },
     {
         name: 'Ubuntu',
-        category: 'os',
         website: 'https://ubuntu.com',
         description: 'A Debian-based Linux operating system based on free software.',
         image: { name: 'ubuntu', tag: 'latest' }
     },
     {
         name: 'Code Server',
-        category: 'dev-tools',
         website: 'https://hub.docker.com/r/linuxserver/code-server',
         description: 'Code on any device with a consistent development environment.',
         image: { name: 'codercom/code-server', tag: 'latest' },
@@ -272,7 +246,6 @@ const LEGACY_TEMPLATES: LegacyTemplate[] = [
     },
     {
         name: 'Wordpress',
-        category: 'cms',
         website: 'https://wordpress.com/',
         description: 'Everything you need to build and grow any website — all in one place.',
         image: { name: 'wordpress', tag: 'latest' },
@@ -296,7 +269,6 @@ const LEGACY_TEMPLATES: LegacyTemplate[] = [
     },
     {
         name: 'NGINX',
-        category: 'web-server',
         website: 'https://nginx.org/',
         description: 'An open source reverse proxy server for HTTP, HTTPS, SMTP, POP3, and IMAP protocols.',
         image: { name: 'nginx', tag: 'latest' },
@@ -317,8 +289,6 @@ const toPort = (port: LegacyPort) => ({ target: Number(port.internalPort), proto
 
 const toVolume = (volume: LegacyVolume) => ({ path: volume.containerPath, mode: volume.mode });
 
-// `{server_ip:key}` -> the dependency's service key (services reach each other by name).
-// `${key.port}` -> that dependency's own container-internal port, resolved below.
 const resolvePlaceholders = (value: string, dependencies: Record<string, LegacyDependency>): string =>
     value
         .replace(/\{server_ip:(\w+)\}/g, (_, key: string) => key)
@@ -374,14 +344,12 @@ const seed = async () => {
 
     for(const legacy of LEGACY_TEMPLATES){
         const slug = slugify(legacy.name, { lower: true, strict: true });
-        const exists = await Template.findOneBy({ slug, version: '1.0.0' });
+        const exists = await Template.findOneBy({ slug });
         if(exists){ skipped++; continue; }
 
         await Template.create({
             name: legacy.name,
             slug,
-            version: '1.0.0',
-            category: legacy.category,
             description: legacy.description,
             icon: null,
             website: legacy.website ?? null,

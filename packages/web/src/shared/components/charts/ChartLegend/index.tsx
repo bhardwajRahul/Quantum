@@ -7,7 +7,6 @@ interface ChartLegendProps{
     entries: LegendEntry[];
 }
 
-/** Recharts' own legend is a table of squares; this is the one line it should be. */
 const ChartLegend = ({ entries }: ChartLegendProps) => (
     <div className='flex flex-wrap gap-4 text-[0.8125rem] text-muted'>
         {entries.map((entry) => (

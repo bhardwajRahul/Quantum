@@ -5,3 +5,8 @@ export interface NavSection{
     to: string;
     icon: LucideIcon;
 }
+
+export interface NavGroup{
+    heading?: string;
+    items: NavSection[];
+}

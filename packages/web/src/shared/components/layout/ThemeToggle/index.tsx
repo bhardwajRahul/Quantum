@@ -14,7 +14,7 @@ const ThemeToggle = () => {
             size='sm'
             aria-label={isDark ? 'Switch to the light theme' : 'Switch to the dark theme'}
             onPress={toggle}
-            className='size-8 rounded-lg text-muted'
+            className='size-8 text-muted hover:text-foreground'
         >
             {isDark ? <Sun className='size-4' /> : <Moon className='size-4' />}
         </Button>

@@ -5,4 +5,5 @@ export interface DatabaseProvisionRequestedPayload{
     action: ProvisionAction;
     userId: number;
     backupId?: string;
+    containerId?: number | null;
 }

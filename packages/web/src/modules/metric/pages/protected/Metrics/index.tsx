@@ -6,6 +6,7 @@ import PageBody from '@/shared/components/layout/PageBody';
 import PageHeader from '@/shared/components/layout/PageHeader';
 import ListPageShell from '@/shared/components/ListPageShell';
 import StatTile from '@/shared/components/StatTile';
+import StatBand from '@/shared/components/StatBand';
 import Sparkline from '@/shared/components/charts/Sparkline';
 import ChartPanel from '@/shared/components/charts/ChartPanel';
 import ChartLegend from '@/shared/components/charts/ChartLegend';
@@ -25,7 +26,6 @@ import type { Metric } from '@quantum/contracts/modules/metric/domain';
 
 const copy = errorCopy(metricErrorMessages);
 
-/** Only the time of day: the axis spans minutes, so the date would be the same on every tick. */
 const clockLabel = (iso: string): string => {
     const at = new Date(iso);
     return Number.isNaN(at.getTime())
@@ -61,14 +61,9 @@ interface UsageOverTimeProps{
     samples: Metric[];
 }
 
-/**
- * One chart for both series rather than two side by side: CPU and memory are read
- * together — a spike in one is only interesting next to the other — and a shared time
- * axis is what makes that comparison possible.
- */
 const LEGEND = [
     { label: 'CPU %', className: 'bg-foreground' },
-    { label: 'Memory %', className: 'bg-foreground/30' }
+    { label: 'Memory %', className: 'bg-muted' }
 ];
 
 const UsageOverTime = ({ samples }: UsageOverTimeProps) => (
@@ -84,18 +79,21 @@ const UsageOverTime = ({ samples }: UsageOverTimeProps) => (
                         type='monotone'
                         dataKey='cpuPercent'
                         stroke='var(--foreground)'
-                        strokeWidth={1.5}
+                        strokeWidth={2}
                         fill='var(--foreground)'
                         fillOpacity={0.1}
+                        dot={false}
+                        activeDot={{ r: 4, fill: 'var(--foreground)', stroke: 'var(--background)', strokeWidth: 2 }}
                     />
                     <Area
                         type='monotone'
                         dataKey='memPercent'
-                        stroke='var(--foreground)'
-                        strokeOpacity={0.35}
-                        strokeWidth={1.5}
-                        fill='var(--foreground)'
-                        fillOpacity={0.04}
+                        stroke='var(--muted)'
+                        strokeWidth={2}
+                        fill='var(--muted)'
+                        fillOpacity={0.08}
+                        dot={false}
+                        activeDot={{ r: 4, fill: 'var(--muted)', stroke: 'var(--background)', strokeWidth: 2 }}
                     />
                 </AreaChart>
             </ResponsiveContainer>
@@ -178,15 +176,10 @@ const Metrics = () => {
                         description: 'This repository has no metric samples yet. Samples appear once its container starts reporting usage.'
                     }}
                 >
-                    {/*
-                      * Guarded here, not only through `isEmpty`: children are built eagerly, so
-                      * the shell picks a state long after this subtree has already been
-                      * evaluated. Reading `latest` unguarded is what crashed the page on mount,
-                      * before a repository is even selected.
-                      */}
+                    {}
                     {latest !== undefined && (
-                        <div className='flex flex-col gap-4'>
-                            <section className='grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border lg:grid-cols-5 lg:divide-y-0'>
+                        <div className='flex flex-col gap-10'>
+                            <StatBand columns={5}>
                                 <StatTile label='CPU' value={`${rate(latest.cpuPercent)}%`} hint='Current sample'>
                                     <Sparkline values={samples.map((sample) => sample.cpuPercent)} />
                                 </StatTile>
@@ -202,7 +195,7 @@ const Metrics = () => {
                                 <StatTile label='Network in' value={formatBytes(latest.netRx)} hint='Since start' />
                                 <StatTile label='Network out' value={formatBytes(latest.netTx)} hint='Since start' />
                                 <StatTile label='Processes' value={count(latest.pids)} hint='Running in the container' />
-                            </section>
+                            </StatBand>
 
                             <UsageOverTime samples={samples} />
                         </div>

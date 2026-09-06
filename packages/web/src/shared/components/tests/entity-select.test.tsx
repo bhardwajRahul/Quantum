@@ -53,12 +53,6 @@ describe('EntitySelect', () => {
         expect(triggerText()).toBe('Select a runtime');
     });
 
-    /**
-     * The regression: the placeholder used to be passed as `Select.Value`'s children,
-     * which React Aria treats as an override rather than a fallback, so the trigger
-     * kept reading "Select a runtime" after picking an item and the select looked
-     * broken.
-     */
     it('shows the selected label, not the placeholder, once a value is set', async () => {
         await render(select('python'));
 

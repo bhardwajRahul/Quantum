@@ -5,19 +5,13 @@ import { TemplateFields } from '../contracts/domain/template';
 import type { InputDef, TemplateSpec } from '@quantum/contracts/modules/template/domain';
 
 @Entity()
-@Index(['slug', 'version'], { unique: true })
+@Index(['slug'], { unique: true })
 export default class Template extends BaseModel implements TemplateFields{
     @Column('varchar')
     name!: string;
 
     @Column('varchar')
     slug!: string;
-
-    @Column({ type: 'varchar', default: '1.0.0' })
-    version!: string;
-
-    @Column({ type: 'varchar', default: 'other' })
-    category!: string;
 
     @Column({ type: 'varchar', nullable: true })
     description!: string | null;

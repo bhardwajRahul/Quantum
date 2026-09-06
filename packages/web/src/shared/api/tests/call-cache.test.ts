@@ -25,11 +25,6 @@ beforeEach(async () => {
 });
 
 describe('call', () => {
-    /**
-     * The regression that made every data table need a page reload: `fresh` was
-     * implemented as `cacheFor: 0`, which does not bypass a cache *read*, so a
-     * forced reload after a write kept returning the pre-write list.
-     */
     it('sees the write when fresh is set', async () => {
         await call(listRoute);
         await call(removeRoute, { path: { id: 1 } });

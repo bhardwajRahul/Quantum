@@ -1,4 +1,4 @@
-import { ContainerDesiredState, ContainerStatus, NetworkDriver } from '@quantum/contracts/modules/docker/domain';
+import { ContainerDesiredState, ContainerStatus, NetworkDriver, PortBindingProtocol } from '@quantum/contracts/modules/docker/domain';
 import type { DockerContainerVolume } from '@quantum/contracts/modules/docker/domain';
 
 export interface DockerContainerFields{
@@ -41,6 +41,17 @@ export interface DockerNetworkFields{
     driver: NetworkDriver;
     userId: number;
     organizationId: number;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+export interface PortBindingFields{
+    containerId: number;
+    userId: number;
+    organizationId: number;
+    internalPort: number;
+    externalPort: number;
+    protocol: PortBindingProtocol;
     createdAt: Date;
     updatedAt: Date;
 }

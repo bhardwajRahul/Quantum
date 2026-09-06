@@ -35,12 +35,6 @@ afterEach(() => {
 const frames = () => sent.map((raw) => JSON.parse(raw) as { type: string; data?: unknown });
 
 describe('SocketChannel frames', () => {
-    /**
-     * The envelope has to be the same one the server answers with. It used to spread the
-     * payload into the frame instead — `{type, ...data}` — so a handler reading `data`
-     * saw `undefined` and rejected the frame as malformed. That is what broke the shell:
-     * every keystroke went out as `{"0":"l","1":"s"}`.
-     */
     it('nests the payload under data, matching the inbound envelope', () => {
         const channel = new SocketChannel('/repository/2/terminal');
         instance?.onopen?.();

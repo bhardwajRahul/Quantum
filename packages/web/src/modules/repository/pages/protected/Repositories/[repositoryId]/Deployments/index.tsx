@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Button, Chip, Spinner, Table } from '@heroui/react';
+import { Button, Spinner, Table } from '@heroui/react';
 import {
     CheckCircle2,
     CircleDashed,
@@ -11,12 +11,11 @@ import {
     Square,
     XCircle
 } from 'lucide-react';
-import PageBody from '@/shared/components/layout/PageBody';
-import PageHeader from '@/shared/components/layout/PageHeader';
 import ListPageShell from '@/shared/components/ListPageShell';
 import EmptyState from '@/shared/components/EmptyState';
 import CenterState from '@/shared/components/CenterState';
 import InlineError from '@/shared/components/InlineError';
+import StatusDot from '@/shared/components/StatusDot';
 import DeleteConfirmDialog from '@/shared/components/DeleteConfirmDialog';
 import ConfirmDialog from '@/shared/components/ConfirmDialog';
 import { useQuery } from '@/shared/hooks/api/use-query';
@@ -54,35 +53,38 @@ const DeploymentsHeader = ({ repository, isOperating, onOperate }: DeploymentsHe
     const isRunning = isContainerRunning(repository.containerStatus);
 
     return (
-        <PageHeader
-            title='Deployments'
-            description={`Continuously generated from ${repository.alias}.`}
-            filter={<PublishedPorts ports={repository.ports} />}
-            actions={(
-                <div className='flex gap-2'>
-                    <Button
-                        variant='secondary'
-                        isDisabled={isRunning || isOperating}
-                        onPress={() => onOperate(RepositoryOperation.Start)}
-                    >
-                        <Play aria-hidden='true' className='size-4' />
-                        Start
-                    </Button>
-                    <Button
-                        variant='secondary'
-                        isDisabled={!isRunning || isOperating}
-                        onPress={() => onOperate(RepositoryOperation.Stop)}
-                    >
-                        <Square aria-hidden='true' className='size-4' />
-                        Stop
-                    </Button>
-                    <Button variant='secondary' isDisabled={isOperating} onPress={() => onOperate(RepositoryOperation.Restart)}>
-                        <RotateCw aria-hidden='true' className='size-4' />
-                        Restart
-                    </Button>
+        <div className='flex flex-wrap items-end justify-between gap-4'>
+            <div>
+                <h2 className='text-[0.9375rem] font-medium text-foreground'>Deployments</h2>
+                <p className='mt-1 text-[0.8125rem] text-muted'>Continuously generated from {repository.alias}.</p>
+                <div className='mt-2'>
+                    <PublishedPorts ports={repository.ports} />
                 </div>
-            )}
-        />
+            </div>
+
+            <div className='flex flex-wrap items-center gap-2'>
+                <Button
+                    variant='secondary'
+                    isDisabled={isRunning || isOperating}
+                    onPress={() => onOperate(RepositoryOperation.Start)}
+                >
+                    <Play aria-hidden='true' className='size-4' />
+                    Start
+                </Button>
+                <Button
+                    variant='secondary'
+                    isDisabled={!isRunning || isOperating}
+                    onPress={() => onOperate(RepositoryOperation.Stop)}
+                >
+                    <Square aria-hidden='true' className='size-4' />
+                    Stop
+                </Button>
+                <Button variant='secondary' isDisabled={isOperating} onPress={() => onOperate(RepositoryOperation.Restart)}>
+                    <RotateCw aria-hidden='true' className='size-4' />
+                    Restart
+                </Button>
+            </div>
+        </div>
     );
 };
 
@@ -109,25 +111,24 @@ const DeploymentsTable = ({ deployments, onRollback, onDelete }: DeploymentsTabl
                         <Table.Row key={deployment.id}>
                             <Table.Cell>
                                 <div className='flex max-w-[420px] flex-col gap-1'>
-                                    <span className='font-medium text-foreground'>
+                                    <span className='text-[0.8125rem] text-foreground'>
                                         {deployment.commit?.message ?? 'No commit recorded'}
                                     </span>
 
-                                    {/*
-                                      * A failed deployment is unreadable without this: the row used to say
-                                      * only "Failed", leaving the reason in the server log.
-                                      */}
+                                    {}
                                     {deployment.error !== null && (
-                                        <span className='text-[0.8125rem] break-words text-[var(--danger)]'>
+                                        <span className='block text-[0.8125rem] break-words text-[var(--danger)]'>
                                             {deployment.error}
                                         </span>
                                     )}
                                 </div>
                             </Table.Cell>
                             <Table.Cell>
-                                <Chip size='sm' variant='soft' className={deploymentStatusColor(deployment.status)}>
-                                    {deploymentStatusLabel(deployment.status)}
-                                </Chip>
+                                <StatusDot
+                                    color={deploymentStatusColor(deployment.status)}
+                                    label={deploymentStatusLabel(deployment.status)}
+                                    isTransient={isDeploymentInProgress(deployment.status)}
+                                />
                             </Table.Cell>
                             <Table.Cell>{formatDate(deployment.createdAt)}</Table.Cell>
                             <Table.Cell>
@@ -136,7 +137,7 @@ const DeploymentsTable = ({ deployments, onRollback, onDelete }: DeploymentsTabl
                                         href={deployment.url}
                                         target='_blank'
                                         rel='noreferrer'
-                                        className='inline-flex items-center gap-1 text-[var(--accent)] hover:underline'
+                                        className='inline-flex items-center gap-1 font-mono text-[0.8125rem] transition-colors hover:text-foreground motion-reduce:transition-none'
                                     >
                                         <span className='max-w-[220px] truncate'>{deployment.url}</span>
                                         <ExternalLink aria-hidden='true' className='size-3.5 shrink-0' />
@@ -153,7 +154,7 @@ const DeploymentsTable = ({ deployments, onRollback, onDelete }: DeploymentsTabl
                                     >
                                         Rollback
                                     </Button>
-                                    <Button size='sm' variant='danger-soft' onPress={() => onDelete(deployment)}>Delete</Button>
+                                    <Button size='sm' variant='danger' onPress={() => onDelete(deployment)}>Delete</Button>
                                 </div>
                             </Table.Cell>
                         </Table.Row>
@@ -222,9 +223,9 @@ const DeleteDeploymentDialog = ({ deployment, onClose, onDeleted }: DeleteDeploy
 const stepIcon = (level: ActivityLevel) => {
     switch(level){
         case ActivityLevel.Progress:
-            return <Spinner size='sm' color='warning' />;
+            return <Spinner size='sm' color='current' className='text-muted' />;
         case ActivityLevel.Success:
-            return <CheckCircle2 aria-hidden='true' className='size-4 shrink-0 text-success' />;
+            return <CheckCircle2 aria-hidden='true' className='size-4 shrink-0 text-foreground' />;
         case ActivityLevel.Error:
             return <XCircle aria-hidden='true' className='size-4 shrink-0 text-danger' />;
         default:
@@ -260,10 +261,10 @@ const PipelineStep = ({ event }: PipelineStepProps) => {
     const duration = stepDurationMs(event);
 
     return (
-        <li className='flex items-center gap-3 border-t border-border/60 px-5 py-3 first:border-t-0'>
+        <li className='flex items-center gap-3 border-t border-separator px-5 py-3 first:border-t-0'>
             {stepIcon(event.level)}
             <span className='flex-1 truncate text-[0.875rem] text-foreground'>{event.title}</span>
-            {duration !== null && <span className='font-mono text-[0.75rem] text-muted'>{formatStepDuration(duration)}</span>}
+            {duration !== null && <span className='font-mono text-[0.8125rem] text-muted'>{formatStepDuration(duration)}</span>}
         </li>
     );
 };
@@ -276,9 +277,11 @@ const PipelineLogs = ({ lines }: PipelineLogsProps) => {
     if(lines.length === 0) return null;
 
     return (
-        <details className='border-t border-border/60 px-5 py-3'>
-            <summary className='cursor-pointer text-[0.8125rem] text-muted'>Raw logs</summary>
-            <pre className='mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap text-[0.75rem] text-muted'>{lines.join('\n')}</pre>
+        <details className='border-t border-separator px-5 py-3'>
+            <summary className='label-caps cursor-pointer text-muted transition-colors hover:text-foreground motion-reduce:transition-none'>
+                Raw logs
+            </summary>
+            <pre className='mt-3 max-h-64 overflow-y-auto font-mono text-[0.75rem] whitespace-pre-wrap text-muted'>{lines.join('\n')}</pre>
         </details>
     );
 };
@@ -295,17 +298,17 @@ const DeploymentPipelinePanel = ({ steps, logs, done, onDismiss }: DeploymentPip
     const ordered = sortSteps(steps);
 
     return (
-        <div className='mt-6 rounded-xl border border-border'>
+        <div className='mt-6 border border-border'>
             <div className='flex items-center gap-3 border-b border-border px-5 py-3.5'>
                 {!done ? (
-                    <Spinner size='sm' color='warning' />
+                    <Spinner size='sm' color='current' className='text-muted' />
                 ) : hasError ? (
                     <XCircle aria-hidden='true' className='size-4 shrink-0 text-danger' />
                 ) : (
-                    <CheckCircle2 aria-hidden='true' className='size-4 shrink-0 text-success' />
+                    <CheckCircle2 aria-hidden='true' className='size-4 shrink-0 text-foreground' />
                 )}
 
-                <span className='flex-1 text-[0.875rem] font-medium text-foreground'>
+                <span className='label-caps flex-1 text-muted'>
                     {!done ? 'Deploying your application' : hasError ? 'Deployment failed' : 'Deployment finished'}
                 </span>
 
@@ -315,7 +318,7 @@ const DeploymentPipelinePanel = ({ steps, logs, done, onDismiss }: DeploymentPip
             <ol>
                 {ordered.length === 0 ? (
                     <li className='flex items-center gap-3 px-5 py-3 text-[0.875rem] text-muted'>
-                        <Spinner size='sm' color='warning' />
+                        <Spinner size='sm' color='current' />
                         Queued — waiting for the build to start…
                     </li>
                 ) : (
@@ -431,7 +434,7 @@ const Deployments = () => {
     const deployments = deploymentsQuery.data ?? [];
 
     return (
-        <PageBody width='wide' height='full'>
+        <div className='flex min-h-0 flex-1 flex-col'>
             <DeploymentsHeader
                 repository={repository.data}
                 isOperating={operate.loading}
@@ -471,7 +474,7 @@ const Deployments = () => {
                 onClose={() => setDeleteTarget(null)}
                 onDeleted={deploymentsQuery.refresh}
             />
-        </PageBody>
+        </div>
     );
 };
 

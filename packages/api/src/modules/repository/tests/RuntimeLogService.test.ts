@@ -10,7 +10,6 @@ const framed = (stream: 1 | 2, text: string): Buffer => {
 };
 
 describe('stripFrameHeaders', () => {
-    /** A container created with a TTY gets the bytes as they were written. */
     it('passes raw output straight through', () => {
         expect(stripFrameHeaders(Buffer.from('listening on 4173\n', 'utf8'))).toBe('listening on 4173\n');
     });
@@ -29,10 +28,6 @@ describe('stripFrameHeaders', () => {
         expect(stripFrameHeaders(chunk)).toBe('first\nsecond\nthird\n');
     });
 
-    /**
-     * Log text that happens to start with a low byte must not be mistaken for a header,
-     * or the first characters of a line would be eaten.
-     */
     it('does not treat ordinary text as a header', () => {
         expect(stripFrameHeaders(Buffer.from('> node index.js\n', 'utf8'))).toBe('> node index.js\n');
     });

@@ -29,6 +29,8 @@ export interface ChannelMap{
     '/resource/stream': ResourceServerFrames;
     '/repository/:repositoryId/terminal': TerminalServerFrames;
     '/repository/:repositoryId/logs': RuntimeLogServerFrames;
+    '/template/install/:installId/terminal': TerminalServerFrames;
+    '/template/install/:installId/logs': RuntimeLogServerFrames;
 }
 
 export type HandlersFor<P extends string> = P extends keyof ChannelMap

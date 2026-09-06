@@ -5,6 +5,7 @@ export type PendingArgs<A extends readonly unknown[]> = { [K in keyof A]: A[K] |
 export interface Query<T>{
     data: T | null;
     loading: boolean;
+    refreshing: boolean;
     error: Error | undefined;
     reload: () => void;
 }

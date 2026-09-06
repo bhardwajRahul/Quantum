@@ -11,11 +11,6 @@ const meta = makeStatusMeta<ContainerStatus, StatusColor>({
     [ContainerStatus.Error]: { label: 'Error', color: 'danger' }
 }, [ContainerStatus.Reloading, ContainerStatus.Restarting, ContainerStatus.Building]);
 
-/**
- * A repository with no container yet has no runtime state to report, which is not the
- * same thing as being stopped — saying "Stopped" for something that was never built is
- * how the list came to disagree with the deployment it was showing.
- */
 export const containerStatusLabel = (status: ContainerStatus | null): string =>
     status === null ? 'Not deployed' : meta.label(status);
 
@@ -24,3 +19,6 @@ export const containerStatusColor = (status: ContainerStatus | null): StatusColo
 
 export const isContainerRunning = (status: ContainerStatus | null): boolean =>
     status === ContainerStatus.Running;
+
+export const isContainerTransient = (status: ContainerStatus | null): boolean =>
+    status !== null && meta.isTransient(status);

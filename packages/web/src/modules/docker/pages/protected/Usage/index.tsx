@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { ListBox, ListBoxItem, Select } from '@heroui/react';
 import { Activity } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
 import PageHeader from '@/shared/components/layout/PageHeader';
 import ListPageShell from '@/shared/components/ListPageShell';
 import StatTile from '@/shared/components/StatTile';
+import StatBand from '@/shared/components/StatBand';
 import ChartPanel from '@/shared/components/charts/ChartPanel';
 import ChartLegend from '@/shared/components/charts/ChartLegend';
 import ChartTooltip from '@/shared/components/charts/ChartTooltip';
@@ -34,28 +34,22 @@ interface WindowSelectProps{
 }
 
 const WindowSelect = ({ value, onChange }: WindowSelectProps) => (
-    <div className='w-44'>
-        <Select
-            aria-label='Time window'
-            selectedKey={value}
-            onSelectionChange={(key) => onChange(Number(key))}
-            fullWidth
-        >
-            <Select.Trigger>
-                <Select.Value />
-                <Select.Indicator />
-            </Select.Trigger>
+    <div role='group' aria-label='Time window' className='inline-flex h-9 max-w-full overflow-x-auto border border-border'>
+        {WINDOWS.map((entry, index) => {
+            const active = entry.minutes === value;
 
-            <Select.Popover>
-                <ListBox>
-                    {WINDOWS.map((entry) => (
-                        <ListBoxItem key={entry.minutes} id={entry.minutes} textValue={entry.label}>
-                            {entry.label}
-                        </ListBoxItem>
-                    ))}
-                </ListBox>
-            </Select.Popover>
-        </Select>
+            return (
+                <button
+                    key={entry.minutes}
+                    type='button'
+                    aria-pressed={active}
+                    onClick={() => onChange(entry.minutes)}
+                    className={`label-caps shrink-0 whitespace-nowrap px-3.5 transition-colors ${index > 0 ? 'border-l border-border ' : ''}${active ? 'bg-foreground text-background' : 'text-muted hover:text-foreground'}`}
+                >
+                    {entry.label}
+                </button>
+            );
+        })}
     </div>
 );
 
@@ -100,14 +94,9 @@ const ResourceTooltip = ({ active, payload }: ResourceTooltipProps) => {
     );
 };
 
-/**
- * Both charts are horizontal: the category is a project name, which reads left to right
- * and would otherwise be rotated or truncated on an axis. Bars are compared against each
- * other, so no second axis is needed and the numbers live in the tooltip.
- */
 const NETWORK_LEGEND = [
     { label: 'Incoming', className: 'bg-foreground' },
-    { label: 'Outgoing', className: 'bg-foreground/30' }
+    { label: 'Outgoing', className: 'bg-muted' }
 ];
 
 interface NetworkChartProps{
@@ -123,8 +112,8 @@ const NetworkChart = ({ stats }: NetworkChartProps) => (
                     <XAxis type='number' tickFormatter={formatBytes} {...AXIS} />
                     <YAxis type='category' dataKey='projectName' width={120} {...AXIS} />
                     <Tooltip content={<NetworkTooltip />} cursor={CURSOR} />
-                    <Bar dataKey='incoming' fill='var(--foreground)' fillOpacity={0.85} radius={[0, 4, 4, 0]} barSize={10} />
-                    <Bar dataKey='outgoing' fill='var(--foreground)' fillOpacity={0.3} radius={[0, 4, 4, 0]} barSize={10} />
+                    <Bar dataKey='incoming' fill='var(--foreground)' radius={[0, 4, 4, 0]} maxBarSize={24} />
+                    <Bar dataKey='outgoing' fill='var(--muted)' radius={[0, 4, 4, 0]} maxBarSize={24} />
                 </BarChart>
             </ResponsiveContainer>
         </div>
@@ -141,12 +130,12 @@ const ResourceChart = ({ stats }: ResourceChartProps) => (
     <ChartPanel title='CPU' meta='Average over the window'>
         <div style={{ height: Math.max(140, stats.length * 44) }}>
             <ResponsiveContainer width='100%' height='100%'>
-                <BarChart data={stats} layout='vertical' margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+                <BarChart data={stats} layout='vertical' margin={{ top: 4, right: 8, bottom: 0, left: 0 }} barGap={2}>
                     <CartesianGrid horizontal={false} stroke={GRID_STROKE} />
                     <XAxis type='number' unit='%' {...AXIS} />
                     <YAxis type='category' dataKey='projectName' width={120} {...AXIS} />
                     <Tooltip content={<ResourceTooltip />} cursor={CURSOR} />
-                    <Bar dataKey='avgCpu' fill='var(--foreground)' fillOpacity={0.85} radius={[0, 4, 4, 0]} barSize={10} />
+                    <Bar dataKey='avgCpu' fill='var(--foreground)' radius={[0, 4, 4, 0]} maxBarSize={24} />
                 </BarChart>
             </ResponsiveContainer>
         </div>
@@ -204,9 +193,8 @@ const Usage = () => {
                         description: 'Usage data will appear here once your projects have running containers.'
                     }}
                 >
-                    <div className='flex flex-col gap-4'>
-                        {/* Flush tiles divided by the grid's own rules, not by six borders. */}
-                        <section className='grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border sm:grid-cols-4 sm:divide-y-0'>
+                    <div className='flex flex-col gap-10'>
+                        <StatBand columns={4}>
                             <StatTile label='Transferred in' value={formatBytes(incoming)} hint='Across all projects' />
                             <StatTile label='Transferred out' value={formatBytes(outgoing)} hint='Across all projects' />
                             <StatTile label='Peak memory' value={formatBytes(peakMemory)} hint='Highest of any project' />
@@ -215,10 +203,12 @@ const Usage = () => {
                                 value={busiest === undefined ? '—' : `${rate(busiest.avgCpu)}%`}
                                 hint={busiest?.projectName ?? 'No CPU samples'}
                             />
-                        </section>
+                        </StatBand>
 
-                        {networkStats.length > 0 && <NetworkChart stats={networkStats} />}
-                        {resourceStats.length > 0 && <ResourceChart stats={resourceStats} />}
+                        <div className='grid gap-x-14 gap-y-10 lg:grid-cols-2'>
+                            {networkStats.length > 0 && <NetworkChart stats={networkStats} />}
+                            {resourceStats.length > 0 && <ResourceChart stats={resourceStats} />}
+                        </div>
                     </div>
                 </ListPageShell>
             </div>

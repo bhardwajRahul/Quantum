@@ -9,11 +9,11 @@ interface ChartTooltipProps{
 }
 
 const ChartTooltip = ({ title, rows }: ChartTooltipProps) => (
-    <div className='rounded-lg border border-foreground/10 bg-background px-3 py-2 text-[0.8125rem]'>
-        <p className='text-muted'>{title}</p>
+    <div className='border border-border bg-overlay px-3 py-2 text-[0.8125rem]'>
+        <p className='label-caps text-muted'>{title}</p>
 
         {rows.map((row) => (
-            <p key={row.label} className='flex items-baseline justify-between gap-6'>
+            <p key={row.label} className='mt-1.5 flex items-baseline justify-between gap-6'>
                 <span className='text-muted'>{row.label}</span>
                 <span className='font-medium tabular-nums text-foreground'>{row.value}</span>
             </p>

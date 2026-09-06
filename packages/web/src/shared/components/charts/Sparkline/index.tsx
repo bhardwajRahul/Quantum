@@ -4,7 +4,6 @@ interface SparklineProps{
     values: number[];
 }
 
-/** Shape only — no axes, no tooltip. It says "rising" or "quiet", nothing more precise. */
 const Sparkline = ({ values }: SparklineProps) => {
     if(values.length === 0) return null;
 

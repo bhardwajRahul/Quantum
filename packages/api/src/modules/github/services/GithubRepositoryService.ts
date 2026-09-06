@@ -68,7 +68,6 @@ export default class GithubRepositoryService{
             if(Array.isArray(data) || data.type !== 'file') return null;
             return JSON.parse(Buffer.from(data.content, 'base64').toString('utf8')) as PackageJson;
         }catch{
-            // a missing or unreadable package.json is a valid detection input
             return null;
         }
     }

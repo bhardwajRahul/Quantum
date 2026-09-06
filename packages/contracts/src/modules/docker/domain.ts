@@ -1,3 +1,5 @@
+import type { BaseEntity } from '../../shared/base';
+
 export enum ContainerStatus{
     Created = 'created',
     Running = 'running',
@@ -19,6 +21,11 @@ export enum ContainerOperation{
     Restart = 'restart'
 }
 
+export enum PortBindingProtocol{
+    Tcp = 'tcp',
+    Udp = 'udp'
+}
+
 export enum NetworkDriver{
     Bridge = 'bridge',
     Overlay = 'overlay',
@@ -28,6 +35,15 @@ export enum NetworkDriver{
 export interface DockerContainerVolume{
     containerPath: string;
     mode: 'rw' | 'ro';
+}
+
+export interface PortBinding extends BaseEntity{
+    containerId: number;
+    userId: number;
+    organizationId: number;
+    internalPort: number;
+    externalPort: number;
+    protocol: PortBindingProtocol;
 }
 
 export interface NetworkUsageStat{

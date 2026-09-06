@@ -15,11 +15,6 @@ import type { GithubUserProfile } from '../contracts/domain/github';
 
 const ctx = useApp();
 
-/**
- * The suite deliberately leaves the OAuth app unset so `NotConfigured` stays
- * covered, so the one case that needs credentials borrows them for its own
- * duration. `config` is `as const`, hence the widening cast.
- */
 const withGithubCredentials = async <T>(run: () => Promise<T>): Promise<T> => {
     const github = config.github as { clientId?: string; clientSecret?: string };
     const previous = { ...github };
@@ -112,7 +107,6 @@ describe('github oauth', () => {
         expect(`${authorize.origin}${authorize.pathname}`).toBe('https://github.com/login/oauth/authorize');
         expect(authorize.searchParams.get('client_id')).toBe('test-client-id');
 
-        // Not a redirect: a top-level navigation could not have authenticated this route.
         expect(res.json<Record<string, unknown>>()).toHaveProperty('data');
 
         const state = authorize.searchParams.get('state') ?? '';

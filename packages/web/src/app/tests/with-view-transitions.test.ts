@@ -7,11 +7,6 @@ const routes = (): RouteObject[] => router.routes as RouteObject[];
 
 const stays = (from: string, to: string): boolean => staysWithinLayout(routes(), from, to);
 
-/**
- * Every page of this skeleton sits directly under the dashboard chrome, which is pathless, so no
- * two locations share a layout and every navigation earns its transition. These pin that down;
- * once a pathful layout lands, the pair inside it must flip to `true`.
- */
 describe('staysWithinLayout', () => {
     it('transitions between pages that only share the dashboard chrome', () => {
         expect(stays('/projects', '/applications')).toBe(false);

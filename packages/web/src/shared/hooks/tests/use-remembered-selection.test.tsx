@@ -14,7 +14,6 @@ beforeEach(() => {
 });
 
 describe('useRememberedSelection', () => {
-    /** A page whose content depends on a selection has nothing to show without one. */
     it('picks the first entry for a reader who has never chosen', async () => {
         const harness = await renderHook(() => useRememberedSelection('test.repository', [1, 2, 3]));
         await flush();
@@ -42,11 +41,6 @@ describe('useRememberedSelection', () => {
         expect(localStorage.getItem(KEY)).toBe('3');
     });
 
-    /**
-     * A remembered id whose entity has since been deleted must not be restored, or the
-     * page pins itself to something the server no longer knows about and looks empty for
-     * no visible reason.
-     */
     it('falls back to the first entry when the stored one is gone', async () => {
         localStorage.setItem(KEY, '99');
 
@@ -56,7 +50,6 @@ describe('useRememberedSelection', () => {
         expect(harness.current[0]).toBe(1);
     });
 
-    /** An empty list means "not loaded yet", so the stored choice has to survive it. */
     it('waits for the list before deciding', async () => {
         localStorage.setItem(KEY, '2');
 

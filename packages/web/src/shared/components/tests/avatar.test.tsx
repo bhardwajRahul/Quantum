@@ -29,7 +29,6 @@ describe('Avatar', () => {
         expect(await render('Rody')).toBe('R');
     });
 
-    /** Middle names are skipped so the badge never grows past two letters. */
     it('skips the middle of a longer name', async () => {
         expect(await render('Ada Byron King Lovelace')).toBe('AL');
     });

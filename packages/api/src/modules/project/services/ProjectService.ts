@@ -9,10 +9,38 @@ import { ProjectError } from '../contracts/domain/errors';
 import type { Tenant } from '@/modules/organization/contracts/types/fastify';
 import type { CreateProjectInput, UpdateProjectInput } from '@quantum/contracts/modules/project/http';
 
+const DEFAULT_PROJECT_NAME = 'Default Environment';
+
 export default class ProjectService{
     async listForOrg(tenant: Tenant, orgId: number): Promise<Project[]>{
         assertOrg(tenant, orgId, ProjectError.Forbidden);
-        return Project.find({ where: { organizationId: orgId }, order: { id: 'ASC' } });
+        const projects = await Project.find({ where: { organizationId: orgId }, order: { id: 'ASC' } });
+        if(projects.length > 0) return projects;
+        return [await this.#restoreDefault(orgId)];
+    }
+
+    async #restoreDefault(orgId: number): Promise<Project>{
+        const project = await Project.create({
+            name: DEFAULT_PROJECT_NAME,
+            slug: this.#slug(DEFAULT_PROJECT_NAME),
+            organizationId: orgId,
+            isDefault: true
+        }).save();
+
+        for(const table of ['repository', 'database']){
+            await Project.query(
+                `UPDATE "${table}" SET "projectId" = $1 WHERE "organizationId" = $2 AND "projectId" NOT IN (SELECT id FROM project)`,
+                [project.id, orgId]
+            );
+        }
+
+        eventBus.emit('project.created', {
+            projectId: project.id,
+            organizationId: project.organizationId,
+            name: project.name
+        });
+
+        return project;
     }
 
     async create(userId: number, tenant: Tenant, orgId: number, input: CreateProjectInput): Promise<Project>{

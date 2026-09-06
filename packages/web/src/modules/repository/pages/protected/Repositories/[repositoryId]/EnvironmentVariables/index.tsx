@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Button, Input, Label, TextField } from '@heroui/react';
-import { KeyRound, Plus, Rocket, Save, Trash2 } from 'lucide-react';
-import PageBody from '@/shared/components/layout/PageBody';
+import { Button, Input, TextField } from '@heroui/react';
+import { ArrowRight, KeyRound, Plus, Rocket, Trash2 } from 'lucide-react';
 import ErrorState from '@/shared/components/ErrorState';
 import EmptyState from '@/shared/components/EmptyState';
 import CenterState from '@/shared/components/CenterState';
@@ -25,6 +24,8 @@ import type { UpdateDeploymentInput } from '@quantum/contracts/modules/deploymen
 
 const copy = errorCopy(deploymentErrorMessages);
 
+const ROW_GRID = 'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2.5rem] items-center gap-3';
+
 interface EnvironmentVariablesHeaderProps{
     isSaving: boolean;
     onAdd: () => void;
@@ -32,23 +33,23 @@ interface EnvironmentVariablesHeaderProps{
 }
 
 const EnvironmentVariablesHeader = ({ isSaving, onAdd, onSave }: EnvironmentVariablesHeaderProps) => (
-    <div className='flex items-center justify-between gap-4'>
+    <div className='flex flex-wrap items-end justify-between gap-4'>
         <div>
-            <h1 className='text-lg font-medium text-foreground'>Environment Variables</h1>
-            <p className='mt-1.5 text-sm text-muted'>
+            <h2 className='text-[0.9375rem] font-medium text-foreground'>Environment Variables</h2>
+            <p className='mt-1 max-w-[58ch] text-[0.8125rem] text-muted'>
                 Available to your app at build and run time. A .env file at the repository root is loaded
                 automatically on deploy.
             </p>
         </div>
 
-        <div className='flex gap-2'>
+        <div className='flex flex-wrap items-center gap-2'>
             <Button variant='secondary' isDisabled={isSaving} onPress={onAdd}>
                 <Plus aria-hidden='true' className='size-4' />
                 Add variable
             </Button>
             <Button isPending={isSaving} isDisabled={isSaving} onPress={onSave}>
-                <Save aria-hidden='true' className='size-4' />
                 Save changes
+                <ArrowRight aria-hidden='true' className='size-4' />
             </Button>
         </div>
     </div>
@@ -56,38 +57,36 @@ const EnvironmentVariablesHeader = ({ isSaving, onAdd, onSave }: EnvironmentVari
 
 interface EnvironmentVariableRowProps{
     row: EnvVarRow;
-    isFirst: boolean;
     onChange: (key: string, value: string) => void;
     onRemove: () => void;
 }
 
-const EnvironmentVariableRow = ({ row, isFirst, onChange, onRemove }: EnvironmentVariableRowProps) => (
-    <div className='flex items-end gap-3'>
+const EnvironmentVariableRow = ({ row, onChange, onRemove }: EnvironmentVariableRowProps) => (
+    <div className={ROW_GRID}>
         <TextField
-            className='flex-1'
+            aria-label='Key'
             value={row.key}
             onChange={(key) => onChange(key, row.value)}
             validationBehavior='aria'
             fullWidth
         >
-            {isFirst && <Label>Key</Label>}
-            <Input placeholder='e.g. DATABASE_URL' autoComplete='off' />
+            <Input className='font-mono' placeholder='e.g. DATABASE_URL' autoComplete='off' />
         </TextField>
 
         <TextField
-            className='flex-1'
+            aria-label='Value'
             value={row.value}
             onChange={(value) => onChange(row.key, value)}
             validationBehavior='aria'
             fullWidth
         >
-            {isFirst && <Label>Value</Label>}
-            <Input placeholder='Value' autoComplete='off' />
+            <Input className='font-mono' placeholder='Value' autoComplete='off' />
         </TextField>
 
         <Button
             isIconOnly
             variant='ghost'
+            className='text-muted hover:text-foreground'
             aria-label={row.key === '' ? 'Remove variable' : `Remove ${row.key}`}
             onPress={onRemove}
         >
@@ -115,14 +114,14 @@ const EnvironmentVariablesEditor = ({ deploymentId, environmentVariables, onSave
     };
 
     return (
-        <>
+        <div className='flex min-h-0 flex-1 flex-col'>
             <EnvironmentVariablesHeader
                 isSaving={update.loading}
                 onAdd={() => setRows((current) => addEnvVarRow(current))}
                 onSave={() => { void handleSave(); }}
             />
 
-            <div className='mt-6 flex flex-1 flex-col gap-4'>
+            <div className='mt-6 flex flex-1 flex-col gap-3'>
                 {rows.length === 0 ? (
                     <CenterState>
                         <EmptyState
@@ -137,20 +136,27 @@ const EnvironmentVariablesEditor = ({ deploymentId, environmentVariables, onSave
                         </EmptyState>
                     </CenterState>
                 ) : (
-                    rows.map((row, index) => (
-                        <EnvironmentVariableRow
-                            key={index}
-                            row={row}
-                            isFirst={index === 0}
-                            onChange={(key, value) => setRows((current) => updateEnvVarRow(current, index, key, value))}
-                            onRemove={() => setRows((current) => removeEnvVarRow(current, index))}
-                        />
-                    ))
+                    <>
+                        <div className={`${ROW_GRID} border-b border-border pb-2`}>
+                            <span className='label-caps text-muted'>Key</span>
+                            <span className='label-caps text-muted'>Value</span>
+                            <span className='sr-only'>Actions</span>
+                        </div>
+
+                        {rows.map((row, index) => (
+                            <EnvironmentVariableRow
+                                key={index}
+                                row={row}
+                                onChange={(key, value) => setRows((current) => updateEnvVarRow(current, index, key, value))}
+                                onRemove={() => setRows((current) => removeEnvVarRow(current, index))}
+                            />
+                        ))}
+                    </>
                 )}
 
                 {update.error !== undefined && <InlineError>{copy(update.error)}</InlineError>}
             </div>
-        </>
+        </div>
     );
 };
 
@@ -170,7 +176,7 @@ const EnvironmentVariables = () => {
     const environment = useQuery((repositoryId: number) => deploymentApi.environment({ path: { repositoryId } }), [id]);
 
     if(id === undefined || environment.loading){
-        return <CenterState className='h-full'><EmptyState title='Loading environment variables' compact /></CenterState>;
+        return <CenterState className='h-full'><EmptyState title='Loading environment variables' loading compact /></CenterState>;
     }
 
     if(environment.error !== undefined){
@@ -191,14 +197,12 @@ const EnvironmentVariables = () => {
     if(data === null) return <NoDeploymentYet />;
 
     return (
-        <PageBody height='full'>
-            <EnvironmentVariablesEditor
-                key={data.deploymentId}
-                deploymentId={data.deploymentId}
-                environmentVariables={data.environmentVariables}
-                onSaved={environment.reload}
-            />
-        </PageBody>
+        <EnvironmentVariablesEditor
+            key={data.deploymentId}
+            deploymentId={data.deploymentId}
+            environmentVariables={data.environmentVariables}
+            onSaved={environment.reload}
+        />
     );
 };
 

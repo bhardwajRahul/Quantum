@@ -64,7 +64,6 @@ export default class LifecycleHandler{
 
     async #setStatus(deployment: Deployment, status: DeploymentStatus, error: string | null = null): Promise<void>{
         deployment.status = status;
-        // A successful start clears whatever the previous attempt left behind.
         deployment.error = error;
         await deployment.save();
     }

@@ -11,18 +11,12 @@ interface TopListProps{
     emptyLabel?: string;
 }
 
-/**
- * A ranked list where each row carries its own share as a bar behind the text, instead
- * of a table of numbers the reader has to compare by eye. The bar is scaled to the
- * largest entry rather than the total, so the shape stays readable when one value
- * dominates — the percentage next to it is what states the real proportion.
- */
 const TopList = ({ title, entries, emptyLabel = 'No data yet' }: TopListProps) => {
     const total = entries.reduce((sum, entry) => sum + entry.value, 0);
     const largest = Math.max(0, ...entries.map((entry) => entry.value));
 
     return (
-        <section className='flex min-w-0 flex-col rounded-xl border border-border p-4'>
+        <section className='flex min-w-0 flex-col border-t border-border pt-5'>
             <h2 className='text-[0.9375rem] font-medium text-foreground'>{title}</h2>
 
             {entries.length === 0 ? (
@@ -30,10 +24,10 @@ const TopList = ({ title, entries, emptyLabel = 'No data yet' }: TopListProps) =
             ) : (
                 <ol className='mt-3 flex flex-col gap-1.5'>
                     {entries.map((entry) => (
-                        <li key={entry.key} className='relative overflow-hidden rounded-md'>
+                        <li key={entry.key} className='relative overflow-hidden'>
                             <span
                                 aria-hidden='true'
-                                className='absolute inset-y-0 left-0 bg-foreground/[0.07]'
+                                className='absolute inset-y-0 left-0 bg-foreground/[0.06]'
                                 style={{ width: largest === 0 ? '0%' : `${(entry.value / largest) * 100}%` }}
                             />
 

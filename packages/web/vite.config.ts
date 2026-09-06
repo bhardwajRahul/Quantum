@@ -5,10 +5,9 @@ import babel from '@rolldown/plugin-babel'
 import tailwindcss from '@tailwindcss/vite'
 import typia from '@typia/unplugin/vite'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    typia({ tsconfig: './tsconfig.app.json', cache: true }), // must run before other plugins so typia.createValidate<T>() calls get compiled
+    typia({ tsconfig: './tsconfig.app.json', cache: true }), 
     react(),
     babel({ presets: [reactCompilerPreset()] }),
     tailwindcss()

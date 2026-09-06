@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Card } from '@heroui/react';
-import { Trash2 } from 'lucide-react';
+import { Button } from '@heroui/react';
+import { ArrowRight } from 'lucide-react';
 import typia from 'typia';
 import PageBody from '@/shared/components/layout/PageBody';
+import PageHeader from '@/shared/components/layout/PageHeader';
+import SettingsSection from '@/shared/components/SettingsSection';
 import EmptyState from '@/shared/components/EmptyState';
 import DeleteConfirmDialog from '@/shared/components/DeleteConfirmDialog';
 import Form from '@/shared/components/forms/Form';
@@ -36,50 +38,37 @@ const RenameOrganizationForm = ({ organization, onSaved }: RenameOrganizationFor
     });
 
     return (
-        <Card>
-            <Card.Header>
-                <Card.Title>Rename organization</Card.Title>
-                <Card.Description>Change the display name of this organization.</Card.Description>
-            </Card.Header>
+        <SettingsSection title='Rename organization' description='Change the display name of this organization.'>
+            <Form form={form} className='flex max-w-md flex-col gap-4'>
+                <Field form={form} name='name' label='Name' placeholder='my-organization' />
 
-            <Card.Content>
-                <Form form={form} className='flex flex-col gap-4'>
-                    <Field form={form} name='name' label='Name' placeholder='my-organization' />
-
-                    <div>
-                        <Button type='submit' isPending={form.submitting} isDisabled={!form.isValid}>
-                            Save
-                        </Button>
-                    </div>
-                </Form>
-            </Card.Content>
-        </Card>
+                <div>
+                    <Button type='submit' isPending={form.submitting} isDisabled={!form.isValid}>
+                        Save
+                        <ArrowRight aria-hidden='true' className='size-4' />
+                    </Button>
+                </div>
+            </Form>
+        </SettingsSection>
     );
 };
 
 const OrganizationDetails = ({ organization }: { organization: Organization }) => (
-    <Card>
-        <Card.Header>
-            <Card.Title>Details</Card.Title>
-            <Card.Description>Reference information for this organization.</Card.Description>
-        </Card.Header>
-
-        <Card.Content>
-            <dl className='flex flex-col divide-y divide-border'>
-                {[
-                    ['Name', organization.name],
-                    ['Slug', organization.slug],
-                    ['Type', organization.isPersonal ? 'Personal' : 'Team'],
-                    ['Created', new Date(organization.createdAt).toLocaleDateString()]
-                ].map(([label, value]) => (
-                    <div key={label} className='flex items-center justify-between gap-4 py-3'>
-                        <dt className='text-[0.8125rem] text-muted'>{label}</dt>
-                        <dd className='text-[0.875rem] text-foreground'>{value}</dd>
-                    </div>
-                ))}
-            </dl>
-        </Card.Content>
-    </Card>
+    <SettingsSection title='Details' description='Reference information for this organization.'>
+        <dl className='flex flex-col'>
+            {[
+                ['Name', organization.name],
+                ['Slug', organization.slug],
+                ['Type', organization.isPersonal ? 'Personal' : 'Team'],
+                ['Created', new Date(organization.createdAt).toLocaleDateString()]
+            ].map(([label, value]) => (
+                <div key={label} className='flex justify-between gap-4 border-b border-separator py-3 last:border-0'>
+                    <dt className='text-sm text-muted'>{label}</dt>
+                    <dd className='font-mono text-[0.8125rem] text-foreground'>{value}</dd>
+                </div>
+            ))}
+        </dl>
+    </SettingsSection>
 );
 
 interface DeleteOrganizationDialogProps{
@@ -108,21 +97,15 @@ const DangerZone = ({ organization }: { organization: Organization }) => {
     const [deleteOpen, setDeleteOpen] = useState(false);
 
     return (
-        <Card>
-            <Card.Header>
-                <Card.Title className='text-[var(--danger)]'>Danger zone</Card.Title>
-                <Card.Description>
-                    Deleting an organization permanently removes it and all of its projects,
-                    environments and resources. This action cannot be undone.
-                </Card.Description>
-            </Card.Header>
-
-            <Card.Content>
+        <SettingsSection
+            title='Delete organization'
+            description='Deleting an organization permanently removes it and all of its projects, environments and resources. This action cannot be undone.'
+        >
+            <div>
                 <Button variant='danger' onPress={() => setDeleteOpen(true)}>
-                    <Trash2 aria-hidden='true' className='size-4' />
                     Delete organization
                 </Button>
-            </Card.Content>
+            </div>
 
             <DeleteOrganizationDialog
                 organization={organization}
@@ -130,7 +113,7 @@ const DangerZone = ({ organization }: { organization: Organization }) => {
                 onClose={setDeleteOpen}
                 onRemoved={() => { clearTenant(); navigate('/applications'); }}
             />
-        </Card>
+        </SettingsSection>
     );
 };
 
@@ -141,12 +124,13 @@ const OrganizationSettings = () => {
 
     return (
         <PageBody>
-            <h1 className='text-lg font-medium text-foreground'>Organization</h1>
-            <p className='mt-1.5 text-sm text-muted'>
-                Rename the selected organization, review its details, or delete it.
-            </p>
+            <PageHeader
+                eyebrow='Settings'
+                title='Organization'
+                description='Rename the selected organization, review its details, or delete it.'
+            />
 
-            <div className='mt-6 flex flex-col gap-6'>
+            <div className='mt-10 flex flex-col'>
                 <RenameOrganizationForm key={current.id} organization={current} onSaved={reload} />
                 <OrganizationDetails organization={current} />
                 <DangerZone organization={current} />

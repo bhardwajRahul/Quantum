@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button, Chip, Dropdown, Table } from '@heroui/react';
-import { FolderKanban, MoreVertical, Plus } from 'lucide-react';
+import { ArrowRight, FolderKanban, MoreVertical } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
 import PageHeader from '@/shared/components/layout/PageHeader';
 import ListPageShell from '@/shared/components/ListPageShell';
@@ -29,8 +29,8 @@ const ProjectsHeader = ({ onCreate }: ProjectsHeaderProps) => (
         description='Group related deployments by organization.'
         actions={(
             <Button onPress={onCreate}>
-                <Plus aria-hidden='true' className='size-4' />
                 New project
+                <ArrowRight aria-hidden='true' className='size-4' />
             </Button>
         )}
     />
@@ -88,7 +88,7 @@ const ProjectsTable = ({ projects, onRename, onManageEnvironments, onDelete }: P
                             </Table.Cell>
 
                             <Table.Cell>
-                                <span className='text-[0.8125rem] text-muted'>{project.slug}</span>
+                                <span className='font-mono text-[0.8125rem] text-muted'>{project.slug}</span>
                             </Table.Cell>
 
                             <Table.Cell>{formatDate(project.createdAt)}</Table.Cell>
@@ -98,7 +98,7 @@ const ProjectsTable = ({ projects, onRename, onManageEnvironments, onDelete }: P
                                     <Dropdown>
                                         <Dropdown.Trigger
                                             aria-label={`Actions for ${project.name}`}
-                                            className='rounded-md p-1.5 text-muted transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground'
+                                            className='p-1.5 text-muted transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground'
                                         >
                                             <MoreVertical aria-hidden='true' className='size-4' />
                                         </Dropdown.Trigger>
@@ -169,8 +169,8 @@ const Projects = () => {
                         description: 'Projects group related deployments. Create your first one to get started.',
                         action: (
                             <Button onPress={() => setCreateOpen(true)}>
-                                <Plus aria-hidden='true' className='size-4' />
                                 New project
+                                <ArrowRight aria-hidden='true' className='size-4' />
                             </Button>
                         )
                     }}

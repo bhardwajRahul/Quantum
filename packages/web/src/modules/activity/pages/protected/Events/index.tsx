@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Chip, Table } from '@heroui/react';
+import { Table } from '@heroui/react';
 import { Activity } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
 import PageHeader from '@/shared/components/layout/PageHeader';
 import ListPageShell from '@/shared/components/ListPageShell';
+import StatusDot from '@/shared/components/StatusDot';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { useChannel } from '@/shared/hooks/socket/use-channel';
 import { activityApi } from '@/modules/activity/api/api';
@@ -11,6 +12,7 @@ import { activityLevelColor, activityLevelLabel } from '@/modules/activity/utils
 import { activityErrorMessages } from '@/modules/activity/utils/error-messages';
 import { formatDate } from '@/shared/utils/format-date';
 import { errorCopy } from '@/shared/utils/error-copy';
+import { ActivityLevel } from '@quantum/contracts/modules/activity/domain';
 import type { ActivityEvent } from '@quantum/contracts/modules/activity/domain';
 
 const copy = errorCopy(activityErrorMessages);
@@ -34,15 +36,17 @@ const EventsTable = ({ events }: EventsTableProps) => (
                     {events.map((event) => (
                         <Table.Row key={event.id}>
                             <Table.Cell>
-                                <Chip size='sm' variant='soft' color={activityLevelColor(event.level)}>
-                                    {activityLevelLabel(event.level)}
-                                </Chip>
+                                <StatusDot
+                                    color={activityLevelColor(event.level)}
+                                    label={activityLevelLabel(event.level)}
+                                    isTransient={event.level === ActivityLevel.Progress}
+                                />
                             </Table.Cell>
 
                             <Table.Cell>
                                 <div className='flex max-w-[560px] flex-col gap-0.5'>
                                     <span className='font-medium text-foreground'>{event.title}</span>
-                                    {/* Most steps carry no message; an empty line would just add height. */}
+                                    {}
                                     {event.message !== '' && (
                                         <span className='break-words text-[0.8125rem] text-muted'>{event.message}</span>
                                     )}

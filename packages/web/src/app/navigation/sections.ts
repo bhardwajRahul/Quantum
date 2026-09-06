@@ -11,29 +11,38 @@ import {
     LayoutTemplate,
     ScrollText,
     Settings,
-    Terminal,
     UserRound,
     Users
 } from 'lucide-react';
-import type { NavSection } from '@/shared/contracts/navigation';
+import type { NavGroup, NavSection } from '@/shared/contracts/navigation';
 
-export const sections: NavSection[] = [
-    { label: 'Applications', to: '/applications', icon: AppWindow },
-    { label: 'Projects', to: '/projects', icon: FolderClosed },
-    { label: 'Domains', to: '/domains', icon: Globe },
-    { label: 'Metrics', to: '/metrics', icon: Activity },
-    { label: 'Templates', to: '/templates', icon: LayoutTemplate },
-    { label: 'Analytics', to: '/web-analytics', icon: BarChart3 },
-    { label: 'Usage', to: '/usage', icon: Gauge },
-    { label: 'Codespaces', to: '/codespaces', icon: Terminal },
-    { label: 'Events', to: '/events', icon: ScrollText }
+export const navGroups: NavGroup[] = [
+    {
+        items: [
+            { label: 'Applications', to: '/applications', icon: AppWindow },
+            { label: 'Projects', to: '/projects', icon: FolderClosed },
+            { label: 'Domains', to: '/domains', icon: Globe }
+        ]
+    },
+    {
+        heading: 'Observe',
+        items: [
+            { label: 'Metrics', to: '/metrics', icon: Activity },
+            { label: 'Analytics', to: '/web-analytics', icon: BarChart3 },
+            { label: 'Usage', to: '/usage', icon: Gauge },
+            { label: 'Events', to: '/events', icon: ScrollText }
+        ]
+    },
+    {
+        heading: 'Catalogue',
+        items: [
+            { label: 'Templates', to: '/templates', icon: LayoutTemplate }
+        ]
+    }
 ];
 
-/**
- * The sidebar becomes this while the reader is inside settings, rather than showing both
- * trees at once: settings is a place you go into and come back from, and the way back is
- * the first thing on the list.
- */
+export const sections: NavSection[] = navGroups.flatMap((group) => group.items);
+
 export const settingsSections: NavSection[] = [
     { label: 'Back to app', to: '/applications', icon: ArrowLeft },
     { label: 'Account', to: '/account', icon: UserRound },
@@ -41,5 +50,7 @@ export const settingsSections: NavSection[] = [
     { label: 'Organization', to: '/settings/organization', icon: Building2 },
     { label: 'Team', to: '/settings/team', icon: Users }
 ];
+
+export const settingsGroups: NavGroup[] = [{ items: settingsSections }];
 
 export const settingsEntry: NavSection = { label: 'Settings', to: '/settings/organization', icon: Settings };

@@ -11,8 +11,9 @@ import { logger } from '@/shared/utils/Logger';
 export interface ContainerOverrides{
     imageOverride?: string;
     extraLabels?: Record<string, string>;
-    /** `KEY=value` entries added to the container's own environment at creation. */
     extraEnv?: string[];
+    cmd?: string[];
+    aliases?: string[];
 }
 
 export interface ExecResult{
@@ -23,22 +24,6 @@ export interface ExecResult{
 
 const APP_PID_FILE = '/app/.quantum/app.pid';
 
-/**
- * Replaces whatever the previous deployment left running, then starts the new process.
- *
- * Three things this has to get right, each of which was leaking before:
- *
- * - The previous instance is stopped. Relaunching without it left both alive, and the
- *   published port kept serving the older one while the new process quietly picked a
- *   different port because the first was taken.
- * - The whole process group goes, not just the command that was launched. `npm start`
- *   spawns the real server as a child, so killing the parent alone orphans the thing
- *   actually holding the port — hence `setsid` on the way in and a negated pid on the
- *   way out.
- * - Output is redirected onto PID 1's stdout, which is what puts it in `docker logs`.
- *   An `exec`'d process writes to its exec stream, and this one is backgrounded with
- *   the stream dropped, so everything the app printed used to be discarded.
- */
 export const relaunchScript = (startCommand: string): string => [
     `mkdir -p "$(dirname ${APP_PID_FILE})"`,
     `if [ -f ${APP_PID_FILE} ]; then kill -TERM -"$(cat ${APP_PID_FILE})" 2>/dev/null || true; fi`,
@@ -83,11 +68,6 @@ export default class ContainerOps{
         logger.info(`restarted container ${this.container.dockerContainerName}`, { scope: 'orchestrator.container' });
     }
 
-    /**
-     * Host ports the live container publishes. Docker fixes these when the container is
-     * created, so they are the only way to tell that a container predates a port it is
-     * meant to expose.
-     */
     async publishedPorts(): Promise<Set<number>>{
         const live = this.#docker.getContainer(this.container.dockerContainerName);
         const info = await live.inspect().catch((error: { statusCode?: number }) =>
@@ -109,11 +89,6 @@ export default class ContainerOps{
         await this.#removeVolumes();
     }
 
-    /**
-     * Removes the container and nothing else. A container's network, mounts and port
-     * bindings are fixed at creation, so replacing it is sometimes the only way to change
-     * them — and that must not cost the caller its volumes.
-     */
     async destroyContainer(): Promise<void>{
         const live = this.#docker.getContainer(this.container.dockerContainerName);
         const info = await live.inspect().catch((error: { statusCode?: number }) =>

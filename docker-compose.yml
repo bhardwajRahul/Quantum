@@ -6,8 +6,6 @@ services:
       context: .
       dockerfile: packages/api/Dockerfile
 
-    # Published on loopback only: the proxy is the way in from outside. Reachable
-    # directly on the host for debugging without being exposed to the network.
     ports:
       - "127.0.0.1:${SERVER_PORT:-7080}:${SERVER_PORT:-7080}"
 
@@ -141,15 +139,10 @@ services:
     command:
       - --providers.docker
       - --providers.docker.exposedbydefault=false
-      # Routes that cannot be container labels — anything this platform did not deploy —
-      # are written here by the api and picked up without restarting the proxy.
       - --providers.file.directory=/dynamic
       - --providers.file.watch=true
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
-      # No entrypoint-level redirect: it ran before routing, so a host asking for plain
-      # HTTP could never be served and an unrouted name got a redirect instead of a 404.
-      # Each TLS host now carries its own redirecting router on :80.
       - --certificatesresolvers.le.acme.email=${ACME_EMAIL:-}
       - --certificatesresolvers.le.acme.storage=/acme/acme.json
       - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web

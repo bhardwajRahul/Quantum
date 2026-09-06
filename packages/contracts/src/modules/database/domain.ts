@@ -41,5 +41,6 @@ export interface Database extends BaseEntity{
     userId: number | null;
     nodeId: string;
     status: DatabaseStatus;
+    containerId: number | null;
     backups: DatabaseBackup[];
 }

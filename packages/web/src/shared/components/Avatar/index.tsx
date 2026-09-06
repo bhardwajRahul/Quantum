@@ -3,10 +3,6 @@ interface AvatarProps{
     className?: string;
 }
 
-/**
- * Initials, not an image: the user record carries no avatar, so a broken image slot or a
- * generic silhouette would say less than the person's own initials.
- */
 const initialsOf = (fullname: string): string => {
     const parts = fullname.trim().split(/\s+/).filter((part) => part !== '');
     if(parts.length === 0) return '?';
@@ -16,10 +12,10 @@ const initialsOf = (fullname: string): string => {
     return `${first}${last}`.toUpperCase();
 };
 
-const Avatar = ({ fullname, className = 'size-7' }: AvatarProps) => (
+const Avatar = ({ fullname, className = 'size-9' }: AvatarProps) => (
     <span
         aria-hidden='true'
-        className={`flex shrink-0 items-center justify-center rounded-full bg-foreground/[0.08] text-[0.6875rem] font-medium text-foreground ${className}`}
+        className={`label-caps flex shrink-0 items-center justify-center rounded-md border border-border text-[0.625rem] text-foreground ${className}`}
     >
         {initialsOf(fullname)}
     </span>

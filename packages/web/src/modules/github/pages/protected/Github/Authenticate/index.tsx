@@ -18,8 +18,14 @@ const Authenticate = () => {
 
     if(account.loading){
         return (
-            <PageBody>
-                <EmptyState title='Connecting to GitHub' compact />
+            <PageBody height='full'>
+                <div className='flex flex-1 flex-col items-center justify-center'>
+                    <EmptyState
+                        title='Connecting to GitHub'
+                        description='Exchanging the authorization code with GitHub.'
+                        loading
+                    />
+                </div>
             </PageBody>
         );
     }

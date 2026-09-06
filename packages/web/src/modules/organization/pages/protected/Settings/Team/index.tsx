@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button, Label, Table } from '@heroui/react';
-import { Plus, Users } from 'lucide-react';
+import { ArrowRight, Trash2, Users } from 'lucide-react';
 import typia from 'typia';
 import PageBody from '@/shared/components/layout/PageBody';
 import PageHeader from '@/shared/components/layout/PageHeader';
@@ -16,7 +16,6 @@ import { useMutation } from '@/shared/hooks/api/use-mutation';
 import { organizationRoutes } from '@quantum/contracts/modules/organization/routes';
 import { organizationApi } from '@/modules/organization/api/api';
 import { useCurrentOrganizationId } from '@/modules/organization/hooks/use-current-organization-id';
-import { useTenancy } from '@/modules/organization/hooks/use-tenancy';
 import { tenancyErrorMessages } from '@/modules/organization/utils/error-messages';
 import { errorCopy } from '@/shared/utils/error-copy';
 import { OrganizationRole } from '@quantum/contracts/modules/organization/domain';
@@ -92,20 +91,18 @@ const InviteMemberDialog = ({ organizationId, onClose, onInvited }: InviteMember
 };
 
 interface TeamHeaderProps{
-    organizationName: string | null;
     onInvite: () => void;
 }
 
-const TeamHeader = ({ organizationName, onInvite }: TeamHeaderProps) => (
+const TeamHeader = ({ onInvite }: TeamHeaderProps) => (
     <PageHeader
+        eyebrow='Settings'
         title='Team'
-        description={organizationName !== null
-            ? `Members of ${organizationName}.`
-            : 'Manage who can access this organization.'}
+        description='Manage who can access this organization.'
         actions={(
             <Button onPress={onInvite}>
-                <Plus aria-hidden='true' className='size-4' />
                 Invite member
+                <ArrowRight aria-hidden='true' className='size-4' />
             </Button>
         )}
     />
@@ -127,7 +124,9 @@ const TeamRow = ({ member, isBusy, onRoleChange, onRemove }: TeamRowProps) => {
                 <span className='font-medium text-foreground'>{member.username}</span>
                 {member.fullname !== '' && <span className='ml-2 text-muted'>{member.fullname}</span>}
             </Table.Cell>
-            <Table.Cell>{member.email}</Table.Cell>
+            <Table.Cell>
+                <span className='font-mono text-[0.8125rem]'>{member.email}</span>
+            </Table.Cell>
             <Table.Cell>
                 <EntitySelect
                     items={ROLES}
@@ -140,7 +139,15 @@ const TeamRow = ({ member, isBusy, onRoleChange, onRemove }: TeamRowProps) => {
                 />
             </Table.Cell>
             <Table.Cell>
-                <Button variant='secondary' isDisabled={isOwner} onPress={onRemove}>Remove</Button>
+                <button
+                    type='button'
+                    disabled={isOwner}
+                    onClick={onRemove}
+                    aria-label={`Remove ${member.username}`}
+                    className='flex p-1.5 text-muted transition-colors hover:text-foreground focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-foreground disabled:pointer-events-none disabled:opacity-30 motion-reduce:transition-none'
+                >
+                    <Trash2 aria-hidden='true' className='size-4' />
+                </button>
             </Table.Cell>
         </Table.Row>
     );
@@ -188,7 +195,7 @@ const TeamTable = ({ organizationId, members, onChanged, onOptimisticRemove }: T
     };
 
     return (
-        <div className='flex flex-col gap-3'>
+        <div className='flex flex-col gap-4'>
             <Table>
                 <Table.ScrollContainer>
                     <Table.Content aria-label='Team members'>
@@ -229,7 +236,6 @@ const TeamTable = ({ organizationId, members, onChanged, onOptimisticRemove }: T
 
 const Team = () => {
     const organizationId = useCurrentOrganizationId();
-    const { current } = useTenancy();
     const members = useResource(organizationRoutes, {
         list: 'members',
         request: organizationId === null ? null : { path: { orgId: organizationId } }
@@ -254,9 +260,9 @@ const Team = () => {
 
     return (
         <PageBody width='wide' height='full'>
-            <TeamHeader organizationName={current?.name ?? null} onInvite={() => setInviteOpen(true)} />
+            <TeamHeader onInvite={() => setInviteOpen(true)} />
 
-            <div className='mt-6 flex flex-1 flex-col'>
+            <div className='mt-10 flex flex-1 flex-col'>
                 <ListPageShell
                     loadingTitle='Loading team members'
                     errorTitle='Could not load team members'
@@ -269,8 +275,8 @@ const Team = () => {
                         description: 'Invite an existing Quantum user to collaborate in this organization.',
                         action: (
                             <Button onPress={() => setInviteOpen(true)}>
-                                <Plus aria-hidden='true' className='size-4' />
                                 Invite member
+                                <ArrowRight aria-hidden='true' className='size-4' />
                             </Button>
                         )
                     }}

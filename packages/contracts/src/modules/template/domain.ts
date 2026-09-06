@@ -5,8 +5,6 @@ export enum TemplateSource{
     Custom = 'custom'
 }
 
-export type TemplateCategory = string;
-
 export interface TemplateServicePort{
     target: number;
     protocol?: string;
@@ -52,8 +50,6 @@ export interface InputDef{
 export interface Template extends BaseEntity{
     name: string;
     slug: string;
-    version: string;
-    category: TemplateCategory;
     description: string | null;
     icon: string | null;
     website: string | null;
@@ -63,13 +59,37 @@ export interface Template extends BaseEntity{
     inputsSchema: InputDef[];
 }
 
+export enum TemplateInstallStatus{
+    Pending = 'pending',
+    Provisioning = 'provisioning',
+    Running = 'running',
+    Stopped = 'stopped',
+    Error = 'error'
+}
+
+export interface TemplateInstallPort{
+    internalPort: number;
+    externalPort: number;
+    protocol: string;
+}
+
+export interface TemplateInstallService{
+    name: string;
+    kind: 'app' | 'database';
+    image: string;
+    containerId: number | null;
+    ports: TemplateInstallPort[];
+}
+
 export interface TemplateInstall extends BaseEntity{
     name: string;
     templateId: number;
-    templateVersion: string;
     projectId: number;
     environmentId: number | null;
     organizationId: number | null;
     userId: number | null;
     nodeId: string;
+    status: TemplateInstallStatus;
+    networkId: number | null;
+    services: TemplateInstallService[];
 }

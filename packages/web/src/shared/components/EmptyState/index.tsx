@@ -7,9 +7,7 @@ interface EmptyStateProps{
     title: string;
     description?: string;
     compact?: boolean;
-    /** Renders the spinner instead of an icon, for content on its way. */
     loading?: boolean;
-    /** Turns the slot into a live region and spins the icon, for something on its way. */
     isBusy?: boolean;
     children?: ReactNode;
 }
@@ -23,59 +21,43 @@ const EmptyState = ({
     isBusy = false,
     children
 }: EmptyStateProps) => {
-    if(loading || Icon === undefined){
-        return (
-            <div className={cn('flex flex-col items-center text-center', compact ? 'px-4 py-8' : 'px-6 py-16')}>
-                <span
-                    className={cn(
-                        'flex items-center justify-center rounded-full bg-foreground/[0.06]',
-                        compact ? 'size-10' : 'size-12'
-                    )}
-                >
-                    <Spinner color='current' size={compact ? 'sm' : 'md'} aria-label={title} />
-                </span>
-
-                <h2 className={cn('font-medium text-foreground', compact ? 'mt-4 text-[0.875rem]' : 'mt-5 text-[0.9375rem]')}>
-                    {title}
-                </h2>
-
-                {description && (
-                    <p className={cn('text-muted', compact ? 'mt-1.5 text-[0.8125rem]' : 'mt-2 max-w-sm')}>{description}</p>
-                )}
-
-                {children && <div className={compact ? 'mt-4' : 'mt-6'}>{children}</div>}
-            </div>
-        );
-    }
+    const busy = loading || isBusy;
 
     return (
         <EmptyStateRoot
-            role={isBusy ? 'status' : undefined}
-            aria-live={isBusy ? 'polite' : undefined}
-            className={cn('flex flex-col items-center text-center', compact ? 'px-4 py-8' : 'px-6 py-16')}
+            role={busy ? 'status' : undefined}
+            aria-live={busy ? 'polite' : undefined}
+            className={cn(
+                'dot-grid flex flex-col items-center text-center',
+                compact ? 'px-4 py-10' : 'px-6 py-20'
+            )}
         >
-            <span
-                className={cn(
-                    'flex items-center justify-center rounded-full bg-foreground/[0.06]',
-                    compact ? 'size-10' : 'size-12'
-                )}
-            >
+            {loading || Icon === undefined ? (
+                loading && <Spinner color='current' size='sm' aria-label={title} className='text-muted' />
+            ) : (
                 <Icon
                     aria-hidden='true'
-                    className={cn(
-                        compact ? 'size-5' : 'size-6',
-                        isBusy && 'animate-spin motion-reduce:animate-none'
-                    )}
+                    className={cn('size-5 text-muted', isBusy && 'animate-spin motion-reduce:animate-none')}
                 />
-            </span>
+            )}
 
-            <h2 className={cn('font-medium text-foreground', compact ? 'mt-4 text-[0.875rem]' : 'mt-5 text-[0.9375rem]')}>
+            <h2
+                className={cn(
+                    'title-display text-foreground',
+                    compact ? 'mt-4 text-xl' : 'mt-6 text-[2rem] leading-[1.05]',
+                    !loading && Icon === undefined && 'mt-0'
+                )}
+            >
                 {title}
             </h2>
 
-            {description && <p className={compact ? 'mt-1.5 text-[0.8125rem]' : 'mt-2 max-w-sm'}>{description}</p>}
+            {description && (
+                <p className={cn('text-muted', compact ? 'mt-2 max-w-sm text-[0.8125rem]' : 'mt-4 max-w-md text-sm')}>
+                    {description}
+                </p>
+            )}
 
-            {children && <div className={compact ? 'mt-4' : 'mt-6'}>{children}</div>}
+            {children && <div className={compact ? 'mt-5' : 'mt-8'}>{children}</div>}
         </EmptyStateRoot>
     );
 };

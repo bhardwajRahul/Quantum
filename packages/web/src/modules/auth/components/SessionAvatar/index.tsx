@@ -1,19 +1,23 @@
 import { Link } from 'react-router-dom';
-import Avatar from '@/shared/components/Avatar';
 import { useSession } from '@/modules/auth/hooks/use-session';
 
-const SessionAvatar = () => {
+interface SessionAvatarProps{
+    collapsed?: boolean;
+}
+
+const SessionAvatar = ({ collapsed = false }: SessionAvatarProps) => {
     const { user } = useSession();
 
-    if(!user) return <span className='size-7 shrink-0 animate-pulse rounded-full bg-foreground/10' />;
+    if(collapsed) return null;
+    if(!user) return <span className='hidden h-3 w-20 animate-pulse rounded-md bg-default lg:inline-block' />;
 
     return (
         <Link
             to='/account'
             aria-label={`Account settings for ${user.fullname}`}
-            className='rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground'
+            className='hidden min-w-0 truncate rounded-md px-2 text-sm text-muted transition-colors hover:text-foreground focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-foreground motion-reduce:transition-none lg:inline'
         >
-            <Avatar fullname={user.fullname} />
+            {user.username}
         </Link>
     );
 };

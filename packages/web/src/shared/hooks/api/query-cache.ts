@@ -6,16 +6,22 @@ export type QueryKey = readonly unknown[];
 export interface QuerySnapshot{
     data: unknown;
     loading: boolean;
+    refreshing: boolean;
     error: Error | undefined;
     status: 'pending' | 'success' | 'error';
 }
 
 type Listener = () => void;
 
-const IDLE: QuerySnapshot = Object.freeze({ data: null, loading: false, error: undefined, status: 'pending' });
-const PENDING: QuerySnapshot = Object.freeze({ data: null, loading: true, error: undefined, status: 'pending' });
+const IDLE: QuerySnapshot = Object.freeze({ data: null, loading: false, refreshing: false, error: undefined, status: 'pending' });
+const PENDING: QuerySnapshot = Object.freeze({ data: null, loading: true, refreshing: false, error: undefined, status: 'pending' });
 
 export const keyOf = (key: QueryKey): string => JSON.stringify(key);
+
+const inFlight = (current: QuerySnapshot | undefined): QuerySnapshot => {
+    const held = current !== undefined && current.data !== null;
+    return { ...(current ?? PENDING), loading: !held, refreshing: held, status: 'pending' };
+};
 
 class QueryCache{
     readonly #entries = new Map<string, QuerySnapshot>();
@@ -69,13 +75,13 @@ class QueryCache{
 
         const flight = (async () => {
             const current = this.#entries.get(id);
-            this.#write(id, { ...(current ?? PENDING), loading: true, status: 'pending' });
+            this.#write(id, inFlight(current));
 
             try{
                 const data = await [...loaders][0]!(force);
-                this.#write(id, { data, loading: false, error: undefined, status: 'success' });
+                this.#write(id, { data, loading: false, refreshing: false, error: undefined, status: 'success' });
             }catch(cause){
-                this.#write(id, { data: null, loading: false, error: toError(cause), status: 'error' });
+                this.#write(id, { data: null, loading: false, refreshing: false, error: toError(cause), status: 'error' });
             }
         })();
 
@@ -89,12 +95,6 @@ class QueryCache{
         return true;
     }
 
-    /**
-     * Writes a locally-derived snapshot so the UI can show the outcome of a write before
-     * the server has confirmed it, and hands back the undo. The entry is left untouched
-     * when nothing has loaded yet: there is no "before" to optimistically move on from,
-     * and inventing one would flash content that was never fetched.
-     */
     patch(key: QueryKey, updater: (data: unknown) => unknown): () => void{
         const id = keyOf(key);
         const current = this.#entries.get(id);
@@ -103,7 +103,6 @@ class QueryCache{
         this.#write(id, { ...current, data: updater(current.data) });
         return () => {
             const now = this.#entries.get(id);
-            // A settled reload already replaced this snapshot with the server's own truth.
             if(now?.status === 'success') this.#write(id, current);
         };
     }
@@ -114,11 +113,10 @@ class QueryCache{
         for(const key of keys){
             const id = keyOf(key);
             const entry = this.#entries.get(id);
-            if(entry !== undefined && entry.status !== 'pending' && this.hasLoader(key)) this.#write(id, { ...entry, loading: true, status: 'pending' });
+            if(entry !== undefined && entry.status !== 'pending' && this.hasLoader(key)) this.#write(id, inFlight(entry));
         }
 
         await Promise.all(keys.map(async (key) => {
-            // If a pre-existing (non-forced) load was in flight the first call only awaited it; run the forced reload once more.
             if(!(await this.load(key, true))) await this.load(key, true);
         }));
     }

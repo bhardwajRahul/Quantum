@@ -58,11 +58,7 @@ const CreateUpstreamDialog = ({ onClose, onCreated }: CreateUpstreamDialogProps)
                         <InlineError>{upstream.errorMessage}</InlineError>
                     )}
 
-                    {/*
-                      * Said plainly because it is the thing that trips people up: the
-                      * address has to be reachable from the proxy container, which is not
-                      * the same network view as the browser's.
-                      */}
+                    {}
                     <p className='text-[0.8125rem] text-muted'>
                         Reached from the proxy, not from your browser. A container name, a LAN address
                         or any host this server can talk to.

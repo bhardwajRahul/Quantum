@@ -9,6 +9,7 @@ interface EntitySelectProps<T>{
     placeholder?: string;
     ariaLabel?: string;
     isDisabled?: boolean;
+    emptyLabel?: string;
 }
 
 const EntitySelect = <T,>({
@@ -19,7 +20,8 @@ const EntitySelect = <T,>({
     onChange,
     placeholder,
     ariaLabel = 'Select',
-    isDisabled = false
+    isDisabled = false,
+    emptyLabel = 'Nothing to choose yet'
 }: EntitySelectProps<T>) => (
     <Select
         aria-label={ariaLabel}
@@ -29,18 +31,17 @@ const EntitySelect = <T,>({
         onSelectionChange={(key) => onChange(key as string | number)}
     >
         <Select.Trigger>
-            {/*
-              * `Select.Value` must stay childless. React Aria only falls back to the
-              * selected item when children are null — anything else wins outright, so
-              * putting the placeholder here pinned the trigger to it forever and the
-              * select looked broken. The root's `placeholder` prop is the fallback.
-              */}
+            {}
             <Select.Value />
             <Select.Indicator />
         </Select.Trigger>
 
         <Select.Popover>
-            <ListBox>
+            <ListBox
+                renderEmptyState={() => (
+                    <p className='px-3 py-2.5 text-[0.8125rem] text-muted'>{emptyLabel}</p>
+                )}
+            >
                 {items.map((item) => (
                     <ListBoxItem key={getKey(item)} id={getKey(item)} textValue={getLabel(item)}>
                         {getLabel(item)}

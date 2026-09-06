@@ -64,8 +64,11 @@ export const useQuery = <A extends readonly unknown[], O, T = O>(
     const fresh = snapshot?.args === key ? snapshot : null;
     const data = fresh?.data ?? null;
 
+    const fetching = waiting || (ready && (fresh === null || fresh.status === 'loading'));
+
     return {
-        loading: waiting || (ready && (fresh === null || fresh.status === 'loading')),
+        loading: fetching && data === null,
+        refreshing: fetching && data !== null,
         data: data === null ? null : select ? select(data) : data as unknown as T,
         error: failed?.error ?? fresh?.error,
         reload: () => {

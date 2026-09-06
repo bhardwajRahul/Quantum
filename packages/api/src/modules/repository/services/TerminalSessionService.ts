@@ -25,9 +25,12 @@ export default class TerminalSessionService{
     async open(repository: Repository, sink: TerminalSink): Promise<TerminalSession>{
         const container = await DockerContainer.findOneBy({ repositoryId: repository.id });
         if(container === null || !container.dockerContainerName) throw RepositoryError.NotFound();
+        return this.openContainer(container, this.#workDir(repository), sink);
+    }
 
+    async openContainer(container: DockerContainer, workDir: string, sink: TerminalSink): Promise<TerminalSession>{
         try{
-            return await this.#spawn(container, this.#workDir(repository), sink);
+            return await this.#spawn(container, workDir, sink);
         }catch(error){
             if(error instanceof RuntimeError) throw error;
             throw RepositoryError.OperationFailed();
@@ -50,11 +53,6 @@ export default class TerminalSessionService{
         return this.#session(exec, stream);
     }
 
-    /**
-     * Addressed by the name the container was actually created under, not one rebuilt
-     * from its id. Recomposing the name is how the network reference drifted: the rule
-     * lived in two places and only one of them ever created anything.
-     */
     async #live(container: DockerContainer): Promise<Dockerode.Container>{
         const live = this.#docker.getContainer(container.dockerContainerName);
         const { State } = await live.inspect();

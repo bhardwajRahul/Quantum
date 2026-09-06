@@ -3,8 +3,8 @@ import { useApp } from '@tests/harness';
 import { seed } from '@tests/Seed';
 import { allocateHostPort } from '@/modules/deployment/orchestrator/PortAllocator';
 import { getDockerHost } from '@/modules/deployment/orchestrator/DockerHost';
-import PortBinding from '@/modules/codespace/models/PortBinding';
-import { PortBindingProtocol } from '@quantum/contracts/modules/codespace/domain';
+import PortBinding from '@/modules/docker/models/PortBinding';
+import { PortBindingProtocol } from '@quantum/contracts/modules/docker/domain';
 
 useApp();
 
@@ -38,10 +38,6 @@ describe('allocateHostPort', () => {
         await expect(allocateHostPort()).resolves.toBe(20_001);
     });
 
-    /**
-     * The table alone is not enough: something else on the box may hold the port, and
-     * Docker would only report that as a bind failure once the container is created.
-     */
     it('skips a port another container on the host is publishing', async () => {
         listContainers.mockResolvedValue([{ Ports: [{ PublicPort: 20_000 }, { PublicPort: 20_001 }] }]);
 

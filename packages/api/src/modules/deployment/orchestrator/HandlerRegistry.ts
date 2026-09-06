@@ -6,7 +6,6 @@ import ReloadHandler from './handlers/ReloadHandler';
 import BuildHandler from './handlers/BuildHandler';
 import ReconcileHandler from './handlers/ReconcileHandler';
 import DatabaseHandler from './handlers/DatabaseHandler';
-import CodespaceHandler from './handlers/CodespaceHandler';
 import TemplateHandler from './handlers/TemplateHandler';
 import HealthHandler from './handlers/HealthHandler';
 import MetricsHandler from './handlers/MetricsHandler';
@@ -26,13 +25,12 @@ export const buildHandlerMap = (): JobHandlerMap => ({
     [JobType.DbProvision]: (job) => new DatabaseHandler().run(job),
     [JobType.DbBackup]: (job) => new DatabaseHandler().run(job),
     [JobType.DbRestore]: (job) => new DatabaseHandler().run(job),
+    [JobType.DbDelete]: (job) => new DatabaseHandler().run(job),
     [JobType.MetricsSample]: (job) => new MetricsHandler().run(job.nodeId),
     [JobType.HealthCheck]: () => new HealthHandler().run(),
     [JobType.TemplateInstall]: (job) => new TemplateHandler().run(job),
     [JobType.TemplateUninstall]: (job) => new TemplateHandler().run(job),
     [JobType.OrgCascadeDelete]: (job) => new OrgCascadeHandler().run(job),
     [JobType.ProjectCascadeDelete]: (job) => new ProjectCascadeHandler().run(job),
-    [JobType.AnalyticsSample]: () => new AnalyticsHandler().run(),
-    [JobType.CodespaceProvision]: (job) => new CodespaceHandler().run(job),
-    [JobType.CodespaceDelete]: (job) => new CodespaceHandler().run(job)
+    [JobType.AnalyticsSample]: () => new AnalyticsHandler().run()
 });

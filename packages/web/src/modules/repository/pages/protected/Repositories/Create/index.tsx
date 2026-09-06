@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Card, Chip, ComboBox, Input, Label, ListBox, ListBoxItem, Select } from '@heroui/react';
-import { FolderGit2, Search } from 'lucide-react';
+import { Button, Chip, ComboBox, Input, Label, ListBox, ListBoxItem, Select } from '@heroui/react';
+import { ArrowRight, FolderGit2, Search } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
+import PageHeader from '@/shared/components/layout/PageHeader';
 import ErrorState from '@/shared/components/ErrorState';
 import EmptyState from '@/shared/components/EmptyState';
 import CenterState from '@/shared/components/CenterState';
+import SettingsSection from '@/shared/components/SettingsSection';
 import Form from '@/shared/components/forms/Form';
 import Field from '@/shared/components/forms/Field';
 import EntitySelect from '@/shared/components/EntitySelect';
@@ -74,11 +76,6 @@ interface RepositoryPickerProps{
     onSelect: (repository: GithubRepository) => void;
 }
 
-/**
- * Filtering is done here rather than handed to the ComboBox's `defaultFilter`, which
- * would mean reaching for `useFilter` out of a transitive dependency of the design
- * system. The list is already in memory, so matching on `fullName` is enough.
- */
 const RepositoryPicker = ({ repositories, onSelect }: RepositoryPickerProps) => {
     const [query, setQuery] = useState('');
 
@@ -115,7 +112,7 @@ const RepositoryPicker = ({ repositories, onSelect }: RepositoryPickerProps) => 
                 fullWidth
             >
                 <ComboBox.InputGroup>
-                    <Input placeholder='Search your repositories…' autoComplete='off' />
+                    <Input className='font-mono' placeholder='Search your repositories…' autoComplete='off' />
                     <ComboBox.Trigger />
                 </ComboBox.InputGroup>
 
@@ -132,9 +129,9 @@ const RepositoryPicker = ({ repositories, onSelect }: RepositoryPickerProps) => 
                                 id={repository.fullName}
                                 textValue={repository.fullName}
                             >
-                                <div className='flex w-full items-center justify-between gap-3'>
-                                    <span className='truncate'>{repository.fullName}</span>
-                                    <Chip size='sm' variant='soft' color={repository.private ? 'default' : 'success'}>
+                                <div className='flex w-full items-center justify-between gap-4 py-0.5 text-left'>
+                                    <span className='truncate font-mono text-[0.8125rem]'>{repository.fullName}</span>
+                                    <Chip size='sm' variant='soft'>
                                         {repository.private ? 'Private' : 'Public'}
                                     </Chip>
                                 </div>
@@ -172,48 +169,48 @@ const RepositoryConfigFields = ({ repository, detection, projects, onBack }: Rep
     });
 
     return (
-        <Card>
-            <Card.Header>
-                <div className='flex items-center justify-between gap-3'>
-                    <div>
-                        <Card.Title>{repository.fullName}</Card.Title>
-                        <Card.Description>Configure how this repository is built and run.</Card.Description>
-                    </div>
-                    <Button variant='secondary' size='sm' onPress={onBack}>Change repository</Button>
+        <div>
+            <div className='flex flex-wrap items-end justify-between gap-4'>
+                <div className='min-w-0'>
+                    <h2 className='truncate font-mono text-[0.9375rem] text-foreground'>{repository.fullName}</h2>
+                    <p className='mt-1 text-[0.8125rem] text-muted'>Configure how this repository is built and run.</p>
                 </div>
-            </Card.Header>
+                <Button variant='secondary' size='sm' onPress={onBack}>Change repository</Button>
+            </div>
 
-            <Card.Content>
-                <Form form={form} className='flex flex-col gap-4'>
-                    <Field form={form} name='alias' label='Alias' placeholder='my-repository' />
+            <Form form={form} className='mt-6 flex flex-col'>
+                <SettingsSection title='Repository' description='What to call it, which branch to deploy, and where it belongs.'>
+                    <div className='grid gap-5 sm:grid-cols-2'>
+                        <Field form={form} name='alias' label='Alias' placeholder='my-repository' />
 
-                    <Field form={form} name='branch'>
-                        {(binding) => (
-                            <div className='flex flex-col gap-1.5'>
-                                <Label>Branch</Label>
-                                <Select
-                                    aria-label='Branch'
-                                    selectedKey={(binding.value as string) === '' ? null : (binding.value as string)}
-                                    onSelectionChange={(key) => binding.onChange(String(key))}
-                                >
-                                    <Select.Trigger>
-                                        <Select.Value />
-                                        <Select.Indicator />
-                                    </Select.Trigger>
+                        <Field form={form} name='branch'>
+                            {(binding) => (
+                                <div className='flex flex-col gap-1.5'>
+                                    <Label>Branch</Label>
+                                    <Select
+                                        aria-label='Branch'
+                                        selectedKey={(binding.value as string) === '' ? null : (binding.value as string)}
+                                        onSelectionChange={(key) => binding.onChange(String(key))}
+                                    >
+                                        <Select.Trigger>
+                                            <Select.Value />
+                                            <Select.Indicator />
+                                        </Select.Trigger>
 
-                                    <Select.Popover>
-                                        <ListBox>
-                                            {repository.branches.map((branch) => (
-                                                <ListBoxItem key={branch} id={branch} textValue={branch}>
-                                                    {branch}
-                                                </ListBoxItem>
-                                            ))}
-                                        </ListBox>
-                                    </Select.Popover>
-                                </Select>
-                            </div>
-                        )}
-                    </Field>
+                                        <Select.Popover>
+                                            <ListBox>
+                                                {repository.branches.map((branch) => (
+                                                    <ListBoxItem key={branch} id={branch} textValue={branch}>
+                                                        {branch}
+                                                    </ListBoxItem>
+                                                ))}
+                                            </ListBox>
+                                        </Select.Popover>
+                                    </Select>
+                                </div>
+                            )}
+                        </Field>
+                    </div>
 
                     <Field form={form} name='projectId'>
                         {(binding) => (
@@ -231,8 +228,10 @@ const RepositoryConfigFields = ({ repository, detection, projects, onBack }: Rep
                             </div>
                         )}
                     </Field>
+                </SettingsSection>
 
-                    <div className='grid gap-4 sm:grid-cols-2'>
+                <SettingsSection title='Build' description='Detected from the repository. Change anything Quantum got wrong.'>
+                    <div className='grid gap-5 sm:grid-cols-2'>
                         <Field form={form} name='framework'>
                             {(binding) => (
                                 <div className='flex flex-col gap-1.5'>
@@ -290,27 +289,30 @@ const RepositoryConfigFields = ({ repository, detection, projects, onBack }: Rep
                                 </div>
                             )}
                         </Field>
-                    </div>
 
-                    <Field form={form} name='runtimeVersion' label='Runtime version' placeholder='20' />
-
-                    <Field form={form} name='installCommand' label='Install command' placeholder='npm install' />
-                    <Field form={form} name='buildCommand' label='Build command' placeholder='npm run build' />
-                    <Field form={form} name='startCommand' label='Start command' placeholder='npm start' />
-
-                    <div className='grid gap-4 sm:grid-cols-2'>
-                        <Field form={form} name='outputDirectory' label='Output directory' placeholder='dist' />
+                        <Field form={form} name='runtimeVersion' label='Runtime version' placeholder='20' />
                         <Field form={form} name='port' label='Port' type='number' placeholder='3000' />
                     </div>
 
-                    <div>
-                        <Button type='submit' isPending={form.submitting} isDisabled={!form.isValid}>
-                            Create repository
-                        </Button>
+                    <div className='grid gap-5 sm:grid-cols-3'>
+                        <Field form={form} name='installCommand' label='Install command' placeholder='npm install' />
+                        <Field form={form} name='buildCommand' label='Build command' placeholder='npm run build' />
+                        <Field form={form} name='startCommand' label='Start command' placeholder='npm start' />
                     </div>
-                </Form>
-            </Card.Content>
-        </Card>
+
+                    <div className='grid gap-5 sm:grid-cols-2'>
+                        <Field form={form} name='outputDirectory' label='Output directory' placeholder='dist' />
+                    </div>
+                </SettingsSection>
+
+                <div className='border-t border-border py-6'>
+                    <Button type='submit' isPending={form.submitting} isDisabled={!form.isValid}>
+                        Create repository
+                        <ArrowRight aria-hidden='true' className='size-4' />
+                    </Button>
+                </div>
+            </Form>
+        </div>
     );
 };
 
@@ -328,7 +330,7 @@ const RepositoryConfigForm = ({ repository, onBack }: RepositoryConfigFormProps)
     const detection = useQuery((owner: string, repo: string) => githubApi.detect({ path: { owner, repo } }), [repository.owner, repository.name]);
 
     if(projects.loading || detection.loading){
-        return <CenterState className='h-full'><EmptyState title='Preparing repository setup' compact /></CenterState>;
+        return <CenterState className='h-full'><EmptyState title='Preparing repository setup' loading compact /></CenterState>;
     }
 
     if(projects.error !== undefined){
@@ -359,7 +361,7 @@ const RepositoryCreateFlow = () => {
     const [selected, setSelected] = useState<GithubRepository | null>(null);
 
     if(repositories.loading){
-        return <CenterState className='h-full'><EmptyState title='Loading GitHub repositories' compact /></CenterState>;
+        return <CenterState className='h-full'><EmptyState title='Loading GitHub repositories' loading compact /></CenterState>;
     }
 
     if(repositories.error !== undefined){
@@ -386,14 +388,15 @@ const CreateRepository = () => {
 
     return (
         <PageBody height='full'>
-            <h1 className='text-lg font-medium text-foreground'>New repository</h1>
-            <p className='mt-1.5 text-sm text-muted'>
-                Import a GitHub repository and configure how it is built and run.
-            </p>
+            <PageHeader
+                eyebrow='Applications / Import'
+                title='Import a repository'
+                description='Pick a repository from your GitHub account. Quantum detects the framework and deploys on every push.'
+            />
 
-            <div className='mt-6 flex flex-1 flex-col'>
+            <div className='mt-8 flex flex-1 flex-col'>
                 {account.loading ? (
-                    <CenterState><EmptyState title='Checking GitHub connection' compact /></CenterState>
+                    <CenterState><EmptyState title='Checking GitHub connection' loading compact /></CenterState>
                 ) : account.error !== undefined ? (
                     <CenterState><ConnectGithubPrompt /></CenterState>
                 ) : (

@@ -1,19 +1,9 @@
 import type { BuildStrategy, RepositoryOperation } from './domain';
 
 export interface CreateRepositoryInput{
-    /**
-     * @minLength 1
-     */
     name: string;
-    /**
-     * @minLength 1
-     */
     url: string;
     owner?: string;
-    /**
-     * @minLength 4
-     * @maxLength 32
-     */
     alias?: string;
     branch?: string;
     buildCommand?: string;
@@ -24,30 +14,14 @@ export interface CreateRepositoryInput{
     runtime?: string;
     runtimeVersion?: string;
     outputDirectory?: string;
-    /**
-     * @type int
-     */
     port?: number;
-    /**
-     * @type int
-     */
     projectId: number;
 }
 
 export interface UpdateRepositoryInput{
-    /**
-     * @minLength 1
-     */
     name?: string;
-    /**
-     * @minLength 1
-     */
     url?: string;
     owner?: string;
-    /**
-     * @minLength 4
-     * @maxLength 32
-     */
     alias?: string;
     branch?: string;
     buildCommand?: string;
@@ -58,13 +32,7 @@ export interface UpdateRepositoryInput{
     runtime?: string;
     runtimeVersion?: string;
     outputDirectory?: string;
-    /**
-     * @type int
-     */
     port?: number;
-    /**
-     * @type int
-     */
     projectId?: number;
     buildStrategy?: BuildStrategy;
     dockerfilePath?: string;
@@ -76,12 +44,6 @@ export interface RepositoryOperationInput{
 }
 
 export interface StorageWriteInput{
-    /**
-     * @minLength 1
-     */
     path: string;
-    /**
-     * @minLength 1
-     */
     content: string;
 }

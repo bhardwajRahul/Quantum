@@ -43,7 +43,7 @@ describe('optimistic writes', () => {
 
     const mount = async () => {
         const harness = await renderHook(() => useResource(routes, { list: 'list' }));
-        await settle(harness, (state) => !state.loading);
+        await settle(harness, (state) => !state.loading && !state.refreshing);
         return harness;
     };
 
@@ -69,13 +69,12 @@ describe('optimistic writes', () => {
             (rows) => rows.filter((row) => row.id !== 1)
         );
 
-        // The row is gone while the DELETE is still in flight.
         await settle(harness, (state) => (state.data ?? []).length === 1);
         expect(harness.current.data).toEqual([{ id: 2, name: 'b' }]);
 
         release?.();
         await pending;
-        await settle(harness, (state) => !state.loading);
+        await settle(harness, (state) => !state.loading && !state.refreshing);
         expect(harness.current.data).toEqual([{ id: 2, name: 'b' }]);
     });
 

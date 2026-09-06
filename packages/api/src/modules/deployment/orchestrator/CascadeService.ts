@@ -7,10 +7,9 @@ import DockerImage from '@/modules/docker/models/DockerImage';
 import Domain from '@/modules/domain/models/Domain';
 import HealthCheck from '@/modules/health-check/models/HealthCheck';
 import Database from '@/modules/database/models/Database';
-import Codespace from '@/modules/codespace/models/Codespace';
 import TemplateInstall from '@/modules/template/models/TemplateInstall';
 import Metric from '@/modules/metric/models/Metric';
-import PortBinding from '@/modules/codespace/models/PortBinding';
+import PortBinding from '@/modules/docker/models/PortBinding';
 import Environment from '@/modules/project/models/Environment';
 import ContainerOps from './ContainerOps';
 import { teardownNetwork } from './NetworkOps';
@@ -28,7 +27,6 @@ export default class CascadeService{
         deleted.domains = await this.#safe(() => Domain.delete({ organizationId }));
         deleted.healthChecks = await this.#safe(() => HealthCheck.delete({ organizationId }));
         deleted.databases = await this.#safe(() => Database.delete({ organizationId }));
-        deleted.codespaces = await this.#safe(() => Codespace.delete({ organizationId }));
         deleted.templateInstalls = await this.#safe(() => TemplateInstall.delete({ organizationId }));
         deleted.metrics = await this.#safe(() => Metric.delete({ organizationId }));
         deleted.portBindings = await this.#safe(() => PortBinding.delete({ organizationId }));
@@ -49,7 +47,6 @@ export default class CascadeService{
         deleted.domains = await this.#safe(() => Domain.delete({ projectId }));
         deleted.healthChecks = await this.#safe(() => HealthCheck.delete({ projectId }));
         deleted.databases = await this.#safe(() => Database.delete({ projectId }));
-        deleted.codespaces = await this.#safe(() => Codespace.delete({ projectId }));
         deleted.templateInstalls = await this.#safe(() => TemplateInstall.delete({ projectId }));
         deleted.metrics = await this.#safe(() => Metric.delete({ projectId }));
         deleted.environments = await this.#safe(() => Environment.delete({ projectId }));

@@ -60,12 +60,6 @@ describe('repository container status', () => {
         expect(single.data().containerStatus).toBe(ContainerStatus.Running);
     });
 
-    /**
-     * The incoherence this replaced: the list derived "Running"/"Stopped" from
-     * `repository.containerId`, a pointer written after provisioning and therefore left
-     * null whenever provisioning threw — so a repository whose container was up, and
-     * whose latest deployment had succeeded, still showed as stopped.
-     */
     it('does not contradict a successful deployment while the container runs', async () => {
         await container(ContainerStatus.Running);
         await Deployment.create({

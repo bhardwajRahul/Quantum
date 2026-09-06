@@ -56,12 +56,6 @@ export default class RepositoryService{
             sourceType: SourceType.Github
         }).save(), RepositoryError.AliasAlreadyTaken);
 
-        /*
-         * A repository is imported in order to be deployed, so the first deployment is
-         * requested here instead of waiting for someone to press Start. It has to be a
-         * deploy and not a lifecycle start: there is no container to start until a
-         * deploy has cloned and built one.
-         */
         eventBus.emit('deployment.requested', {
             repositoryId: repository.id,
             reason: 'create',

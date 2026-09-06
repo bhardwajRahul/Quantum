@@ -9,11 +9,6 @@ interface DeleteConfirmDialogProps{
     entityId: number | null;
     remove: (id: number) => Promise<unknown>;
     getErrorMessage: (error: Error | undefined) => string | null;
-    /**
-     * Drops the row from the list the instant Delete is pressed, and returns the undo.
-     * Called before the request, so the table behind the dialog is already right when it
-     * closes; a rejection puts the row back and the error stays on the open dialog.
-     */
     optimistic?: () => () => void;
     onClose: () => void;
     onRemoved: () => void;

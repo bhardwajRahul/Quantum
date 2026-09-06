@@ -44,12 +44,6 @@ const infra = async (dockerNetworkName: string) => {
 };
 
 describe('container network name', () => {
-    /**
-     * The regression: the attach used a name recomposed from ids
-     * (`quantum-network-<env>-<userId>-<networkId>`) while `materializeNetwork` had
-     * created `network.dockerNetworkName`. Docker only reported the mismatch as a 404 at
-     * container-create time, so provisioning looked like it had succeeded.
-     */
     it('attaches to the name the network was materialized under', async () => {
         const { container } = await infra('quantum-network-42');
 

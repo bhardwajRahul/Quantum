@@ -7,6 +7,7 @@ import type { Query } from '@/shared/contracts/api';
 const idleQuery = <T,>(state: Partial<Query<T>> = {}): Query<T> => ({
     data: null,
     loading: false,
+    refreshing: false,
     error: undefined,
     reload: vi.fn(),
     ...state
@@ -129,11 +130,11 @@ describe('useQuery', () => {
         await query.flush();
 
         await act(async () => query.current.reload());
-        expect(query.current).toMatchObject({ data: 'first', loading: true });
+        expect(query.current).toMatchObject({ data: 'first', loading: false, refreshing: true });
 
         gates[1]!.resolve('second');
         await query.flush();
-        expect(query.current).toMatchObject({ data: 'second', loading: false });
+        expect(query.current).toMatchObject({ data: 'second', loading: false, refreshing: false });
     });
 
     it('surfaces a failure and recovers on reload', async () => {

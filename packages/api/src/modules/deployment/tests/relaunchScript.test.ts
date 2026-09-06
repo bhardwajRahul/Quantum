@@ -4,11 +4,6 @@ import { relaunchScript } from '@/modules/deployment/orchestrator/ContainerOps';
 describe('relaunchScript', () => {
     const script = relaunchScript('npm run preview');
 
-    /**
-     * Without this, each deployment left the previous server running: the published port
-     * kept serving the old build while the new process fell back to another port because
-     * the first was still taken.
-     */
     it('stops the previous instance before starting a new one', () => {
         const kill = script.indexOf('kill -TERM');
         const start = script.indexOf('setsid');
@@ -17,7 +12,6 @@ describe('relaunchScript', () => {
         expect(kill).toBeLessThan(start);
     });
 
-    /** A negated pid signals the whole group, so a child holding the port goes too. */
     it('signals the process group, not just the launched command', () => {
         expect(script).toContain('kill -TERM -"$(cat /app/.quantum/app.pid)"');
     });
@@ -30,7 +24,6 @@ describe('relaunchScript', () => {
         expect(script.trimEnd().endsWith('echo $! > /app/.quantum/app.pid')).toBe(true);
     });
 
-    /** Redirecting onto PID 1's stdout is what makes the output reach `docker logs`. */
     it('sends both streams to the container log', () => {
         expect(script).toContain('>> /proc/1/fd/1 2>&1');
     });

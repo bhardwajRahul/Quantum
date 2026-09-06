@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { Button, FieldError, Input, Label, ListBox, ListBoxItem, Select, TextField } from '@heroui/react';
 import Modal from '@/shared/components/Modal';
 import InlineError from '@/shared/components/InlineError';
@@ -29,6 +30,7 @@ interface InstallTemplateDialogProps{
 }
 
 const InstallTemplateDialog = ({ template, onClose, onInstalled }: InstallTemplateDialogProps) => {
+    const navigate = useNavigate();
     const organizationId = useCurrentOrganizationId();
     const projects = useResource(projectRoutes, {
         list: 'listByOrganization',
@@ -62,6 +64,13 @@ const InstallTemplateDialog = ({ template, onClose, onInstalled }: InstallTempla
         setEnvironmentId(null);
     };
 
+    useEffect(() => {
+        if(projectId !== null) return;
+        const list = projects.data ?? [];
+        const pick = list.find((project) => project.isDefault) ?? list[0];
+        if(pick !== undefined) setProjectId(pick.id);
+    }, [projectId, projects.data]);
+
     const setInput = (key: string, value: string | number | boolean) => {
         setInputs((previous) => ({ ...previous, [key]: value }));
     };
@@ -78,6 +87,8 @@ const InstallTemplateDialog = ({ template, onClose, onInstalled }: InstallTempla
 
         if(!installed) return;
         onInstalled();
+        onClose();
+        navigate(`/applications?project=${projectId}`);
     };
 
     return (
@@ -109,7 +120,23 @@ const InstallTemplateDialog = ({ template, onClose, onInstalled }: InstallTempla
                         placeholder='Select a project'
                         ariaLabel='Project'
                         isDisabled={install.loading || projects.loading}
+                        emptyLabel='This organization has no projects yet'
                     />
+
+                    {}
+                    {projects.data !== null && projects.data.length === 0 && (
+                        <p className='text-[0.8125rem] text-muted'>
+                            A template installs into a project, and this organization has none yet.{' '}
+                            <RouterLink
+                                to='/projects'
+                                onClick={onClose}
+                                className='text-foreground underline underline-offset-4 hover:no-underline'
+                            >
+                                Create one in Projects
+                            </RouterLink>
+                            .
+                        </p>
+                    )}
                 </div>
 
                 {projectId !== null && (

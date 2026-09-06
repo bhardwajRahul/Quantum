@@ -46,10 +46,6 @@ const context = (overrides: Partial<BuildContext['repository']> = {}): BuildCont
 };
 
 describe('ExecBuilder', () => {
-    /**
-     * It used to return an empty artifact and do nothing, so the deployment was marked a
-     * success with `/app` empty and no process serving the published port.
-     */
     it('fetches the source, installs, builds and starts the app', async () => {
         const ctx = context();
 
@@ -61,10 +57,6 @@ describe('ExecBuilder', () => {
         expect(relaunchRepositoryApp).toHaveBeenCalledOnce();
     });
 
-    /**
-     * The deploy path used to stop the container before building, which made every exec
-     * command fail with a 409 that said nothing about the build.
-     */
     it('makes sure the container is up before running anything in it', async () => {
         await new ExecBuilder().build(context());
 

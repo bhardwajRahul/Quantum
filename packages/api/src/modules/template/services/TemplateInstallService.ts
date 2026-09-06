@@ -1,5 +1,11 @@
 import { randomBytes } from 'node:crypto';
+import { In } from 'typeorm';
 import Project from '@/modules/project/models/Project';
+import DockerContainer from '@/modules/docker/models/DockerContainer';
+import ContainerOps from '@/modules/deployment/orchestrator/ContainerOps';
+import { repositoryTenantOf } from '@/modules/repository/services/repositoryTenant';
+import { ContainerDesiredState } from '@quantum/contracts/modules/docker/domain';
+import { TemplateInstallStatus } from '@quantum/contracts/modules/template/domain';
 import Template from '../models/Template';
 import SecretCipher from '@/shared/services/SecretCipher';
 import { eventBus } from '@/shared/events/EventBus';
@@ -7,7 +13,7 @@ import TemplateInstall from '../models/TemplateInstall';
 import TemplateService from './TemplateService';
 import { TemplateInstallError } from '../contracts/domain/errors';
 import type { Tenant } from '@/modules/organization/contracts/types/fastify';
-import type { InstallTemplateInput } from '@quantum/contracts/modules/template/http';
+import type { InstallTemplateInput, TemplateInstallOperation } from '@quantum/contracts/modules/template/http';
 
 export default class TemplateInstallService{
     #templates = new TemplateService();
@@ -20,7 +26,6 @@ export default class TemplateInstallService{
 
         const install = await TemplateInstall.create({
             templateId: template.id,
-            templateVersion: template.version,
             name: input.name,
             organizationId: project.organizationId,
             projectId: project.id,
@@ -75,11 +80,52 @@ export default class TemplateInstallService{
         return install;
     }
 
-    async remove(tenant: Tenant, id: number): Promise<void>{
+    async remove(userId: number | null, tenant: Tenant, id: number): Promise<void>{
         const install = await TemplateInstall.findOneBy({ id });
         if(!install) throw TemplateInstallError.NotFound();
         await this.#assertProjectVisible(tenant, install.projectId);
+
+        const { services, networkId } = install;
         await install.remove();
+
+        eventBus.emit('template.uninstalled', { templateInstallId: id, userId, services, networkId });
+    }
+
+    async operate(tenant: Tenant, id: number, operation: TemplateInstallOperation): Promise<TemplateInstall>{
+        const install = await this.get(tenant, id);
+        const ids = install.services.map((service) => service.containerId).filter((value): value is number => value !== null);
+        const containers = ids.length === 0 ? [] : await DockerContainer.findBy({ id: In(ids) });
+
+        for(const container of containers){
+            const ops = new ContainerOps(container);
+            if(operation === 'stop'){
+                await ops.stop();
+                container.desiredState = ContainerDesiredState.Stopped;
+                await container.save();
+            }else if(operation === 'start'){
+                container.desiredState = ContainerDesiredState.Running;
+                await container.save();
+                await ops.start();
+            }else{
+                await ops.restart();
+            }
+        }
+
+        install.status = operation === 'stop' ? TemplateInstallStatus.Stopped : TemplateInstallStatus.Running;
+        await install.save();
+        return install;
+    }
+
+    async containerForUser(userId: number, installId: number, service?: string): Promise<DockerContainer>{
+        const install = await this.get(await repositoryTenantOf(userId), installId);
+        const target = service !== undefined
+            ? install.services.find((entry) => entry.name === service)
+            : install.services.find((entry) => entry.kind === 'app') ?? install.services[0];
+        if(!target || target.containerId === null) throw TemplateInstallError.NotFound();
+
+        const container = await DockerContainer.findOneBy({ id: target.containerId });
+        if(!container || !container.dockerContainerName) throw TemplateInstallError.NotFound();
+        return container;
     }
 
     #startProvisioning(install: TemplateInstall, userId: number){

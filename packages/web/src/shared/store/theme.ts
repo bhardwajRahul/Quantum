@@ -8,11 +8,6 @@ export interface ThemeState{
     toggle: () => void;
 }
 
-/**
- * The store owns nothing but the current value: `applyTheme` is what writes the class,
- * the data attribute and localStorage, and it was already the single place doing that
- * before anything needed to re-render on a change.
- */
 export const useThemeStore = create<ThemeState>((set, get) => ({
     theme: readTheme(),
     setTheme: (theme) => {

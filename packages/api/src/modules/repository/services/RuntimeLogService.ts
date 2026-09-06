@@ -15,12 +15,6 @@ export interface RuntimeLogStream{
     stop: () => void;
 }
 
-/**
- * Docker multiplexes stdout and stderr into a framed stream when the container has no
- * TTY, and sends it raw when it does. Repository containers are created with `Tty: true`,
- * so the raw path is the usual one — but the frame header is stripped when present so a
- * container created either way reads the same.
- */
 export const stripFrameHeaders = (chunk: Buffer): string => {
     let text = '';
     let offset = 0;
@@ -48,14 +42,13 @@ export const stripFrameHeaders = (chunk: Buffer): string => {
 export default class RuntimeLogService{
     #docker = new Dockerode();
 
-    /**
-     * Streams what the deployed process is printing — the app serving the published
-     * port — rather than opening a shell next to it.
-     */
     async follow(repository: Repository, sink: RuntimeLogSink): Promise<RuntimeLogStream>{
         const container = await DockerContainer.findOneBy({ repositoryId: repository.id });
         if(container === null || !container.dockerContainerName) throw RepositoryError.NotFound();
+        return this.followContainer(container, sink);
+    }
 
+    async followContainer(container: DockerContainer, sink: RuntimeLogSink): Promise<RuntimeLogStream>{
         const live = this.#docker.getContainer(container.dockerContainerName);
         const stream = await live.logs({
             follow: true,

@@ -20,12 +20,6 @@ export default class GithubController extends BaseController{
     #accounts = new GithubAccountService();
     #repositories = new GithubRepositoryService();
 
-    /**
-     * Answers with the authorize URL rather than redirecting to it. The route is
-     * Bearer-authenticated, so the browser cannot be pointed straight at it — a
-     * top-level navigation carries no Authorization header and would only ever get
-     * a 401 back. The client fetches this, then navigates to the URL itself.
-     */
     @Route(githubRoutes.oauthStart)
     @Middleware(AuthenticatedRoute)
     start(@CurrentUser() userId: number){

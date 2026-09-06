@@ -1,5 +1,4 @@
-import type { ContainerStatus } from '../docker/domain';
-import type { PortBindingProtocol } from '../codespace/domain';
+import type { ContainerStatus, PortBindingProtocol } from '../docker/domain';
 import type { BaseEntity } from '../../shared/base';
 
 export enum BuildStrategy{
@@ -20,9 +19,7 @@ export enum RepositoryOperation{
 }
 
 export interface RepositoryPort{
-    /** Port the application listens on inside the container. */
     internalPort: number;
-    /** Port published on the host, which is what a browser connects to. */
     externalPort: number;
     protocol: PortBindingProtocol;
 }
@@ -46,14 +43,7 @@ export interface Repository extends BaseEntity{
     image: string | null;
     url: string;
     port: number | null;
-    /**
-     * Runtime state of this repository's container, read from the container row at
-     * request time — the one place the orchestrator writes it. `null` means no container
-     * has been provisioned yet. It is deliberately not a stored column: a copy would be
-     * one more thing that can disagree with Docker.
-     */
     containerStatus: ContainerStatus | null;
-    /** Host ports this repository's container publishes, read from its bindings. */
     ports: RepositoryPort[];
     userId: number;
     organizationId: number | null;

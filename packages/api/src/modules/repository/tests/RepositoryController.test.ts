@@ -27,10 +27,6 @@ const createRepository = (userId: number, projectId: number, body: Record<string
         body: { name: 'My App', url: 'https://github.com/acme/my-app', projectId, ...body }
     });
 
-/**
- * Creating a repository requests its first deployment, so a test that asserts on what
- * a *later* action emitted drains the recorded events once the setup create is done.
- */
 const createRepositoryThenDrain = async (
     userId: number,
     projectId: number,
@@ -73,8 +69,6 @@ describe('repository', () => {
             alias: 'My App',
             branch: 'main',
             webhookId: null,
-            // Derived from the container row at request time, so a repository that has
-            // never been provisioned reports no runtime state rather than "stopped".
             containerStatus: null,
             buildStrategy: 'exec',
             sourceType: 'github',

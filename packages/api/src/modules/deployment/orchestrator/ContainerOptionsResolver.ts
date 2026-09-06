@@ -4,7 +4,7 @@ import { getDockerHost } from './DockerHost';
 import DockerContainer from '@/modules/docker/models/DockerContainer';
 import DockerImage from '@/modules/docker/models/DockerImage';
 import DockerNetwork from '@/modules/docker/models/DockerNetwork';
-import PortBinding from '@/modules/codespace/models/PortBinding';
+import PortBinding from '@/modules/docker/models/PortBinding';
 import type { ContainerOverrides } from './ContainerOps';
 
 export default class ContainerOptionsResolver{
@@ -40,6 +40,10 @@ export default class ContainerOptionsResolver{
         if(overrides.extraLabels && Object.keys(overrides.extraLabels).length > 0){
             options.Labels = { ...overrides.extraLabels };
         }
+        if(overrides.cmd !== undefined && overrides.cmd.length > 0) options.Cmd = [...overrides.cmd];
+        if(overrides.aliases !== undefined && overrides.aliases.length > 0){
+            options.NetworkingConfig = { EndpointsConfig: { [networkName]: { Aliases: [...overrides.aliases] } } };
+        }
         return options;
     }
 
@@ -54,12 +58,6 @@ export default class ContainerOptionsResolver{
         const network = await DockerNetwork.findOneBy({ id: this.container.networkId });
         if(!network) throw new Error('Container::Network::NotFound');
 
-        /*
-         * The persisted name, not one recomposed from ids. `materializeNetwork` created
-         * the Docker network as `network.dockerNetworkName`, so anything else is a guess
-         * at what Docker was told — and a wrong guess only surfaces as a 404 from the
-         * daemon at container-create time, long after provisioning reported success.
-         */
         if(!network.dockerNetworkName) throw new Error('Container::Network::NotMaterialized');
         return network.dockerNetworkName;
     }

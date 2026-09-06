@@ -6,35 +6,25 @@ import Template from '../models/Template';
 import { TemplateError } from '../contracts/domain/errors';
 import type { FindOptionsWhere } from 'typeorm';
 import type { Tenant } from '@/modules/organization/contracts/types/fastify';
-import type { TemplateCategory } from '@quantum/contracts/modules/template/domain';
 import type { CreateTemplateInput } from '@quantum/contracts/modules/template/http';
 
 type TemplateWhere = FindOptionsWhere<Template> | FindOptionsWhere<Template>[];
 
 export default class TemplateService{
-    async list(tenant: Tenant, category?: string): Promise<Template[]>{
-        const extra: FindOptionsWhere<Template> = category === undefined ? {} : { category };
-        return Template.find({ where: this.#visibleWhere(tenant, extra), order: { name: 'ASC' } });
-    }
-
-    async categories(tenant: Tenant): Promise<TemplateCategory[]>{
-        const templates = await Template.find({ where: this.#visibleWhere(tenant), select: { category: true } });
-        return [...new Set(templates.map((template) => template.category))].sort();
+    async list(tenant: Tenant): Promise<Template[]>{
+        return Template.find({ where: this.#visibleWhere(tenant), order: { name: 'ASC' } });
     }
 
     async create(tenant: Tenant, input: CreateTemplateInput): Promise<Template>{
         if(tenant.organizationId === null) throw TemplateError.Forbidden();
 
         const slug = input.slug ?? slugify(input.name, { lower: true, strict: true });
-        const version = input.version ?? '1.0.0';
-        const exists = await Template.findOneBy({ slug, version });
+        const exists = await Template.findOneBy({ slug });
         if(exists) throw TemplateError.SlugAlreadyTaken();
 
         return Template.create({
             name: input.name,
             slug,
-            version,
-            category: input.category ?? 'other',
             description: input.description ?? null,
             icon: input.icon ?? null,
             website: input.website ?? null,

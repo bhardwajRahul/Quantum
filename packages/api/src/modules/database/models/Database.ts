@@ -35,6 +35,9 @@ export default class Database extends BaseModel implements DatabaseFields{
     @Column({ type: 'simple-enum', enum: DatabaseStatus, default: DatabaseStatus.Pending })
     status!: DatabaseStatus;
 
+    @Column({ type: 'int', nullable: true })
+    containerId!: number | null;
+
     @Hidden()
     @Column({ type: 'varchar', nullable: true })
     credentialsEnc!: string | null;

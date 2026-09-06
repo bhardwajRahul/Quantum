@@ -46,10 +46,6 @@ describe('ResourceChangeSubscriber', () => {
         expect(changes).toEqual([{ entity: 'Project', action: 'removed', organizationId: org.id }]);
     });
 
-    /**
-     * There is no room to deliver a tenant-less row to, so it must not be announced —
-     * this is what keeps one organization's writes from reaching another's sockets.
-     */
     it('stays silent for a row that carries no organization', async () => {
         await seed.user();
         await flushEvents();

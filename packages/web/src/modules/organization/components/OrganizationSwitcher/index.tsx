@@ -11,7 +11,7 @@ import {
     AutocompleteFilter,
     useFilter
 } from '@heroui/react';
-import { ChevronDown, Plus } from 'lucide-react';
+import { ChevronsUpDown, Plus } from 'lucide-react';
 import Modal from '@/shared/components/Modal';
 import CreateOrganizationForm from '@/modules/organization/components/CreateOrganizationForm';
 import { useTenancy } from '@/modules/organization/hooks/use-tenancy';
@@ -21,19 +21,23 @@ import type { Organization } from '@quantum/contracts/modules/organization/domai
 interface TriggerProps{
     name: string | undefined;
     loading: boolean;
+    collapsed: boolean;
 }
 
-const Trigger = ({ name, loading }: TriggerProps) => (
+const Trigger = ({ name, loading, collapsed }: TriggerProps) => (
     <Button
         variant='ghost'
         size='sm'
         aria-haspopup='dialog'
-        className='-ml-2 h-8 gap-1.5 rounded-lg px-2 text-[0.875rem] font-medium'
+        aria-label={`Organization: ${name ?? 'none'}`}
+        className={`is-plain h-9 w-full gap-2 text-foreground ${collapsed ? 'justify-center px-0' : 'justify-center px-0 lg:justify-between lg:px-2'}`}
     >
-        {loading
-            ? <Skeleton className='h-3.5 w-16 rounded' />
-            : <span className='max-w-28 truncate capitalize sm:max-w-40'>{name ?? 'No organization'}</span>}
-        <ChevronDown aria-hidden='true' className='size-4 shrink-0 text-muted' />
+        {!collapsed && (
+            <span className='hidden min-w-0 flex-1 truncate text-left lg:inline'>
+                {loading ? <Skeleton className='inline-block h-3 w-20' /> : name ?? 'No organization'}
+            </span>
+        )}
+        <ChevronsUpDown aria-hidden='true' className='size-3.5 shrink-0 text-muted' />
     </Button>
 );
 
@@ -42,17 +46,17 @@ interface OrganizationRowProps{
 }
 
 const OrganizationRow = ({ organization }: OrganizationRowProps) => (
-    <ListBoxItem
-        id={organization.id}
-        textValue={organization.name}
-        className='rounded-full'
-    >
+    <ListBoxItem id={organization.id} textValue={organization.name}>
         <span className='flex-1 truncate capitalize'>{organization.name}</span>
         <ListBoxItem.Indicator />
     </ListBoxItem>
 );
 
-const OrganizationSwitcher = () => {
+interface OrganizationSwitcherProps{
+    collapsed?: boolean;
+}
+
+const OrganizationSwitcher = ({ collapsed = false }: OrganizationSwitcherProps) => {
     const { organizations, current, loading, reload } = useTenancy();
     const setOrganizationId = useTenantStore((state) => state.setOrganizationId);
     const { contains } = useFilter({ sensitivity: 'base' });
@@ -66,7 +70,7 @@ const OrganizationSwitcher = () => {
         <>
             <Popover.Root isOpen={open} onOpenChange={setOpen}>
                 <Popover.Trigger>
-                    <Trigger name={current?.name} loading={loading} />
+                    <Trigger name={current?.name} loading={loading} collapsed={collapsed} />
                 </Popover.Trigger>
 
                 <Popover.Content placement='bottom start' className='w-72 max-w-[calc(100vw_-_2rem)]'>
@@ -106,7 +110,7 @@ const OrganizationSwitcher = () => {
 
                         <button
                             type='button'
-                            className='flex min-h-9 w-full items-center gap-2 rounded-full px-2.5 text-[0.8125rem] text-muted transition-colors hover:bg-default hover:text-foreground'
+                            className='flex min-h-9 w-full items-center gap-2 px-2.5 text-[0.8125rem] text-muted transition-colors hover:bg-default hover:text-foreground'
                             onClick={() => {
                                 setOpen(false);
                                 setCreating(true);

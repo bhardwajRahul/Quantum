@@ -31,15 +31,14 @@ export enum JobType{
     DbProvision = 'db:provision',
     DbBackup = 'db:backup',
     DbRestore = 'db:restore',
+    DbDelete = 'db:delete',
     MetricsSample = 'metrics:sample',
     HealthCheck = 'health:check',
     TemplateInstall = 'template:install',
     TemplateUninstall = 'template:uninstall',
     OrgCascadeDelete = 'org:cascade-delete',
     ProjectCascadeDelete = 'project:cascade-delete',
-    AnalyticsSample = 'analytics:sample',
-    CodespaceProvision = 'codespace:provision',
-    CodespaceDelete = 'codespace:delete'
+    AnalyticsSample = 'analytics:sample'
 }
 
 export interface DeploymentCommitAuthor{
@@ -68,7 +67,6 @@ export interface Deployment extends BaseEntity{
     environmentId: number | null;
     githubDeploymentId: string | null;
     status: DeploymentStatus;
-    /** Why the deployment failed, as reported by the step that failed. */
     error: string | null;
     commit: DeploymentCommit | null;
     artifact: DeploymentArtifact | null;

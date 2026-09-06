@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
+import type { ReactNode } from 'react';
 import { useRememberedSelection } from '@/shared/hooks/use-remembered-selection';
 import { Button, Chip, Table } from '@heroui/react';
-import { Globe, Plus, RefreshCw } from 'lucide-react';
+import { ArrowRight, Globe, RefreshCw } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
 import PageHeader from '@/shared/components/layout/PageHeader';
 import ListPageShell from '@/shared/components/ListPageShell';
@@ -26,6 +27,7 @@ import type { UpdateDomainInput } from '@quantum/contracts/modules/domain/http';
 const copy = errorCopy(domainErrorMessages);
 
 interface DomainsHeaderProps{
+    filter: ReactNode;
     canRefresh: boolean;
     canAdd: boolean;
     refreshing: boolean;
@@ -33,10 +35,11 @@ interface DomainsHeaderProps{
     onAdd: () => void;
 }
 
-const DomainsHeader = ({ canRefresh, canAdd, refreshing, onRefresh, onAdd }: DomainsHeaderProps) => (
+const DomainsHeader = ({ filter, canRefresh, canAdd, refreshing, onRefresh, onAdd }: DomainsHeaderProps) => (
     <PageHeader
         title='Domains'
         description='Bind custom domains to a repository. TLS is provisioned automatically.'
+        filter={filter}
         actions={(
             <div className='flex gap-2'>
                 <Button variant='secondary' isDisabled={!canRefresh} isPending={refreshing} onPress={onRefresh}>
@@ -44,8 +47,8 @@ const DomainsHeader = ({ canRefresh, canAdd, refreshing, onRefresh, onAdd }: Dom
                     Refresh
                 </Button>
                 <Button isDisabled={!canAdd} onPress={onAdd}>
-                    <Plus aria-hidden='true' className='size-4' />
                     Add domain
+                    <ArrowRight aria-hidden='true' className='size-4' />
                 </Button>
             </div>
         )}
@@ -86,13 +89,13 @@ const DomainRow = ({ domain, isBusy, onUpdate, onRemove }: DomainRowProps) => (
     <Table.Row>
         <Table.Cell>
             <span className='inline-flex items-center gap-2'>
-                <span className='font-medium text-foreground'>{domain.host}</span>
+                <span className='font-mono text-[0.8125rem] text-foreground'>{domain.host}</span>
                 {domain.isPrimary && <Chip size='sm' variant='soft' color='accent'>Primary</Chip>}
             </span>
         </Table.Cell>
         <Table.Cell>
             {domain.target === DomainTarget.Upstream
-                ? <span className='text-[0.8125rem] text-muted'>{domain.upstreamUrl}</span>
+                ? <span className='font-mono text-[0.8125rem] text-muted'>{domain.upstreamUrl}</span>
                 : <span className='text-[0.8125rem] text-muted'>{domain.kind}</span>}
         </Table.Cell>
         <Table.Cell><DomainStatusChip status={domain.status} /></Table.Cell>
@@ -115,7 +118,7 @@ const DomainRow = ({ domain, isBusy, onUpdate, onRemove }: DomainRowProps) => (
                 >
                     {domain.tls ? 'Disable TLS' : 'Enable TLS'}
                 </Button>
-                <Button size='sm' variant='danger-soft' onPress={onRemove}>Delete</Button>
+                <Button size='sm' variant='danger' onPress={onRemove}>Delete</Button>
             </div>
         </Table.Cell>
     </Table.Row>
@@ -186,23 +189,17 @@ interface ModeSwitchProps{
     onChange: (mode: Mode) => void;
 }
 
-/**
- * Two lists, not one: a domain for a deployed app is scoped to a repository and routed by
- * that container's labels, while a proxied host belongs to the organization and is routed
- * by generated configuration. Mixing them in one list would mean a selector that applies
- * to half the rows.
- */
 const ModeSwitch = ({ mode, onChange }: ModeSwitchProps) => (
-    <div className='inline-flex gap-1 rounded-lg bg-foreground/[0.06] p-1'>
-        {([['apps', 'Deployed apps'], ['proxy', 'Proxied hosts']] as const).map(([value, label]) => (
+    <div className='inline-flex h-9 border border-border'>
+        {([['apps', 'Deployed apps'], ['proxy', 'Proxied hosts']] as const).map(([value, label], index) => (
             <button
                 key={value}
                 type='button'
                 onClick={() => onChange(value)}
                 aria-current={mode === value}
-                className={`rounded-md px-3 py-1.5 text-[0.8125rem] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground ${
-                    mode === value ? 'bg-background font-medium text-foreground' : 'text-muted hover:text-foreground'
-                }`}
+                className={`label-caps px-3.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground ${
+                    index > 0 ? 'border-l border-border ' : ''
+                }${mode === value ? 'bg-foreground text-background' : 'text-muted hover:text-foreground'}`}
             >
                 {label}
             </button>
@@ -218,8 +215,8 @@ const ProxiedHosts = () => {
         <div className='flex flex-1 flex-col'>
             <div className='flex justify-end'>
                 <Button onPress={() => setCreateOpen(true)}>
-                    <Plus aria-hidden='true' className='size-4' />
                     Add route
+                    <ArrowRight aria-hidden='true' className='size-4' />
                 </Button>
             </div>
 
@@ -238,8 +235,8 @@ const ProxiedHosts = () => {
                         description: 'Point a hostname at anything this server can reach — a container, another machine on the network, a device on the LAN.',
                         action: (
                             <Button onPress={() => setCreateOpen(true)}>
-                                <Plus aria-hidden='true' className='size-4' />
                                 Add route
+                                <ArrowRight aria-hidden='true' className='size-4' />
                             </Button>
                         )
                     }}
@@ -293,16 +290,13 @@ const Domains = () => {
     return (
         <PageBody width='wide' height='full'>
             <DomainsHeader
+                filter={<ModeSwitch mode={mode} onChange={setMode} />}
                 canRefresh={repositoryId !== null && !domains.loading}
                 canAdd={items.length > 0}
                 refreshing={domains.loading}
                 onRefresh={domains.refresh}
                 onAdd={openCreate}
             />
-
-            <div className='mt-6'>
-                <ModeSwitch mode={mode} onChange={setMode} />
-            </div>
 
             {mode === 'proxy' ? <div className='mt-6 flex flex-1 flex-col'><ProxiedHosts /></div> : (
             <>
@@ -339,8 +333,8 @@ const Domains = () => {
                         description: 'This repository has no custom domains. Add one to route traffic and provision TLS.',
                         action: (
                             <Button onPress={openCreate}>
-                                <Plus aria-hidden='true' className='size-4' />
                                 Add domain
+                                <ArrowRight aria-hidden='true' className='size-4' />
                             </Button>
                         )
                     }}

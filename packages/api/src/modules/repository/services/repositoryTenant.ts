@@ -19,14 +19,6 @@ const projectIdsOf = async (organizationIds: number[]): Promise<number[]> => {
     return projects.map((project) => project.id);
 };
 
-/**
- * The tenant a socket caller acts as.
- *
- * Sockets have no `Tenant` middleware to lean on the way HTTP routes do, so each gateway
- * used to work it out for itself — and the second gateway that needed it would have had
- * to copy thirty lines of membership and role resolution, which is how two answers to
- * "what may this caller see" start to drift apart.
- */
 export const repositoryTenantOf = async (userId: number): Promise<Tenant> => {
     const user = await User.findOneBy({ id: userId });
     if(!user) throw AuthError.Unauthorized();

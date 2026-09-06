@@ -73,15 +73,19 @@ export default class OrchestratorService{
     }
 
     databaseJob(
-        type: JobType.DbProvision | JobType.DbBackup | JobType.DbRestore,
+        type: JobType.DbProvision | JobType.DbBackup | JobType.DbRestore | JobType.DbDelete,
         databaseId: number,
-        options: { userId?: number; projectId?: number; backupId?: string } = {}
+        options: { userId?: number; projectId?: number; backupId?: string; containerId?: number | null } = {}
     ): Promise<Job>{
         return this.enqueue({
             type,
             userId: options.userId,
             projectId: options.projectId,
-            payload: { databaseId, ...(options.backupId ? { backupId: options.backupId } : {}) },
+            payload: {
+                databaseId,
+                ...(options.backupId ? { backupId: options.backupId } : {}),
+                ...(options.containerId !== undefined && options.containerId !== null ? { containerId: options.containerId } : {})
+            },
             lockKey: `database:${databaseId}`
         });
     }
@@ -124,30 +128,17 @@ export default class OrchestratorService{
         return this.enqueue({ type: JobType.AnalyticsSample, nodeId, lockKey: `analytics:${nodeId}`, maxAttempts: 1 });
     }
 
-    codespaceJob(
-        type: JobType.CodespaceProvision | JobType.CodespaceDelete,
-        codespaceId: number,
-        options: { userId?: number; projectId?: number } = {}
-    ): Promise<Job>{
-        return this.enqueue({
-            type,
-            userId: options.userId,
-            projectId: options.projectId,
-            payload: { codespaceId },
-            lockKey: `codespace:${codespaceId}`
-        });
-    }
-
     templateJob(
         type: JobType.TemplateInstall | JobType.TemplateUninstall,
         templateInstallId: number,
-        options: { userId?: number; projectId?: number } = {}
+        options: { userId?: number; projectId?: number; payload?: Record<string, unknown> } = {}
     ): Promise<Job>{
         return this.enqueue({
             type,
             templateInstallId,
             userId: options.userId,
             projectId: options.projectId,
+            payload: options.payload,
             lockKey: `template:${templateInstallId}`
         });
     }

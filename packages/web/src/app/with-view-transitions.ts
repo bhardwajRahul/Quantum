@@ -9,11 +9,6 @@ const pathnameOf = (to: To): string => {
     return to.replace(/[?#].*$/, '');
 };
 
-/**
- * The innermost layout a path renders inside, as a resolved path (`/applications/6`). Pathless
- * wrappers are skipped: the guards and the dashboard chrome wrap every screen, and sharing those
- * is not what makes two locations the same screen.
- */
 const layoutOf = (routes: RouteObject[], pathname: string): string | null => {
     if(!pathname.startsWith('/')) return null;
 
@@ -25,11 +20,6 @@ const layoutOf = (routes: RouteObject[], pathname: string): string | null => {
     return layouts.at(-1)?.pathnameBase ?? null;
 };
 
-/**
- * Two locations under one layout are two tabs of a single screen. The chrome around them — the
- * header, the sidebar — never unmounts, so a page transition would animate the part that did not
- * change, which reads as the whole screen reloading on every click.
- */
 export const staysWithinLayout = (routes: RouteObject[], from: string, to: To | null): boolean => {
     if(to === null) return false;
 

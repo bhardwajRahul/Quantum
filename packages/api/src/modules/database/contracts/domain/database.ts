@@ -10,6 +10,7 @@ export interface DatabaseFields{
     userId: number | null;
     nodeId: string;
     status: DatabaseStatus;
+    containerId: number | null;
     credentialsEnc: string | null;
     connectionStringEnc: string | null;
     backups: DatabaseBackup[];

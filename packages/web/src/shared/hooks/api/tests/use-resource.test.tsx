@@ -53,7 +53,7 @@ describe('useResource', () => {
         });
 
         const harness = await renderHook(() => useResource(routes, { list: 'list' }));
-        await settle(harness, (state) => !state.loading);
+        await settle(harness, (state) => !state.loading && !state.refreshing);
 
         expect(callMock).toHaveBeenCalledTimes(1);
         expect(harness.current.data).toEqual([{ id: 1, name: 'a' }]);
@@ -74,12 +74,12 @@ describe('useResource', () => {
         callMock.mockClear();
 
         const harness = await renderHook(() => useResource(routes, { list: 'list' }));
-        await settle(harness, (current) => !current.loading);
+        await settle(harness, (current) => !current.loading && !current.refreshing);
         expect(harness.current.data).toEqual([{ id: 1, name: 'a' }]);
 
         const removed = harness.current.remove({ path: { id: 1 } });
         await removed;
-        await settle(harness, (current) => !current.loading);
+        await settle(harness, (current) => !current.loading && !current.refreshing);
 
         expect(harness.current.data).toEqual([]);
         const forced = callMock.mock.calls.filter(([, options]) => (options as StubOptions | undefined)?.fresh === true);
@@ -95,12 +95,12 @@ describe('useResource', () => {
         });
 
         const harness = await renderHook(() => useResource(routes, { list: 'list', request: { path: { orgId: 9 } } }));
-        await settle(harness, (current) => !current.loading);
+        await settle(harness, (current) => !current.loading && !current.refreshing);
 
         expect(seen[0]).toEqual({ path: { orgId: 9 } });
 
         harness.current.refresh();
-        await settle(harness, (current) => !current.loading);
+        await settle(harness, (current) => !current.loading && !current.refreshing);
 
         expect(seen[1]).toEqual({ path: { orgId: 9 }, fresh: true });
     });

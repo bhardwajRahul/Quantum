@@ -60,12 +60,6 @@ export default class DeployHandler{
         }
     }
 
-    /**
-     * The deployment row is created before any work starts, not after provisioning. A
-     * failure while provisioning used to throw before there was a row to record it on,
-     * so the attempt left nothing behind for the reader except a job in the log — the
-     * repository simply showed a deployment that had failed for no stated reason.
-     */
     async #forward(job: Job, repository: Repository, activity: ActivityStepContext): Promise<void>{
         const deployment = await this.#createDeployment(job, repository);
         emitStatusChanged(deployment.id, repository.id, DeploymentStatus.Building);
@@ -120,19 +114,8 @@ export default class DeployHandler{
 
         await this.#ingress.ensureSubdomain(repository).catch(() => undefined);
 
-        /*
-         * An exec build already ran inside the live container and started the app there,
-         * so replacing the container now would throw that away. Only the strategies that
-         * produce an image have something new to run.
-         */
         if(strategy === BuildStrategy.Exec) return;
 
-        /*
-         * No stop first: `removeContainer` force-removes, so stopping was redundant here
-         * and actively wrong for an exec build, which has to run inside the container
-         * that is still up. Stopping it before the build was what made every exec deploy
-         * fail with "container is not running".
-         */
         const ops = new ContainerOps(container);
         await ops.removeContainer();
         await ops.createAndStartContainer({ imageOverride: artifact.tag, extraLabels: await this.#labels(repository) });

@@ -54,11 +54,6 @@ describe('useResourceStream', () => {
         expect(sent).toEqual(['subscribe']);
     });
 
-    /**
-     * The reason the window exists: every organization-scoped row is announced, and a
-     * running container writes a Metric every few seconds. Without coalescing each of
-     * those frames would cost a refetch.
-     */
     it('collapses a burst into one refetch per segment', async () => {
         emit(changed('Job'));
         emit(changed('Deployment'));

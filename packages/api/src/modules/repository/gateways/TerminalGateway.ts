@@ -84,11 +84,6 @@ export default class TerminalGateway extends BaseGateway{
         socket.send(JSON.stringify({ type, data }));
     }
 
-    /**
-     * `MalformedFrame` used to be reported here, which sent every reader looking for a
-     * serialisation bug when the frame was perfectly well formed and had simply arrived
-     * before `terminal.join` finished attaching the session.
-     */
     #session(socket: GatewaySocket): TerminalSession{
         const session = this.#sessions.get(socket);
         if(!session) throw GatewayError.NotJoined();

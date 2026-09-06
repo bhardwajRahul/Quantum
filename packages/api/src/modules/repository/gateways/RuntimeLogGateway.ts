@@ -28,8 +28,6 @@ export default class RuntimeLogGateway extends BaseGateway{
         const tenant = await repositoryTenantOf(userId);
         const repository = await new RepositoryService().getOwned(userId, tenant, repositoryId);
 
-        // One stream per socket: a second subscribe replaces the first rather than
-        // doubling every line.
         this.#streams.get(socket)?.stop();
         this.#streams.set(socket, await this.#logs.follow(repository, {
             line: (line) => this.#push(socket, 'logs.line', { line }),

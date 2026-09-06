@@ -5,12 +5,6 @@ interface PublishedPortsProps{
     ports: RepositoryPort[];
 }
 
-/**
- * The address is built from the host the browser is already talking to, not from a
- * configured public address. On a server install that is the very IP or domain the
- * reader typed to get here, and locally it is localhost — so there is nothing to keep
- * in sync and no second answer to "where does this platform live".
- */
 const hostAddress = (externalPort: number): string => {
     const hostname = typeof window === 'undefined' ? 'localhost' : window.location.hostname;
     return `http://${hostname}:${externalPort}`;
@@ -29,7 +23,7 @@ const PublishedPorts = ({ ports }: PublishedPortsProps) => {
                     href={hostAddress(port.externalPort)}
                     target='_blank'
                     rel='noreferrer'
-                    className='inline-flex items-center gap-1.5 text-[0.8125rem] text-[var(--accent)] hover:underline'
+                    className='inline-flex items-center gap-1.5 font-mono text-[0.8125rem] text-muted transition-colors hover:text-foreground motion-reduce:transition-none'
                 >
                     <span>{hostAddress(port.externalPort)}</span>
                     <span className='text-muted'>&rarr; {port.internalPort}</span>

@@ -26,9 +26,9 @@ export interface UseResourceOptions<T extends EndpointTable, L extends ListNames
 export interface ResourceState<O>{
     data: O | null;
     loading: boolean;
+    refreshing: boolean;
     error: Error | undefined;
     refresh: () => void;
-    /** Applies a local edit to the loaded list at once, and returns the undo. */
     patch: (updater: (data: O) => O) => () => void;
 }
 
@@ -47,13 +47,6 @@ export type Resource<T extends EndpointTable, L extends ListNames<T>> = Resource
 const refreshSegment = async (segment: string, changed: boolean): Promise<void> => {
     if(!changed) return;
 
-    /*
-     * The GET cache is keyed by URL and knows nothing about the write that just
-     * invalidated it, so it is dropped wholesale before the mounted lists reload.
-     * Refreshing only the mounted keys is not enough: a list that is not on screen
-     * right now would go on serving its pre-write body for the rest of the window,
-     * and look stale the moment it is navigated to.
-     */
     await invalidateCache();
     await queryCache.invalidateSegment(segment);
 };
@@ -98,11 +91,6 @@ export function useResource<T extends EndpointTable, L extends ListNames<T>>(
 
             const changed = (endpoint as Endpoint).method !== 'GET';
             table[name] = async (request?: object, optimistic?: (data: unknown) => unknown) => {
-                /*
-                 * The list moves the moment the action is dispatched, and moves back if the
-                 * server rejects it. The reload that follows a success is what reconciles the
-                 * guess with the server's own answer, so the guess only has to be close.
-                 */
                 const rollback = optimistic !== undefined && keyRef.current !== null
                     ? queryCache.patch(keyRef.current, optimistic)
                     : undefined;
@@ -142,6 +130,7 @@ export function useResource<T extends EndpointTable, L extends ListNames<T>>(
         ...(actions as unknown as ActionsOf<T, Extract<L, string>, Awaited<OutputOf<T[L]>>>),
         data: (snapshot.data as Awaited<OutputOf<T[L]>>) ?? null,
         loading: snapshot.loading,
+        refreshing: snapshot.refreshing,
         error: actionState.error ?? snapshot.error,
         pending: actionState.inFlight > 0,
         refresh,

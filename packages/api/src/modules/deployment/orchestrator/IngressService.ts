@@ -57,13 +57,6 @@ export const buildTraefikLabels = (
         labels[`traefik.http.routers.${router}.tls`] = 'true';
         labels[`traefik.http.routers.${router}.tls.certresolver`] = 'le';
 
-        /*
-         * The same host on plain HTTP, redirected by its own router. The redirect used to
-         * live on the entrypoint, which applied it to every request before routing — so a
-         * host that asked for plain HTTP could never be served, and the redirect happened
-         * even for names with no route at all. `to-https@file` is the middleware the api
-         * publishes once through the file provider.
-         */
         labels[`traefik.http.routers.${router}-redirect.rule`] = rule;
         labels[`traefik.http.routers.${router}-redirect.entrypoints`] = 'web';
         labels[`traefik.http.routers.${router}-redirect.middlewares`] = 'to-https@file';

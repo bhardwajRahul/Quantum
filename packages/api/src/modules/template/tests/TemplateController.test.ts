@@ -20,8 +20,6 @@ const spec = (image: string): TemplateSpec => ({ services: { app: { image } } })
 const seedBuiltin = (overrides: Partial<Omit<TemplateFields, 'createdAt' | 'updatedAt'>> = {}) => Template.create({
     name: 'Postgres',
     slug: 'postgres',
-    version: '1.0.0',
-    category: 'database',
     description: null,
     icon: null,
     website: null,
@@ -34,8 +32,6 @@ const seedBuiltin = (overrides: Partial<Omit<TemplateFields, 'createdAt' | 'upda
 const createTemplate = (userId: number, orgId: number, overrides: Partial<CreateTemplateInput> = {}) => Template.create({
     name: overrides.name ?? 'Redis Cache',
     slug: overrides.slug ?? 'redis-cache',
-    version: overrides.version ?? '1.0.0',
-    category: overrides.category ?? 'other',
     description: overrides.description ?? null,
     icon: overrides.icon ?? null,
     website: overrides.website ?? null,
@@ -69,7 +65,7 @@ describe('template', () => {
 
     it('lists builtin templates for everyone and custom templates only for member organizations', async () => {
         await seedBuiltin();
-        await seedBuiltin({ name: 'Nginx', slug: 'nginx', category: 'networking', spec: spec('nginx:1') });
+        await seedBuiltin({ name: 'Nginx', slug: 'nginx', spec: spec('nginx:1') });
         const { user, org } = await seed.orgContext();
         await createTemplate(user.id, org.id);
         const outsider = await seed.user();
@@ -84,29 +80,6 @@ describe('template', () => {
         expect(theirs.data().every((template) => template.source === TemplateSource.Builtin)).toBe(true);
     });
 
-    it('filters the list by category', async () => {
-        await seedBuiltin();
-        const { user, org } = await seed.orgContext();
-        await createTemplate(user.id, org.id, { category: 'cms' });
-
-        const res = await request(ctx.app, templateRoutes.list, { as: user.id, query: { category: 'cms' } });
-
-        expect(res.status).toBe(200);
-        expect(res.data()).toHaveLength(1);
-        expect(res.data()[0].category).toBe('cms');
-    });
-
-    it('lists distinct visible categories sorted', async () => {
-        await seedBuiltin();
-        const { user, org } = await seed.orgContext();
-        await createTemplate(user.id, org.id, { category: 'cms' });
-
-        const res = await request(ctx.app, templateRoutes.categories, { as: user.id });
-
-        expect(res.status).toBe(200);
-        expect(res.data()).toEqual(['cms', 'database']);
-    });
-
     it('installs a template into a project and emits template.installed', async () => {
         const { user, org, project } = await seed.orgContext();
         const created = await createTemplate(user.id, org.id);
@@ -117,7 +90,6 @@ describe('template', () => {
         expect(res.status).toBe(201);
         expect(res.data()).toMatchObject({
             templateId: created.id,
-            templateVersion: '1.0.0',
             name: 'My Redis',
             projectId: project.id,
             organizationId: org.id,

@@ -188,15 +188,6 @@ describe('event translation', () => {
         expect(jobs[0].type).toBe(JobType.TemplateInstall);
     });
 
-    it('creates a reload job from portBinding.changed', async () => {
-        eventBus.emit('portBinding.changed', { portBindingId: 1, containerId: 77, action: 'create' });
-        await flushEvents();
-
-        const jobs = await Job.find({ where: { containerId: 77 } });
-        expect(jobs).toHaveLength(1);
-        expect(jobs[0].type).toBe(JobType.Reload);
-    });
-
     it('creates an org cascade job from organization.deleted', async () => {
         eventBus.emit('organization.deleted', { organizationId: 88 });
         await flushEvents();

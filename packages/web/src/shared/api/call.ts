@@ -34,11 +34,5 @@ const methodFor = <I, O>(endpoint: Endpoint<I, O>, url: string, options: CallOpt
 export const call = <I, O>(endpoint: Endpoint<I, O>, options: CallOptions<I> = {}) => {
     const method = methodFor(endpoint, interpolatePath(endpoint.path, options.path), options);
 
-    /**
-     * `send(true)`, not `cacheFor: 0`. The latter only stops the response being *written*
-     * to the cache: alova still answers from the entry an earlier GET left behind, so a
-     * "fresh" reload after a delete kept handing back the deleted row for the rest of the
-     * 30s GET window — which is why a list needed a page reload to look right.
-     */
     return options.fresh ? method.send(true) : method;
 };

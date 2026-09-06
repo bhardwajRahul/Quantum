@@ -8,7 +8,6 @@ import { DomainKind, DomainStatus, DomainTarget } from '@quantum/contracts/modul
 import type { Tenant } from '@/modules/organization/contracts/types/fastify';
 import type { CreateDomainInput, CreateUpstreamDomainInput, UpdateDomainInput } from '@quantum/contracts/modules/domain/http';
 
-/** Labels, digits and hyphens in dot-separated parts, optionally with a wildcard head. */
 const HOSTNAME = /^(\*\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/;
 
 interface RepositoryScope{
@@ -31,11 +30,6 @@ export default class DomainService{
         });
     }
 
-    /**
-     * A domain that proxies somewhere this platform did not deploy. It belongs to the
-     * organization rather than to a repository, so there is no project or container to
-     * resolve — only an upstream the proxy will have to reach.
-     */
     async createUpstream(tenant: Tenant, input: CreateUpstreamDomainInput): Promise<Domain>{
         if(tenant.organizationId === null) throw DomainError.Forbidden();
 
@@ -97,8 +91,6 @@ export default class DomainService{
         }
 
         const saved = await domain.save();
-        // A change to the host, the certificate or the upstream all move the published
-        // route, so the file is republished rather than left describing the old one.
         eventBus.emit('domain.created', { domainId: saved.id, repositoryId: saved.repositoryId });
         return saved;
     }
@@ -122,24 +114,12 @@ export default class DomainService{
         };
     }
 
-    /**
-     * Validated, not escaped. The host is interpolated into the proxy's rule expression,
-     * which delimits values with backticks — so a host carrying one could close the
-     * matcher and append another, taking over routing for a name it does not own.
-     * Constraining the shape to what a hostname may actually contain removes the class of
-     * problem rather than escaping one instance of it.
-     */
     #normalizeHost(raw: string): string{
         const host = raw.trim().toLowerCase();
         if(!HOSTNAME.test(host)) throw DomainError.InvalidHost();
         return host;
     }
 
-    /**
-     * Kept as the caller wrote it apart from trimming: the host part of an upstream is
-     * frequently a container name or a LAN address, and lowercasing a path or normalising
-     * a port would change where the traffic actually goes.
-     */
     #normalizeUpstream(raw: string): string{
         const trimmed = raw.trim();
         if(!/^https?:\/\//i.test(trimmed)) throw DomainError.InvalidHost('Upstream');

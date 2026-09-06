@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { Button } from '@heroui/react';
+import { ArrowRight } from 'lucide-react';
 import typia from 'typia';
 import PageBody from '@/shared/components/layout/PageBody';
+import PageHeader from '@/shared/components/layout/PageHeader';
+import SettingsSection from '@/shared/components/SettingsSection';
 import Form from '@/shared/components/forms/Form';
 import Field from '@/shared/components/forms/Field';
 import { useForm } from '@/shared/hooks/forms/use-form';
@@ -35,10 +38,14 @@ const ChangePassword = () => {
 
     return (
         <PageBody>
-            <h1 className='mb-6 text-2xl font-semibold text-foreground'>Change password</h1>
+            <PageHeader eyebrow='Settings / Account' title='Change password' />
 
-            <div className='rounded-2xl bg-foreground/[0.04] p-5'>
-                    <Form form={form} className='flex flex-col gap-4'>
+            <div className='mt-10'>
+                <SettingsSection
+                    title='New password'
+                    description='We ask for the current one first so a left-open session cannot change it.'
+                >
+                    <Form form={form} className='flex max-w-md flex-col gap-4'>
                         <Field
                             form={form}
                             name='passwordCurrent'
@@ -66,13 +73,15 @@ const ChangePassword = () => {
                             autoComplete='new-password'
                         />
 
-                        <div className='flex items-center gap-3'>
+                        <div className='flex items-center gap-4'>
                             <Button type='submit' isPending={form.submitting} isDisabled={!form.isValid}>
-                                Save
+                                Update password
+                                <ArrowRight aria-hidden='true' className='size-4' />
                             </Button>
-                            {saved && <span className='text-[0.8125rem] text-muted'>Password updated.</span>}
+                            {saved && <span className='label-caps text-muted'>Password updated.</span>}
                         </div>
                     </Form>
+                </SettingsSection>
             </div>
         </PageBody>
     );

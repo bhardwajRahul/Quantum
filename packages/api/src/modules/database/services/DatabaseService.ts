@@ -84,9 +84,9 @@ export default class DatabaseService{
 
     async remove(userId: number, tenant: Tenant, databaseId: number): Promise<void>{
         const database = await this.getOwned(tenant, databaseId);
-        const removedId = database.id;
+        const { id: removedId, containerId } = database;
         await database.remove();
-        this.#requestProvision(removedId, 'delete', userId);
+        this.#requestProvision(removedId, 'delete', userId, undefined, containerId);
     }
 
     generateCredentials(engine: DatabaseEngine): DatabaseCredentials{
@@ -120,9 +120,14 @@ export default class DatabaseService{
         return project;
     }
 
-    // Emits instead of driving Docker directly; the orchestrator wave consumes this.
-    #requestProvision(databaseId: number, action: ProvisionAction, userId: number, backupId?: string): void{
-        eventBus.emit('database.provisionRequested', { databaseId, action, userId, backupId });
+    #requestProvision(
+        databaseId: number,
+        action: ProvisionAction,
+        userId: number,
+        backupId?: string,
+        containerId?: number | null
+    ): void{
+        eventBus.emit('database.provisionRequested', { databaseId, action, userId, backupId, containerId });
     }
 
     #containerName(engine: DatabaseEngine, name: string): string{

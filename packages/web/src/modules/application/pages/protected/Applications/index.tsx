@@ -9,6 +9,7 @@ import {
     Database as DatabaseIcon,
     Eye,
     EyeOff,
+    FileCode2,
     MoreVertical
 } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
@@ -89,7 +90,7 @@ const buildRows = (repositories: Repository[], databases: Database[], installs: 
         kind: 'install',
         key: `install-${install.id}`,
         name: install.name,
-        subtitle: 'Template',
+        subtitle: install.compose === null ? 'Template' : 'Docker Compose',
         date: install.createdAt,
         install
     }))
@@ -98,18 +99,23 @@ const buildRows = (repositories: Repository[], databases: Database[], installs: 
 interface ApplicationsHeaderProps{
     canAddDatabase: boolean;
     onAddApplication: () => void;
+    onAddCompose: () => void;
     onAddDatabase: () => void;
 }
 
-const ApplicationsHeader = ({ canAddDatabase, onAddApplication, onAddDatabase }: ApplicationsHeaderProps) => (
+const ApplicationsHeader = ({ canAddDatabase, onAddApplication, onAddCompose, onAddDatabase }: ApplicationsHeaderProps) => (
     <PageHeader
         title='Applications'
-        description='Repositories, databases, and template installs for this organization.'
+        description='Repositories, databases, template installs and compose stacks for this organization.'
         actions={(
-            <div className='flex gap-2'>
+            <div className='flex flex-wrap gap-2'>
                 <Button variant='secondary' isDisabled={!canAddDatabase} onPress={onAddDatabase}>
                     <DatabaseIcon aria-hidden='true' className='size-4' />
                     New database
+                </Button>
+                <Button variant='secondary' onPress={onAddCompose}>
+                    <FileCode2 aria-hidden='true' className='size-4' />
+                    Deploy compose
                 </Button>
                 <Button onPress={onAddApplication}>
                     New application
@@ -195,6 +201,14 @@ const rowActions = (row: Row, handlers: RowActionHandlers) => {
         <Dropdown.Item key='shell' onAction={() => handlers.onNavigate(`/installs/${install.id}/shell`)}>
             Shell
         </Dropdown.Item>,
+        <Dropdown.Item key='env' onAction={() => handlers.onNavigate(`/installs/${install.id}/environment`)}>
+            Environment variables
+        </Dropdown.Item>,
+        ...(install.compose === null ? [] : [
+            <Dropdown.Item key='compose' onAction={() => handlers.onNavigate(`/installs/${install.id}/compose`)}>
+                Compose
+            </Dropdown.Item>
+        ]),
         <Dropdown.Item key='start' isDisabled={running || busy} onAction={() => handlers.onOperateInstall(install, 'start')}>
             Start
         </Dropdown.Item>,
@@ -710,6 +724,7 @@ const Applications = () => {
             <ApplicationsHeader
                 canAddDatabase={projectId !== null}
                 onAddApplication={() => navigate('/repositories/create')}
+                onAddCompose={() => navigate('/compose/create')}
                 onAddDatabase={() => setCreateDatabaseOpen(true)}
             />
 

@@ -16,7 +16,11 @@ export const TemplateInstallErrors = {
     causes: {
         NotFound: 404,
         Forbidden: 403,
-        MissingInput: 400
+        MissingInput: 400,
+        InvalidCompose: 400,
+        UnsupportedCompose: 400,
+        NotCompose: 400,
+        UnknownService: 400
     }
 } as const satisfies ErrorTable;
 

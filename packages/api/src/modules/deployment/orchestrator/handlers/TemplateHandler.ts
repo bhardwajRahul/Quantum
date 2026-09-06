@@ -1,11 +1,11 @@
+import { In, Not } from 'typeorm';
 import TemplateInstall from '@/modules/template/models/TemplateInstall';
-import Template from '@/modules/template/models/Template';
 import DockerContainer from '@/modules/docker/models/DockerContainer';
 import DockerImage from '@/modules/docker/models/DockerImage';
 import DockerNetwork from '@/modules/docker/models/DockerNetwork';
 import PortBinding from '@/modules/docker/models/PortBinding';
 import ActivityStepContext from '@/modules/activity/services/ActivityStepContext';
-import SecretCipher from '@/shared/services/SecretCipher';
+import { installInputs, installSpec, serviceEnvironment } from '@/modules/template/services/installEnvironment';
 import ContainerOps from '../ContainerOps';
 import { materializeNetwork, teardownNetwork } from '../NetworkOps';
 import { allocateHostPort } from '../PortAllocator';
@@ -56,15 +56,7 @@ const orderServices = (spec: TemplateSpec): Array<[string, TemplateServiceSpec]>
     return ordered;
 };
 
-const interpolate = (value: string, inputs: Record<string, string>): string =>
-    value.replace(/\{\{\s*(\w+)\s*\}\}|\$\{(\w+)\}/g, (match, braces: string | undefined, dollar: string | undefined) => {
-        const key = braces ?? dollar ?? '';
-        return inputs[key] !== undefined ? inputs[key] : match;
-    });
-
 export default class TemplateHandler{
-    #cipher = new SecretCipher();
-
     async run(job: Job): Promise<void>{
         if(job.type === JobType.TemplateUninstall){
             await this.#uninstall(job);
@@ -85,10 +77,10 @@ export default class TemplateHandler{
     }
 
     async #install(job: Job, install: TemplateInstall): Promise<void>{
-        const template = await Template.findOneBy({ id: install.templateId });
-        if(!template) throw new Error(`Template::Job::TemplateNotFound::${install.templateId}`);
+        const spec = await installSpec(install);
+        if(!spec) throw new Error(`Template::Job::SpecNotFound::${install.id}`);
 
-        const inputs = this.#inputs(install);
+        const inputs = installInputs(install);
         const userId = install.userId ?? job.userId ?? 0;
         const organizationId = install.organizationId ?? 0;
         const activity = new ActivityStepContext({
@@ -109,21 +101,28 @@ export default class TemplateHandler{
 
             const services: InstalledService[] = [...install.services];
 
-            for(const [name, spec] of orderServices(template.spec)){
-                const ref = spec.image ?? (spec.engine !== undefined ? ENGINE_IMAGE[spec.engine] : undefined);
+            for(const [name, service] of orderServices(spec)){
+                const ref = service.image ?? (service.engine !== undefined ? ENGINE_IMAGE[service.engine] : undefined);
                 if(ref === undefined) throw new Error(`Template::Service::ImageRequired::${name}`);
 
-                const previous = services.find((service) => service.name === name);
+                const previous = services.find((entry) => entry.name === name);
                 const entry = await activity.step(`Starting ${name} (${ref})`, () =>
-                    this.#service(install, name, spec, ref, inputs, userId, organizationId, network, previous));
+                    this.#service(install, name, service, ref, inputs, userId, organizationId, network, previous));
 
-                const index = services.findIndex((service) => service.name === name);
+                const index = services.findIndex((current) => current.name === name);
                 if(index >= 0) services[index] = entry;
                 else services.push(entry);
 
                 install.services = services;
                 await install.save();
             }
+
+            const wanted = new Set(Object.keys(spec.services ?? {}));
+            for(const stale of services.filter((service) => !wanted.has(service.name))){
+                await activity.step(`Removing ${stale.name}`, () => this.#teardownService(stale));
+            }
+            install.services = services.filter((service) => wanted.has(service.name));
+            await install.save();
 
             install.status = TemplateInstallStatus.Running;
             await install.save();
@@ -137,15 +136,6 @@ export default class TemplateHandler{
             await install.save();
             await activity.fail('Install failed', failureMessage(error));
             throw error;
-        }
-    }
-
-    #inputs(install: TemplateInstall): Record<string, string>{
-        if(install.inputsEnc === null) return {};
-        try{
-            return JSON.parse(this.#cipher.decrypt(install.inputsEnc)) as Record<string, string>;
-        }catch{
-            return {};
         }
     }
 
@@ -183,11 +173,14 @@ export default class TemplateHandler{
         const { name: imageName, tag } = splitImage(ref);
         const image = await this.#image(imageName, tag, userId, organizationId);
 
-        const environment = Object.fromEntries(
-            Object.entries(spec.environment ?? {}).map(([key, value]) => [key, interpolate(String(value), inputs)])
-        );
+        const environment = serviceEnvironment(install, name, spec, inputs);
 
         const container = await this.#container(install, name, spec, environment, userId, organizationId, image.id, network.id, previous?.containerId ?? null);
+
+        const targets = (spec.ports ?? []).map((port) => port.target);
+        await PortBinding.delete(targets.length === 0
+            ? { containerId: container.id }
+            : { containerId: container.id, internalPort: Not(In(targets)) });
 
         const ports: TemplateInstallPort[] = [];
         for(const port of spec.ports ?? []){
@@ -280,17 +273,7 @@ export default class TemplateHandler{
         const services = (job.payload.services as InstalledService[] | undefined) ?? [];
         const networkId = job.payload.networkId as number | null | undefined;
 
-        for(const service of services){
-            if(service.containerId === null) continue;
-            const container = await DockerContainer.findOneBy({ id: service.containerId });
-            if(!container) continue;
-
-            await new ContainerOps(container).removeContainer().catch((error) =>
-                logger.warn(`could not remove ${container.dockerContainerName} — ${failureMessage(error)}`,
-                    { scope: 'orchestrator.handler.template' }));
-            await PortBinding.delete({ containerId: container.id });
-            await container.remove();
-        }
+        for(const service of services) await this.#teardownService(service);
 
         if(networkId !== undefined && networkId !== null){
             const network = await DockerNetwork.findOneBy({ id: networkId });
@@ -301,5 +284,17 @@ export default class TemplateHandler{
         }
 
         logger.info(`template install ${job.templateInstallId ?? '?'} torn down (${services.length} services)`, { scope: 'orchestrator.handler.template' });
+    }
+
+    async #teardownService(service: InstalledService): Promise<void>{
+        if(service.containerId === null) return;
+        const container = await DockerContainer.findOneBy({ id: service.containerId });
+        if(!container) return;
+
+        await new ContainerOps(container).removeContainer().catch((error) =>
+            logger.warn(`could not remove ${container.dockerContainerName} — ${failureMessage(error)}`,
+                { scope: 'orchestrator.handler.template' }));
+        await PortBinding.delete({ containerId: container.id });
+        await container.remove();
     }
 }

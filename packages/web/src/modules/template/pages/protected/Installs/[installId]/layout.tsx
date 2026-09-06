@@ -20,8 +20,15 @@ const copy = errorCopy(templateErrorMessages);
 
 const TABS = [
     { label: 'Logs', to: 'logs' },
-    { label: 'Shell', to: 'shell' }
+    { label: 'Shell', to: 'shell' },
+    { label: 'Environment', to: 'environment' }
 ] as const;
+
+const COMPOSE_TAB = { label: 'Compose', to: 'compose' } as const;
+
+const tabsFor = (install: TemplateInstall) => (install.compose === null ? TABS : [...TABS, COMPOSE_TAB]);
+
+const kindLabel = (install: TemplateInstall): string => (install.compose === null ? 'Template' : 'Docker Compose');
 
 const tabClass = (active: boolean): string =>
     `label-caps -mb-px shrink-0 whitespace-nowrap border-b pb-3.5 transition-colors focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-foreground motion-reduce:transition-none ${
@@ -87,7 +94,7 @@ const InstallHeader = ({ install, isOperating, onOperate }: InstallHeaderProps) 
                         label={installStatusLabel(install.status)}
                         isTransient={isInstallTransient(install.status)}
                     />
-                    <span>· Template · {install.services.length} {install.services.length === 1 ? 'service' : 'services'}</span>
+                    <span>· {kindLabel(install)} · {install.services.length} {install.services.length === 1 ? 'service' : 'services'}</span>
                 </div>
 
                 {install.services.length > 0 && <Services services={install.services} />}
@@ -152,7 +159,7 @@ const InstallLayout = () => {
             />
 
             <nav aria-label='Install' className='mt-8 flex shrink-0 gap-8 overflow-x-auto border-b border-border'>
-                {TABS.map((tab) => (
+                {tabsFor(install.data).map((tab) => (
                     <NavLink key={tab.to} to={tab.to} className={({ isActive }) => tabClass(isActive)}>
                         {tab.label}
                     </NavLink>

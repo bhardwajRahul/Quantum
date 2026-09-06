@@ -12,10 +12,22 @@ import SecretCipher from '@/shared/services/SecretCipher';
 import { eventBus } from '@/shared/events/EventBus';
 import TemplateInstall from '../models/TemplateInstall';
 import TemplateService from './TemplateService';
+import { composeToSpec } from './composeSpec';
+import { installInputs, installSpec, serviceEnvironment } from './installEnvironment';
 import { TemplateInstallError } from '../contracts/domain/errors';
 import type { Tenant } from '@/modules/organization/contracts/types/fastify';
-import type { InstallTemplateInput, TemplateInstallOperation } from '@quantum/contracts/modules/template/http';
-import type { TemplateInstall as TemplateInstallPayload } from '@quantum/contracts/modules/template/domain';
+import type {
+    CreateComposeInstallInput,
+    InstallTemplateInput,
+    TemplateInstallOperation,
+    UpdateComposeInput,
+    UpdateTemplateInstallEnvironmentInput
+} from '@quantum/contracts/modules/template/http';
+import type {
+    TemplateInstall as TemplateInstallPayload,
+    TemplateInstallEnvironment,
+    TemplateSpec
+} from '@quantum/contracts/modules/template/domain';
 
 export default class TemplateInstallService{
     #templates = new TemplateService();
@@ -28,16 +40,103 @@ export default class TemplateInstallService{
 
         const install = await TemplateInstall.create({
             templateId: template.id,
+            compose: null,
+            spec: null,
             name: input.name,
             organizationId: project.organizationId,
             projectId: project.id,
             userId,
             nodeId: process.env.NODE_ID ?? 'local',
-            inputsEnc
+            inputsEnc,
+            environment: {}
         }).save();
 
         this.#startProvisioning(install, userId);
         return this.present(install);
+    }
+
+    async createCompose(userId: number, tenant: Tenant, projectId: number, input: CreateComposeInstallInput): Promise<TemplateInstallPayload>{
+        const project = await this.#projectFor(tenant, projectId);
+        const spec = composeToSpec(input.compose);
+
+        const install = await TemplateInstall.create({
+            templateId: null,
+            compose: input.compose,
+            spec,
+            name: input.name,
+            organizationId: project.organizationId,
+            projectId: project.id,
+            userId,
+            nodeId: process.env.NODE_ID ?? 'local',
+            inputsEnc: null,
+            environment: {}
+        }).save();
+
+        this.#startProvisioning(install, userId);
+        return this.present(install);
+    }
+
+    async updateCompose(tenant: Tenant, id: number, input: UpdateComposeInput): Promise<TemplateInstallPayload>{
+        const install = await this.get(tenant, id);
+        if(!install.compose) throw TemplateInstallError.NotCompose();
+
+        install.spec = composeToSpec(input.compose);
+        install.compose = input.compose;
+        await install.save();
+        return this.present(install);
+    }
+
+    async redeploy(userId: number, tenant: Tenant, id: number): Promise<TemplateInstallPayload>{
+        const install = await this.get(tenant, id);
+        install.status = TemplateInstallStatus.Pending;
+        await install.save();
+
+        this.#startProvisioning(install, userId);
+        return this.present(install);
+    }
+
+    async environment(tenant: Tenant, id: number): Promise<TemplateInstallEnvironment>{
+        const install = await this.get(tenant, id);
+        const spec = await this.#specOf(install);
+        const inputs = installInputs(install);
+
+        return {
+            installId: install.id,
+            services: Object.entries(spec.services ?? {}).map(([name, service]) => ({
+                name,
+                environmentVariables: serviceEnvironment(install, name, service, inputs)
+            }))
+        };
+    }
+
+    async updateEnvironment(tenant: Tenant, id: number, input: UpdateTemplateInstallEnvironmentInput): Promise<TemplateInstallPayload>{
+        const install = await this.get(tenant, id);
+        const spec = await this.#specOf(install);
+
+        for(const name of Object.keys(input.environment)){
+            if(!(name in (spec.services ?? {}))) throw TemplateInstallError.UnknownService(name);
+        }
+
+        install.environment = input.environment;
+        await install.save();
+        return this.present(install);
+    }
+
+    async present(install: TemplateInstall): Promise<TemplateInstallPayload>{
+        const [payload] = await this.#presentAll([install]);
+        return payload;
+    }
+
+    async #presentAll(installs: TemplateInstall[]): Promise<TemplateInstallPayload[]>{
+        const addresses = await containerAddresses(installs.flatMap((install) => install.services.map((service) => service.containerId)));
+
+        return installs.map((install) => ({
+            ...install.toJSON(),
+            services: install.services.map((service) => ({
+                ...service,
+                address: service.containerId === null ? null : addresses.get(service.containerId) ?? null
+            }))
+        }) as unknown as TemplateInstallPayload);
     }
 
     #resolveInputs(template: Template, supplied: Record<string, string | number | boolean>): string | null{
@@ -138,21 +237,10 @@ export default class TemplateInstallService{
         });
     }
 
-    async present(install: TemplateInstall): Promise<TemplateInstallPayload>{
-        const [payload] = await this.#presentAll([install]);
-        return payload;
-    }
-
-    async #presentAll(installs: TemplateInstall[]): Promise<TemplateInstallPayload[]>{
-        const addresses = await containerAddresses(installs.flatMap((install) => install.services.map((service) => service.containerId)));
-
-        return installs.map((install) => ({
-            ...install.toJSON(),
-            services: install.services.map((service) => ({
-                ...service,
-                address: service.containerId === null ? null : addresses.get(service.containerId) ?? null
-            }))
-        }) as unknown as TemplateInstallPayload);
+    async #specOf(install: TemplateInstall): Promise<TemplateSpec>{
+        const spec = await installSpec(install);
+        if(!spec) throw TemplateInstallError.NotFound();
+        return spec;
     }
 
     async #projectFor(tenant: Tenant, projectId: number): Promise<Project>{

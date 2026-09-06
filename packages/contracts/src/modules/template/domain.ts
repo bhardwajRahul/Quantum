@@ -83,9 +83,12 @@ export interface TemplateInstallService{
     address: ContainerAddress | null;
 }
 
+export type ServiceEnvironment = Record<string, Record<string, string>>;
+
 export interface TemplateInstall extends BaseEntity{
     name: string;
-    templateId: number;
+    templateId: number | null;
+    compose: string | null;
     projectId: number;
     organizationId: number | null;
     userId: number | null;
@@ -93,4 +96,15 @@ export interface TemplateInstall extends BaseEntity{
     status: TemplateInstallStatus;
     networkId: number | null;
     services: TemplateInstallService[];
+    environment: ServiceEnvironment;
+}
+
+export interface TemplateInstallServiceEnvironment{
+    name: string;
+    environmentVariables: Record<string, string>;
+}
+
+export interface TemplateInstallEnvironment{
+    installId: number;
+    services: TemplateInstallServiceEnvironment[];
 }

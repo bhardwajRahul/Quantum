@@ -3,12 +3,18 @@ import BaseModel from '@/shared/models/BaseModel';
 import { Hidden } from '@/shared/models/Hidden';
 import { TemplateInstallStatus } from '@quantum/contracts/modules/template/domain';
 import { TemplateInstallFields } from '../contracts/domain/template';
-import type { TemplateInstallService } from '@quantum/contracts/modules/template/domain';
+import type { ServiceEnvironment, TemplateInstallService, TemplateSpec } from '@quantum/contracts/modules/template/domain';
 
 @Entity()
 export default class TemplateInstall extends BaseModel implements TemplateInstallFields{
-    @Column('int')
-    templateId!: number;
+    @Column({ type: 'int', nullable: true })
+    templateId!: number | null;
+
+    @Column({ type: 'text', nullable: true })
+    compose!: string | null;
+
+    @Column({ type: 'simple-json', nullable: true })
+    spec!: TemplateSpec | null;
 
     @Column('varchar')
     name!: string;
@@ -37,4 +43,7 @@ export default class TemplateInstall extends BaseModel implements TemplateInstal
 
     @Column({ type: 'jsonb', default: [] })
     services!: TemplateInstallService[];
+
+    @Column({ type: 'jsonb', default: {} })
+    environment!: ServiceEnvironment;
 }

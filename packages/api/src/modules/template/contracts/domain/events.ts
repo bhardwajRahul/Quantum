@@ -3,7 +3,7 @@ import type { TemplateInstallService } from '@quantum/contracts/modules/template
 export interface TemplateInstalledPayload{
     templateInstallId: number;
     projectId: number;
-    templateId: number;
+    templateId: number | null;
     userId: number;
 }
 

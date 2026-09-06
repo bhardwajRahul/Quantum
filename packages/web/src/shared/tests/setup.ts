@@ -1,3 +1,19 @@
+import { createElement } from 'react';
+import { vi } from 'vitest';
+
+vi.mock('monaco-editor', () => ({}));
+
+vi.mock('@monaco-editor/react', () => ({
+    default: (props: { language?: string; value?: string; options?: { ariaLabel?: string } }) =>
+        createElement('textarea', {
+            'data-monaco': props.language ?? '',
+            'aria-label': props.options?.ariaLabel,
+            readOnly: true,
+            value: props.value ?? ''
+        }),
+    loader: { config: () => undefined }
+}));
+
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
 const memoryStorage = (): Storage => {

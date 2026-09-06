@@ -1,4 +1,4 @@
-import type { InputDef, TemplateSpec } from './domain';
+import type { InputDef, ServiceEnvironment, TemplateSpec } from './domain';
 
 export interface CreateTemplateInput{
     name: string;
@@ -20,4 +20,17 @@ export interface InstallTemplateInput{
     templateId: number;
     name: string;
     inputs?: Record<string, string | number | boolean>;
+}
+
+export interface CreateComposeInstallInput{
+    name: string;
+    compose: string;
+}
+
+export interface UpdateComposeInput{
+    compose: string;
+}
+
+export interface UpdateTemplateInstallEnvironmentInput{
+    environment: ServiceEnvironment;
 }

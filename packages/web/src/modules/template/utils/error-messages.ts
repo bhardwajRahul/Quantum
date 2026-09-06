@@ -7,5 +7,9 @@ export const templateErrorMessages: Partial<Record<TemplateErrorCode | TemplateI
     'Template::SlugAlreadyTaken': 'That slug is already taken.',
     'TemplateInstall::NotFound': notFound('installation'),
     'TemplateInstall::Forbidden': forbidden('installation'),
-    'TemplateInstall::MissingInput': 'A required input is missing.'
+    'TemplateInstall::MissingInput': 'A required input is missing.',
+    'TemplateInstall::InvalidCompose': 'The compose file is not valid.',
+    'TemplateInstall::UnsupportedCompose': 'The compose file uses something Quantum cannot deploy.',
+    'TemplateInstall::NotCompose': 'This installation was not created from a compose file.',
+    'TemplateInstall::UnknownService': 'That service is not part of this installation.'
 };

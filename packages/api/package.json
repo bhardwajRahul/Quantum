@@ -28,7 +28,8 @@
     "slugify": "^1.6.6",
     "typeorm": "^1.0.0",
     "typia": "^12.1.1",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@types/dockerode": "^3.3.31",

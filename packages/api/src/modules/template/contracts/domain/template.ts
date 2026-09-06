@@ -1,4 +1,11 @@
-import type { InputDef, TemplateInstallService, TemplateInstallStatus, TemplateSource, TemplateSpec } from '@quantum/contracts/modules/template/domain';
+import type {
+    InputDef,
+    ServiceEnvironment,
+    TemplateInstallService,
+    TemplateInstallStatus,
+    TemplateSource,
+    TemplateSpec
+} from '@quantum/contracts/modules/template/domain';
 
 export interface TemplateFields{
     name: string;
@@ -16,7 +23,9 @@ export interface TemplateFields{
 
 export interface TemplateInstallFields{
     name: string;
-    templateId: number;
+    templateId: number | null;
+    compose: string | null;
+    spec: TemplateSpec | null;
     projectId: number;
     organizationId: number | null;
     userId: number | null;
@@ -25,6 +34,7 @@ export interface TemplateInstallFields{
     status: TemplateInstallStatus;
     networkId: number | null;
     services: TemplateInstallService[];
+    environment: ServiceEnvironment;
     createdAt: Date;
     updatedAt: Date;
 }

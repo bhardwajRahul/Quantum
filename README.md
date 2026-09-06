@@ -1,8 +1,5 @@
 # The Open-Source and Self-Hosted Alternative to Heroku, Netlify, and Vercel 🚀
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="/screenshots/cover-dark.png">
-  <img alt="Quantum: deploy repositories, databases and compose stacks on your own server" src="/screenshots/cover-light.png">
-</picture>
+![Quantum: deploy repositories, databases and compose stacks on your own server](/screenshots/cover.png)
 <div>
 <a href="https://ko-fi.com/codewithrodi"> <img align="left" src="https://cdn.ko-fi.com/cdn/kofi3.png?v=3" height="50"   width="180" alt="Support Quantum!" /></a>
 </div>

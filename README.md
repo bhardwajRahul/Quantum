@@ -9,6 +9,7 @@
 - [Quick Start](#quick-start)
 - [Configuration Reference](#configuration-reference)
 - [Automatic Domains and HTTPS](#automatic-domains-and-https)
+- [Docker Compose Stacks and Internal Addresses](#docker-compose-stacks-and-internal-addresses)
 - [Day-to-Day Operations](#day-to-day-operations)
 - [Deploying Without Docker](#deploying-without-docker)
 - [Obtaining GitHub Client Secret and Client ID](#obtaining-github-client-secret-and-client-id)
@@ -120,6 +121,16 @@ ACME_CA_SERVER=https://acme-v02.api.letsencrypt.org/directory
 Every deployment now gets its own HTTPS subdomain with a Let's Encrypt certificate, issued and renewed automatically. Leave `BASE_DOMAIN` empty to skip this entirely — deployments still work and stay reachable through their published ports.
 
 Traefik needs ports **80** and **443**. If they're already taken on the host, set `TRAEFIK_HTTP_PORT` / `TRAEFIK_HTTPS_PORT`, but note that Let's Encrypt's HTTP challenge only works on the standard ports.
+
+## Docker Compose Stacks and Internal Addresses
+
+Besides GitHub repositories and one-click templates, an application can be a Docker Compose file. **Applications → Deploy compose** opens an editor: paste the file, pick a project and deploy. Every service becomes its own container on a private network for the stack, so services reach each other by name (`http://api:9000`) exactly as they would with `docker compose up`. The file stays editable afterwards in the stack's **Compose** tab, and each service's variables in its **Environment** tab; both save automatically and apply on **Redeploy**.
+
+Supported per service: `image`, `command`, `environment`, `ports`, `volumes` (named volumes only), `depends_on`. Published host ports are assigned by Quantum, as for every other application. `build:` contexts and host bind mounts are rejected with a message naming the service.
+
+Private images work once the organization has credentials for their registry: **Settings → Organization → Container registries** takes the registry host, a username and a token, and every pull of an image from that host uses them. For GitHub Container Registry create a classic personal access token with the `read:packages` scope; without an explicit entry for `ghcr.io`, Quantum falls back to the connected GitHub account of the application's owner.
+
+Every container Quantum runs, whatever its kind, also joins a network shared by the whole organization. The **Address** column in Applications shows the container's IP on that network and a stable hostname (the application's alias), so an app deployed from GitHub can reach a compose service or a managed database at `http://<hostname>:<port>` without publishing anything to the host. IPs can change when a container is recreated; prefer the hostname in configuration.
 
 ## Day-to-Day Operations
 

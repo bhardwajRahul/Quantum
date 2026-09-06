@@ -54,7 +54,7 @@ const EnvironmentVariables = () => {
             variables={data.environmentVariables}
             save={(environmentVariables) => deploymentApi.update({ path: { id: data.deploymentId }, body: { environmentVariables } })}
             getErrorMessage={copy}
-            description='Available to your app at build and run time, and carried over to every new deployment. Saved automatically; redeploy to apply.'
+            description='Available to your app at build and run time, and carried over to every new deployment. A .env at the repository root fills in any variable not set here. Saved automatically; redeploy to apply.'
             emptyDescription='Add a variable to make it available to your app at build and run time.'
         />
     );

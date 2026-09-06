@@ -1,5 +1,6 @@
 import ContainerOps from '../ContainerOps';
 import { checkoutRepository } from './SourceCheckout';
+import { importDotenv } from './dotenvImport';
 import { emitBuildLog } from './BuildContext';
 import type { BuilderStrategy, BuildContext } from './BuildContext';
 import type { DeploymentArtifact } from '@quantum/contracts/modules/deployment/domain';
@@ -43,6 +44,9 @@ export default class ExecBuilder implements BuilderStrategy{
             date: checkout.date
         };
         await deployment.save();
+
+        const imported = await importDotenv(deployment, container.storagePath, repository.rootDirectory);
+        if(imported.length > 0) emitBuildLog(deployment, `[env] Imported ${imported.length} variable(s) from .env: ${imported.join(', ')}\n`);
 
         const ops = new ContainerOps(container);
 

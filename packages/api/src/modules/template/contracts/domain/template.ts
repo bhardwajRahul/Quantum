@@ -35,6 +35,8 @@ export interface TemplateInstallFields{
     networkId: number | null;
     services: TemplateInstallService[];
     environment: ServiceEnvironment;
+    deployTokenEnc: string | null;
+    watchImages: boolean;
     createdAt: Date;
     updatedAt: Date;
 }

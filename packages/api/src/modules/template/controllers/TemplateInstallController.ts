@@ -12,6 +12,7 @@ import type {
     CreateComposeInstallInput,
     TemplateInstallOperationInput,
     UpdateComposeInput,
+    UpdateDeployTriggersInput,
     UpdateTemplateInstallEnvironmentInput
 } from '@quantum/contracts/modules/template/http';
 
@@ -62,6 +63,23 @@ export default class TemplateInstallController extends BaseController{
     @Middleware(TenantGuard('deploy'))
     updateEnvironment(@Tenant() tenant: Tenant, @NumericParam('id') id: number, @Body() body: UpdateTemplateInstallEnvironmentInput){
         return this.#service.updateEnvironment(tenant, id, body);
+    }
+
+    @Route(templateInstallRoutes.triggers)
+    triggers(@Tenant() tenant: Tenant, @NumericParam('id') id: number){
+        return this.#service.triggers(tenant, id);
+    }
+
+    @Route(templateInstallRoutes.updateTriggers)
+    @Middleware(TenantGuard('deploy'))
+    updateTriggers(@Tenant() tenant: Tenant, @NumericParam('id') id: number, @Body() body: UpdateDeployTriggersInput){
+        return this.#service.updateTriggers(tenant, id, body);
+    }
+
+    @Route(templateInstallRoutes.rotateDeployToken)
+    @Middleware(TenantGuard('deploy'))
+    rotateDeployToken(@Tenant() tenant: Tenant, @NumericParam('id') id: number){
+        return this.#service.rotateDeployToken(tenant, id);
     }
 
     @Route(templateInstallRoutes.operate)

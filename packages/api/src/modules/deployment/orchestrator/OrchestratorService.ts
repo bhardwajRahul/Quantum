@@ -120,6 +120,10 @@ export default class OrchestratorService{
         return this.enqueue({ type: JobType.MetricsSample, nodeId, lockKey: `metrics:${nodeId}`, maxAttempts: 1 });
     }
 
+    imageWatch(nodeId: string = this.nodeId): Promise<Job>{
+        return this.enqueue({ type: JobType.ImageWatch, nodeId, lockKey: `image-watch:${nodeId}`, maxAttempts: 1 });
+    }
+
     repositoryTeardown(repositoryId: number): Promise<Job>{
         return this.enqueue({
             type: JobType.RepositoryTeardown,

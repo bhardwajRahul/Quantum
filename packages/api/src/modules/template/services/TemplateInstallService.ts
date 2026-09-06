@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { In } from 'typeorm';
 import Project from '@/modules/project/models/Project';
 import DockerContainer from '@/modules/docker/models/DockerContainer';
@@ -9,6 +9,9 @@ import { ContainerDesiredState } from '@quantum/contracts/modules/docker/domain'
 import { TemplateInstallStatus } from '@quantum/contracts/modules/template/domain';
 import Template from '../models/Template';
 import SecretCipher from '@/shared/services/SecretCipher';
+import ActivityService from '@/modules/activity/services/ActivityService';
+import { ActivityLevel } from '@quantum/contracts/modules/activity/domain';
+import { config } from '@/shared/config';
 import { eventBus } from '@/shared/events/EventBus';
 import TemplateInstall from '../models/TemplateInstall';
 import TemplateService from './TemplateService';
@@ -21,13 +24,17 @@ import type {
     InstallTemplateInput,
     TemplateInstallOperation,
     UpdateComposeInput,
+    UpdateDeployTriggersInput,
     UpdateTemplateInstallEnvironmentInput
 } from '@quantum/contracts/modules/template/http';
 import type {
+    DeployTriggers,
     TemplateInstall as TemplateInstallPayload,
     TemplateInstallEnvironment,
     TemplateSpec
 } from '@quantum/contracts/modules/template/domain';
+
+const newDeployToken = (): string => randomBytes(24).toString('base64url');
 
 export default class TemplateInstallService{
     #templates = new TemplateService();
@@ -39,6 +46,7 @@ export default class TemplateInstallService{
         const inputsEnc = this.#resolveInputs(template, input.inputs ?? {});
 
         const install = await TemplateInstall.create({
+            deployTokenEnc: new SecretCipher().encrypt(newDeployToken()),
             templateId: template.id,
             compose: null,
             spec: null,
@@ -60,6 +68,7 @@ export default class TemplateInstallService{
         const spec = composeToSpec(input.compose);
 
         const install = await TemplateInstall.create({
+            deployTokenEnc: new SecretCipher().encrypt(newDeployToken()),
             templateId: null,
             compose: input.compose,
             spec,
@@ -226,6 +235,60 @@ export default class TemplateInstallService{
         const container = await DockerContainer.findOneBy({ id: target.containerId });
         if(!container || !container.dockerContainerName) throw TemplateInstallError.NotFound();
         return container;
+    }
+
+    async triggers(tenant: Tenant, id: number): Promise<DeployTriggers>{
+        return this.#triggersOf(await this.get(tenant, id));
+    }
+
+    async updateTriggers(tenant: Tenant, id: number, input: UpdateDeployTriggersInput): Promise<DeployTriggers>{
+        const install = await this.get(tenant, id);
+        install.watchImages = input.watchImages;
+        await install.save();
+        return this.#triggersOf(install);
+    }
+
+    async rotateDeployToken(tenant: Tenant, id: number): Promise<DeployTriggers>{
+        const install = await this.get(tenant, id);
+        install.deployTokenEnc = new SecretCipher().encrypt(newDeployToken());
+        await install.save();
+        return this.#triggersOf(install);
+    }
+
+    async deployHook(id: number, token: string): Promise<void>{
+        const install = await TemplateInstall.findOneBy({ id });
+        if(!install || install.deployTokenEnc === null) throw TemplateInstallError.NotFound();
+
+        const expected = Buffer.from(new SecretCipher().decrypt(install.deployTokenEnc));
+        const presented = Buffer.from(token);
+        if(expected.length !== presented.length || !timingSafeEqual(expected, presented)) throw TemplateInstallError.NotFound();
+
+        await this.requestRedeploy(install, 'template.webhook', `${install.name}: redeploy requested through its webhook`);
+    }
+
+    async requestRedeploy(install: TemplateInstall, source: string, title: string, message = ''): Promise<void>{
+        await new ActivityService().create({
+            organizationId: install.organizationId,
+            userId: null,
+            scope: 'template',
+            level: ActivityLevel.Info,
+            title,
+            message,
+            source,
+            correlationId: null,
+            meta: { templateInstallId: install.id }
+        });
+        install.status = TemplateInstallStatus.Pending;
+        await install.save();
+        this.#startProvisioning(install, install.userId ?? 0);
+    }
+
+    #triggersOf(install: TemplateInstall): DeployTriggers{
+        const token = install.deployTokenEnc === null ? null : new SecretCipher().decrypt(install.deployTokenEnc);
+        return {
+            webhookUrl: token === null ? null : `${config.domain.replace(/\/$/, '')}/template/install/${install.id}/deploy/${token}`,
+            watchImages: install.watchImages
+        };
     }
 
     #startProvisioning(install: TemplateInstall, userId: number){

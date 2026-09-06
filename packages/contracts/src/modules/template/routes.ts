@@ -4,9 +4,10 @@ import type {
     InstallTemplateInput,
     TemplateInstallOperationInput,
     UpdateComposeInput,
-    UpdateTemplateInstallEnvironmentInput
+    UpdateTemplateInstallEnvironmentInput,
+    UpdateDeployTriggersInput
 } from './http';
-import type { Template, TemplateInstall, TemplateInstallEnvironment } from './domain';
+import type { Template, TemplateInstall, TemplateInstallEnvironment, DeployHookResult, DeployTriggers } from './domain';
 
 export const templateRoutes = {
     list: get<Template[]>('/template'),
@@ -22,5 +23,9 @@ export const templateInstallRoutes = {
     updateCompose: patch<UpdateComposeInput, TemplateInstall>('/template/install/:id/compose'),
     redeploy: post<never, TemplateInstall>('/template/install/:id/redeploy'),
     environment: get<TemplateInstallEnvironment>('/template/install/:id/environment'),
-    updateEnvironment: patch<UpdateTemplateInstallEnvironmentInput, TemplateInstall>('/template/install/:id/environment')
+    updateEnvironment: patch<UpdateTemplateInstallEnvironmentInput, TemplateInstall>('/template/install/:id/environment'),
+    triggers: get<DeployTriggers>('/template/install/:id/triggers'),
+    updateTriggers: patch<UpdateDeployTriggersInput, DeployTriggers>('/template/install/:id/triggers'),
+    rotateDeployToken: post<never, DeployTriggers>('/template/install/:id/triggers/token'),
+    deployHook: post<never, DeployHookResult>('/template/install/:id/deploy/:token')
 };

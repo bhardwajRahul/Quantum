@@ -108,3 +108,12 @@ export interface TemplateInstallEnvironment{
     installId: number;
     services: TemplateInstallServiceEnvironment[];
 }
+
+export interface DeployTriggers{
+    webhookUrl: string | null;
+    watchImages: boolean;
+}
+
+export interface DeployHookResult{
+    queued: boolean;
+}

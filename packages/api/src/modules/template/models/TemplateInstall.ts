@@ -46,4 +46,11 @@ export default class TemplateInstall extends BaseModel implements TemplateInstal
 
     @Column({ type: 'jsonb', default: {} })
     environment!: ServiceEnvironment;
+
+    @Hidden()
+    @Column({ type: 'varchar', nullable: true })
+    deployTokenEnc!: string | null;
+
+    @Column({ type: 'boolean', default: false })
+    watchImages!: boolean;
 }

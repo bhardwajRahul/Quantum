@@ -149,6 +149,11 @@ Supported per service: `image`, `command`, `environment`, `ports`, `volumes` (na
 service. Host ports are assigned by Quantum, as for every other application. Removing a service
 from the file and redeploying removes its container.
 
+Every redeploy pulls the images again, so a moving tag such as `:main` lands on the next one. The
+stack's **Settings** tab has two ways to trigger that without pressing the button: a webhook URL to
+`POST` from your CI once the new images are published, and **Watch image tags**, which pulls each
+service's image every five minutes and redeploys when a tag points at a new image.
+
 ### Environment variables
 
 ![Environment variables per service](/screenshots/environment.png)

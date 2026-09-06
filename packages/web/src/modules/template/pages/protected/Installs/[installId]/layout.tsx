@@ -27,8 +27,10 @@ const TABS = [
 ] as const;
 
 const COMPOSE_TAB = { label: 'Compose', to: 'compose' } as const;
+const SETTINGS_TAB = { label: 'Settings', to: 'settings' } as const;
 
-const tabsFor = (install: TemplateInstall) => (install.compose === null ? TABS : [...TABS, COMPOSE_TAB]);
+const tabsFor = (install: TemplateInstall) =>
+    (install.compose === null ? [...TABS, SETTINGS_TAB] : [...TABS, COMPOSE_TAB, SETTINGS_TAB]);
 
 const kindLabel = (install: TemplateInstall): string => (install.compose === null ? 'Template' : 'Docker Compose');
 

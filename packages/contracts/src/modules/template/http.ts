@@ -34,3 +34,7 @@ export interface UpdateComposeInput{
 export interface UpdateTemplateInstallEnvironmentInput{
     environment: ServiceEnvironment;
 }
+
+export interface UpdateDeployTriggersInput{
+    watchImages: boolean;
+}

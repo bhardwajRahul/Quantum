@@ -238,6 +238,7 @@ export default class DatabaseHandler{
             command: runtime.cmd?.(credentials).join(' ') ?? null,
             userId,
             organizationId: database.organizationId,
+            projectId: database.projectId,
             networkId,
             imageId,
             isRepositoryContainer: false,

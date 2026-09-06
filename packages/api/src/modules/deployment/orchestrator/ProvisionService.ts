@@ -81,6 +81,7 @@ export default class ProvisionService{
             networkId,
             imageId,
             repositoryId: repository.id,
+            projectId: repository.projectId,
             isRepositoryContainer: true,
             volumes: volumesOf(repository)
         }).save();

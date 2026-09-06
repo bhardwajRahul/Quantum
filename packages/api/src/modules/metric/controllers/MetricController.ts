@@ -12,12 +12,17 @@ import type { MetricQuery } from '@quantum/contracts/modules/metric/http';
 export default class MetricController extends BaseController{
     #service = new MetricService();
 
-    @Route(metricRoutes.byRepository)
-    byRepository(
-        @NumericParam('repositoryId') repositoryId: number,
+    @Route(metricRoutes.containers)
+    containers(@Tenant() tenant: Tenant){
+        return this.#service.containers(tenant);
+    }
+
+    @Route(metricRoutes.byContainer)
+    byContainer(
+        @NumericParam('containerId') containerId: number,
         @Tenant() tenant: Tenant,
         @Query() query: MetricQuery
     ){
-        return this.#service.byRepository(tenant, repositoryId, query.limit, query.minutes);
+        return this.#service.byContainer(tenant, containerId, query.limit, query.minutes);
     }
 }

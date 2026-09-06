@@ -18,3 +18,12 @@ export interface Metric extends BaseEntity{
     pids: number;
     ts: string;
 }
+
+export type MonitoredContainerKind = 'repository' | 'database' | 'stack' | 'workspace';
+
+export interface MonitoredContainer{
+    containerId: number;
+    kind: MonitoredContainerKind;
+    app: string;
+    service: string | null;
+}

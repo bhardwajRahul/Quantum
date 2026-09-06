@@ -20,6 +20,7 @@ export interface DockerContainerFields{
     networkId: number;
     imageId: number;
     repositoryId: number | null;
+    projectId: number | null;
     createdAt: Date;
     updatedAt: Date;
 }

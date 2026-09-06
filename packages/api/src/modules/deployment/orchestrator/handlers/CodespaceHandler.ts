@@ -180,6 +180,7 @@ export default class CodespaceHandler{
             command: '',
             userId: codespace.userId,
             organizationId: codespace.organizationId,
+            projectId: codespace.projectId,
             networkId,
             imageId,
             isRepositoryContainer: false,

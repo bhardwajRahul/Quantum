@@ -229,6 +229,7 @@ export default class TemplateHandler{
             existing.volumes = volumes;
             existing.imageId = imageId;
             existing.networkId = networkId;
+            existing.projectId = install.projectId;
             await existing.save();
             return existing;
         }
@@ -239,6 +240,7 @@ export default class TemplateHandler{
             command: null,
             userId,
             organizationId,
+            projectId: install.projectId,
             networkId,
             imageId,
             isRepositoryContainer: false,

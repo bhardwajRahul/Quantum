@@ -60,4 +60,7 @@ export default class DockerContainer extends BaseModel implements DockerContaine
 
     @Column({ type: 'int', nullable: true })
     repositoryId!: number | null;
+
+    @Column({ type: 'int', nullable: true })
+    projectId!: number | null;
 }

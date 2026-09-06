@@ -1,6 +1,7 @@
 import JobRunner from './JobRunner';
 import { buildHandlerMap } from './HandlerRegistry';
 import OrchestratorService from './OrchestratorService';
+import { backfillContainerProjects } from './containerProjects';
 import { config } from '@/shared/config';
 import { logger } from '@/shared/utils/Logger';
 
@@ -25,6 +26,10 @@ export const startOrchestrator = (): void => {
     const orchestrator = new OrchestratorService();
     runner = new JobRunner(buildHandlerMap());
     runner.start();
+
+    backfillContainerProjects()
+        .then((updated) => { if(updated > 0) logger.info(`container projects backfilled: ${updated} rows`, { scope: 'orchestrator' }); })
+        .catch((error) => logger.error('container project backfill failed', error, { scope: 'orchestrator' }));
 
     orchestrator.reconcile().catch((error) => logger.error('initial reconcile enqueue failed', error, { scope: 'orchestrator' }));
 

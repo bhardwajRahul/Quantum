@@ -1,7 +1,8 @@
-import { getWithQuery } from '../../shared/routing';
-import type { Metric } from './domain';
+import { get, getWithQuery } from '../../shared/routing';
 import type { MetricQuery } from './http';
+import type { Metric, MonitoredContainer } from './domain';
 
 export const metricRoutes = {
-    byRepository: getWithQuery<MetricQuery, Metric[]>('/metric/repository/:repositoryId')
+    containers: get<MonitoredContainer[]>('/metric/container'),
+    byContainer: getWithQuery<MetricQuery, Metric[]>('/metric/container/:containerId')
 };

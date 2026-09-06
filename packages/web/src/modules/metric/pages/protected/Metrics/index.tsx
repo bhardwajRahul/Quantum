@@ -16,7 +16,7 @@ import EntitySelect from '@/shared/components/EntitySelect';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { usePolledQuery } from '@/shared/hooks/api/use-polled-query';
 import { metricApi } from '@/modules/metric/api/api';
-import { repositoryApi } from '@/modules/repository/api/api';
+import { containerLabel } from '@/modules/metric/utils/container-label';
 import { metricErrorMessages } from '@/modules/metric/utils/error-messages';
 import { errorCopy } from '@/shared/utils/error-copy';
 import { formatBytes } from '@/shared/utils/format-bytes';
@@ -104,35 +104,35 @@ const UsageOverTime = ({ samples }: UsageOverTimeProps) => (
 );
 
 const Metrics = () => {
-    const repositories = useQuery(repositoryApi.mine, []);
-    const itemsIds = useMemo(() => (repositories.data ?? []).map((entry) => entry.id), [repositories.data]);
-    const [repositoryId, setRepositoryId] = useRememberedSelection<number>('metrics.repository', itemsIds);
+    const containers = useQuery(metricApi.containers, []);
+    const containerIds = useMemo(() => (containers.data ?? []).map((entry) => entry.containerId), [containers.data]);
+    const [containerId, setContainerId] = useRememberedSelection<number>('metrics.container', containerIds);
 
     const metrics = usePolledQuery(
         useQuery(
-            (metricRepositoryId: number, query: { limit?: number }) =>
-                metricApi.byRepository({ path: { repositoryId: metricRepositoryId }, query }),
-            [repositoryId ?? undefined, { limit: 60 }],
-            { enabled: repositoryId !== null }
+            (metricContainerId: number, query: { limit?: number }) =>
+                metricApi.byContainer({ path: { containerId: metricContainerId }, query }),
+            [containerId ?? undefined, { limit: 60 }],
+            { enabled: containerId !== null }
         ),
         { while: (data) => data !== null, everyMs: 10000 }
     );
 
-    if(repositories.loading || repositories.error !== undefined){
+    if(containers.loading || containers.error !== undefined){
         return (
             <ListPageShell
                 bare
-                loading={repositories.loading}
-                loadingTitle='Loading repositories'
-                error={repositories.error}
-                errorTitle='Could not load repositories'
+                loading={containers.loading}
+                loadingTitle='Loading applications'
+                error={containers.error}
+                errorTitle='Could not load applications'
                 getErrorDescription={copy}
-                onRetry={repositories.reload}
+                onRetry={containers.reload}
             />
         );
     }
 
-    const items = repositories.data ?? [];
+    const items = containers.data ?? [];
     const samples = sortByTs(metrics.data ?? []);
     const latest = samples[samples.length - 1];
 
@@ -140,18 +140,18 @@ const Metrics = () => {
         <PageBody width='wide' height='full'>
             <PageHeader
                 title='Metrics'
-                description='Live container resource usage for a repository. Refreshes automatically every 10 seconds.'
+                description='Live resource usage of any container: repositories, databases and the services of your stacks. Refreshes automatically every 10 seconds.'
             />
 
             <div className='mt-6 max-w-sm'>
                 <EntitySelect
                     items={items}
-                    getKey={(repository) => repository.id}
-                    getLabel={(repository) => repository.name !== '' ? repository.name : repository.alias}
-                    value={repositoryId}
-                    onChange={(key) => setRepositoryId(Number(key))}
-                    placeholder='Select a repository'
-                    ariaLabel='Repository'
+                    getKey={(container) => container.containerId}
+                    getLabel={containerLabel}
+                    value={containerId}
+                    onChange={(key) => setContainerId(Number(key))}
+                    placeholder='Select an application'
+                    ariaLabel='Application'
                 />
             </div>
 
@@ -163,17 +163,17 @@ const Metrics = () => {
                     errorTitle='Could not load metrics'
                     getErrorDescription={copy}
                     onRetry={metrics.reload}
-                    showPrompt={repositoryId === null}
+                    showPrompt={containerId === null}
                     prompt={{
                         icon: Activity,
-                        title: 'Select a repository',
-                        description: 'Choose one of your repositories above to view its live resource usage.'
+                        title: 'Select an application',
+                        description: 'Choose a repository, a database or a stack service above to view its live resource usage.'
                     }}
                     isEmpty={latest === undefined}
                     empty={{
                         icon: Activity,
                         title: 'No samples yet',
-                        description: 'This repository has no metric samples yet. Samples appear once its container starts reporting usage.'
+                        description: 'This container has no metric samples yet. Samples appear once it starts reporting usage.'
                     }}
                 >
                     {}

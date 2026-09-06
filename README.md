@@ -10,7 +10,6 @@ variables, persistent volumes and VS Code in the browser for every one of them.
 - [Configuration](#configuration)
 - [Using Quantum](#using-quantum)
 - [Where the data lives](#where-the-data-lives)
-- [Development](#development)
 
 ## Deploy Quantum
 
@@ -66,24 +65,14 @@ New OAuth App**. Homepage URL is your `CLIENT_HOST`, callback URL is
 `GITHUB_CLIENT_SECRET` and run `docker compose up -d --build api`. Quantum asks for the `user`,
 `repo` and `read:packages` scopes.
 
+![GitHub OAuth Apps](/screenshots/Github-OAuth-Apps.png)
+![GitHub OAuth App configuration](/screenshots/Github-OAuth-App-Config.png)
+
 ### Plain Compose
 
 The script is a convenience. `cp .env.example .env`, fill `SECRET_KEY`, `ENCRYPTION_KEY` and
 `POSTGRES_PASSWORD`, and `docker compose up -d --build` does the same. Compose fails naming the
 variable if a required secret is missing.
-
-### Operating
-
-```bash
-docker compose ps                      # what's running
-docker compose logs -f api             # follow the API
-docker compose restart api
-docker compose down                    # stop, data preserved
-docker compose down -v                 # stop and DELETE all data
-docker compose exec postgres pg_dump --username "$POSTGRES_USER" "$POSTGRES_DB" > backup.sql
-```
-
-Postgres is bound to `127.0.0.1`, so it is reachable for backups from the host and from nowhere else.
 
 ## Configuration
 
@@ -190,7 +179,7 @@ address if the proxy runs on the same host.
 
 ## Where the data lives
 
-- **Postgres**: the `postgres_data` volume. Back it up with the `pg_dump` command above.
+- **Postgres**: the `postgres_data` volume.
 - **Repositories and their logs**: `/var/lib/quantum/<NODE_ENV>/containers/<user id>/`, mounted
   into the API container.
 - **Databases, templates, compose volumes and persistent volumes**: Docker named volumes.
@@ -198,21 +187,6 @@ address if the proxy runs on the same host.
 On boot, and every five minutes after, the API reconciles what is running against what should be:
 containers that should be up are started, addresses are refreshed. A host reboot brings
 everything back without any action.
-
-## Development
-
-Docker still has to be present, since Quantum drives the daemon. From the repo root, a pnpm
-workspace:
-
-```bash
-pnpm install
-DOMAIN=http://localhost:7080 CLIENT_HOST=http://localhost:5173 SECRET_KEY=... ENCRYPTION_KEY=... \
-DATABASE_URL=postgresql://quantum:password@localhost:5432/quantum pnpm --filter @quantum/api dev
-pnpm --filter web dev
-```
-
-Tests run inside each package: `pnpm --filter @quantum/api test` (needs `DATABASE_URL`) and
-`pnpm --filter web test`. `packages/api/src/shared/config.ts` lists every variable the API reads.
 
 ## Support
 

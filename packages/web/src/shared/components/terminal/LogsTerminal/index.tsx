@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { Button, Spinner } from '@heroui/react';
@@ -6,6 +6,7 @@ import { TriangleAlert } from 'lucide-react';
 import '@xterm/xterm/css/xterm.css';
 import { useChannel } from '@/shared/hooks/socket/use-channel';
 import { TERMINAL_THEME } from '@/shared/components/terminal/theme';
+import type { ReactNode } from 'react';
 import type { ChannelStatus } from '@/shared/contracts/channel';
 
 const SCROLLBACK = 5_000;
@@ -20,18 +21,17 @@ interface LogsTerminalProps{
     subscribePayload?: object;
     title?: string;
     description: string;
+    actions?: ReactNode;
 }
 
-const LogsTerminal = ({ channelPath, subscribePayload = {}, title = 'Logs', description }: LogsTerminalProps) => {
+const LogsTerminal = ({ channelPath, subscribePayload = {}, title = 'Logs', description, actions }: LogsTerminalProps) => {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const terminalRef = useRef<Terminal | null>(null);
-    const [received, setReceived] = useState(0);
 
     const channel = useChannel(channelPath, {
         'logs.line': (data) => {
             const { line } = data as { line: string };
             terminalRef.current?.writeln(line);
-            setReceived((previous) => previous + 1);
         }
     });
 
@@ -88,19 +88,7 @@ const LogsTerminal = ({ channelPath, subscribePayload = {}, title = 'Logs', desc
                         </span>
                     )}
 
-                    <span className='label-caps text-muted'>{received} {received === 1 ? 'line' : 'lines'}</span>
-
-                    <Button
-                        size='sm'
-                        variant='secondary'
-                        className='shrink-0'
-                        onPress={() => {
-                            terminalRef.current?.clear();
-                            setReceived(0);
-                        }}
-                    >
-                        Clear
-                    </Button>
+                    {actions}
                 </div>
             </div>
 

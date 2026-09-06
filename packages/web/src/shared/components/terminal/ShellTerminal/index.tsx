@@ -6,6 +6,7 @@ import { TriangleAlert } from 'lucide-react';
 import '@xterm/xterm/css/xterm.css';
 import { useChannel } from '@/shared/hooks/socket/use-channel';
 import { TERMINAL_THEME } from '@/shared/components/terminal/theme';
+import type { ReactNode } from 'react';
 import type { ChannelApi, ChannelStatus } from '@/shared/contracts/channel';
 import type { TerminalExit } from '@quantum/contracts/modules/repository/gateway';
 
@@ -21,9 +22,10 @@ interface ShellTerminalProps{
     joinPayload?: object;
     title?: string;
     description: string;
+    actions?: ReactNode;
 }
 
-const ShellTerminal = ({ channelPath, joinPayload = {}, title = 'Shell', description }: ShellTerminalProps) => {
+const ShellTerminal = ({ channelPath, joinPayload = {}, title = 'Shell', description, actions }: ShellTerminalProps) => {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const terminalRef = useRef<Terminal | null>(null);
     const joinedRef = useRef(false);
@@ -110,12 +112,15 @@ const ShellTerminal = ({ channelPath, joinPayload = {}, title = 'Shell', descrip
                     <p className='mt-1 text-[0.8125rem] text-muted'>{description}</p>
                 </div>
 
-                {channel.status !== 'open' && (
-                    <span className='label-caps flex items-center gap-2 text-muted'>
-                        <Spinner size='sm' color='current' />
-                        {CONNECTION_LABEL[channel.status]}
-                    </span>
-                )}
+                <div className='flex flex-wrap items-center gap-4'>
+                    {channel.status !== 'open' && (
+                        <span className='label-caps flex items-center gap-2 text-muted'>
+                            <Spinner size='sm' color='current' />
+                            {CONNECTION_LABEL[channel.status]}
+                        </span>
+                    )}
+                    {actions}
+                </div>
             </div>
 
             {channel.lastError && (

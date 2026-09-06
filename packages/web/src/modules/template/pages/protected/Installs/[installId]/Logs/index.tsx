@@ -12,13 +12,12 @@ const InstallLogs = () => {
     if(!installId || service === undefined) return null;
 
     return (
-        <div className='flex min-h-0 flex-1 flex-col gap-6'>
-            <ServicePicker services={install.services} value={service} onChange={(name) => setParams({ service: name })} />
-
+        <div className='flex min-h-0 flex-1 flex-col'>
             <LogsTerminal
                 key={service}
                 channelPath={`/template/install/${installId}/logs`}
                 subscribePayload={{ service }}
+                actions={<ServicePicker services={install.services} value={service} onChange={(name) => setParams({ service: name })} />}
                 description={`Output of the ${service} container.`}
             />
         </div>

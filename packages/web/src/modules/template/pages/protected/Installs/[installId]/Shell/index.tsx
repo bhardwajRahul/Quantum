@@ -12,13 +12,12 @@ const InstallShell = () => {
     if(!installId || service === undefined) return null;
 
     return (
-        <div className='flex min-h-0 flex-1 flex-col gap-6'>
-            <ServicePicker services={install.services} value={service} onChange={(name) => setParams({ service: name })} />
-
+        <div className='flex min-h-0 flex-1 flex-col'>
             <ShellTerminal
                 key={service}
                 channelPath={`/template/install/${installId}/terminal`}
                 joinPayload={{ service }}
+                actions={<ServicePicker services={install.services} value={service} onChange={(name) => setParams({ service: name })} />}
                 description={`Interactive session inside the ${service} container.`}
             />
         </div>

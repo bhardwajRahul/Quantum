@@ -1,10 +1,10 @@
 import Dockerode from 'dockerode';
-import slugify from 'slugify';
 import { getDockerHost } from './DockerHost';
 import DockerContainer from '@/modules/docker/models/DockerContainer';
 import DockerImage from '@/modules/docker/models/DockerImage';
 import DockerNetwork from '@/modules/docker/models/DockerNetwork';
 import PortBinding from '@/modules/docker/models/PortBinding';
+import { namedVolume } from '@/modules/docker/services/containerVolume';
 import { containerEnvironment } from './containerEnvironment';
 import type { ContainerOverrides } from './ContainerOps';
 
@@ -36,6 +36,7 @@ export default class ContainerOptionsResolver{
             }
         };
         if(overrides.cmd !== undefined && overrides.cmd.length > 0) options.Cmd = [...overrides.cmd];
+        if(overrides.user !== undefined) options.User = overrides.user;
         if(overrides.aliases !== undefined && overrides.aliases.length > 0){
             options.NetworkingConfig = { EndpointsConfig: { [networkName]: { Aliases: [...overrides.aliases] } } };
         }
@@ -72,8 +73,12 @@ export default class ContainerOptionsResolver{
     async #volumeMounts(): Promise<Dockerode.MountSettings[]>{
         const docker = getDockerHost().client();
         const mounts: Dockerode.MountSettings[] = [];
-        for(const { containerPath, mode } of this.container.volumes){
-            const volumeName = `${this.container.dockerContainerName}-${slugify(containerPath)}`;
+        for(const { containerPath, mode, source } of this.container.volumes){
+            if(source !== undefined && source.startsWith('/')){
+                mounts.push({ Source: source, Target: containerPath, Type: 'bind', ReadOnly: mode === 'ro' });
+                continue;
+            }
+            const volumeName = source ?? namedVolume(this.container.dockerContainerName, containerPath);
             await this.#ensureVolume(docker, volumeName);
             mounts.push({ Source: volumeName, Target: containerPath, Type: 'volume', ReadOnly: mode === 'ro' });
         }

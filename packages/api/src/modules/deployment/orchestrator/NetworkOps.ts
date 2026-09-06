@@ -104,8 +104,13 @@ export const teardownNetwork = async (network: DockerNetwork): Promise<void> => 
     try{
         const docker = getDockerHost().client();
         const found = await docker.listNetworks({ filters: { name: [network.dockerNetworkName] } });
-        if(found.length > 0){
-            await new Network(docker.modem, network.dockerNetworkName).remove();
+        if(found.some((entry) => entry.Name === network.dockerNetworkName)){
+            const live = new Network(docker.modem, network.dockerNetworkName);
+            const { Containers } = await live.inspect() as { Containers?: Record<string, unknown> };
+            for(const endpoint of Object.keys(Containers ?? {})){
+                await live.disconnect({ Container: endpoint, Force: true }).catch(() => undefined);
+            }
+            await live.remove();
         }
     }catch(error){
         logger.error(`failed removing docker network ${network.dockerNetworkName}`, error, { scope: 'orchestrator.network' });

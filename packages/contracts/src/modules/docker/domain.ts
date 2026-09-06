@@ -35,6 +35,7 @@ export enum NetworkDriver{
 export interface DockerContainerVolume{
     containerPath: string;
     mode: 'rw' | 'ro';
+    source?: string;
 }
 
 export interface ContainerAddress{

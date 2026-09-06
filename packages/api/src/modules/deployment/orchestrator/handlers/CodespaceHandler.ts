@@ -1,25 +1,35 @@
 import { randomBytes } from 'node:crypto';
+import { In } from 'typeorm';
 import Codespace from '@/modules/codespace/models/Codespace';
-import PortBinding from '@/modules/codespace/models/PortBinding';
+import PortBinding from '@/modules/docker/models/PortBinding';
 import DockerContainer from '@/modules/docker/models/DockerContainer';
 import DockerImage from '@/modules/docker/models/DockerImage';
 import DockerNetwork from '@/modules/docker/models/DockerNetwork';
+import TemplateInstall from '@/modules/template/models/TemplateInstall';
 import ActivityStepContext from '@/modules/activity/services/ActivityStepContext';
 import SecretCipher from '@/shared/services/SecretCipher';
+import { installWorkspace, repositoryWorkspace, WORKSPACE_ROOT } from '@/modules/codespace/services/workspaceMounts';
 import ContainerOps from '../ContainerOps';
-import { materializeNetwork } from '../NetworkOps';
+import { materializeNetwork, teardownNetwork } from '../NetworkOps';
 import { allocateHostPort } from '../PortAllocator';
 import { getContainerStoragePath, getSystemDockerName } from '../paths';
+import { publicHost } from '../publicHost';
 import { failureMessage } from '../failureMessage';
-import { CodespaceStatus, PortBindingProtocol } from '@quantum/contracts/modules/codespace/domain';
-import { NetworkDriver } from '@quantum/contracts/modules/docker/domain';
+import { CodespaceStatus } from '@quantum/contracts/modules/codespace/domain';
+import { NetworkDriver, PortBindingProtocol } from '@quantum/contracts/modules/docker/domain';
 import { JobType } from '@quantum/contracts/modules/deployment/domain';
 import { logger } from '@/shared/utils/Logger';
+import type { DockerContainerVolume } from '@quantum/contracts/modules/docker/domain';
 import type Job from '../../models/Job';
 
-/** The IDE a codespace runs. It reads `PASSWORD` from the environment and serves on 8080. */
 const IDE_IMAGE = { name: 'codercom/code-server', tag: 'latest' };
 const IDE_PORT = 8080;
+const ROOT_USER = '0';
+
+interface Workspace{
+    networkId: number | null;
+    volumes: DockerContainerVolume[];
+}
 
 export default class CodespaceHandler{
     async run(job: Job): Promise<void>{
@@ -27,7 +37,7 @@ export default class CodespaceHandler{
         if(codespaceId === undefined) throw new Error('Codespace::Job::MissingCodespaceId');
 
         if(job.type === JobType.CodespaceDelete){
-            await this.#delete(codespaceId);
+            await this.#delete(codespaceId, job.payload.containerId as number | null | undefined, job.payload.networkId as number | null | undefined);
             return;
         }
         if(job.type === JobType.CodespaceProvision){
@@ -61,15 +71,16 @@ export default class CodespaceHandler{
         await codespace.save();
 
         try{
-            const network = await activity.step('Preparing the network', () => this.#network(codespace));
+            const workspace = await this.#workspace(codespace);
+            const network = await activity.step('Preparing the network', () => this.#network(codespace, workspace.networkId));
             const image = await activity.step('Preparing the image', () => this.#image(codespace));
             const container = await activity.step('Creating the workspace container',
-                () => this.#container(codespace, image.id, network.id));
+                () => this.#container(codespace, image.id, network.id, workspace.volumes));
 
             const { binding, password } = await activity.step('Publishing the workspace',
                 () => this.#publish(codespace, container));
 
-            await activity.step('Starting the workspace', () => this.#start(container, password));
+            await activity.step('Starting the workspace', () => this.#start(container, password, workspace.volumes.length > 0));
 
             codespace.imageId = image.id;
             codespace.networkId = network.id;
@@ -94,10 +105,32 @@ export default class CodespaceHandler{
         }
     }
 
-    async #network(codespace: Codespace): Promise<DockerNetwork>{
-        const existing = codespace.networkId === null
-            ? null
-            : await DockerNetwork.findOneBy({ id: codespace.networkId });
+    async #workspace(codespace: Codespace): Promise<Workspace>{
+        if(codespace.repositoryId !== null){
+            const container = await DockerContainer.findOneBy({ repositoryId: codespace.repositoryId });
+            if(!container?.storagePath) throw new Error(`Codespace::Target::NotDeployed::repository:${codespace.repositoryId}`);
+            return { networkId: container.networkId, volumes: repositoryWorkspace(container.storagePath) };
+        }
+
+        if(codespace.templateInstallId !== null){
+            const install = await TemplateInstall.findOneBy({ id: codespace.templateInstallId });
+            if(!install) throw new Error(`Codespace::Target::NotDeployed::install:${codespace.templateInstallId}`);
+
+            const ids = install.services.map((service) => service.containerId).filter((id): id is number => id !== null);
+            const containers = ids.length === 0 ? [] : await DockerContainer.findBy({ id: In(ids) });
+            const services = install.services.flatMap((service) => {
+                const container = containers.find((entry) => entry.id === service.containerId);
+                return container ? [{ name: service.name, container }] : [];
+            });
+            return { networkId: install.networkId, volumes: installWorkspace(services) };
+        }
+
+        return { networkId: null, volumes: [] };
+    }
+
+    async #network(codespace: Codespace, targetNetworkId: number | null): Promise<DockerNetwork>{
+        const wanted = targetNetworkId ?? codespace.networkId;
+        const existing = wanted === null ? null : await DockerNetwork.findOneBy({ id: wanted });
         if(existing) return existing;
 
         const network = await DockerNetwork.create({
@@ -130,11 +163,16 @@ export default class CodespaceHandler{
         }).save();
     }
 
-    async #container(codespace: Codespace, imageId: number, networkId: number): Promise<DockerContainer>{
+    async #container(codespace: Codespace, imageId: number, networkId: number, volumes: DockerContainerVolume[]): Promise<DockerContainer>{
         const existing = codespace.containerId === null
             ? null
             : await DockerContainer.findOneBy({ id: codespace.containerId });
-        if(existing) return existing;
+        if(existing){
+            existing.networkId = networkId;
+            existing.volumes = volumes;
+            await existing.save();
+            return existing;
+        }
 
         const container = await DockerContainer.create({
             name: codespace.name,
@@ -144,7 +182,8 @@ export default class CodespaceHandler{
             organizationId: codespace.organizationId,
             networkId,
             imageId,
-            isRepositoryContainer: false
+            isRepositoryContainer: false,
+            volumes
         }).save();
 
         container.dockerContainerName = getSystemDockerName(container.id);
@@ -166,33 +205,41 @@ export default class CodespaceHandler{
             protocol: PortBindingProtocol.Tcp
         }).save();
 
-        // Generated once and kept encrypted; the plaintext only leaves through the
-        // authorized access endpoint.
         const password = randomBytes(18).toString('base64url');
         codespace.passwordEnc = new SecretCipher().encrypt(password);
-        codespace.accessUrl = `http://localhost:${binding.externalPort}`;
+        codespace.accessUrl = `http://${publicHost()}:${binding.externalPort}/?folder=${WORKSPACE_ROOT}`;
         await codespace.save();
 
         return { binding, password };
     }
 
-    async #start(container: DockerContainer, password: string): Promise<void> {
+    async #start(container: DockerContainer, password: string, editsApplicationFiles: boolean): Promise<void>{
         const ops = new ContainerOps(container);
         await ops.destroyContainer();
-        await ops.createAndStartContainer({ extraEnv: [`PASSWORD=${password}`] });
+        await ops.createAndStartContainer({
+            extraEnv: [`PASSWORD=${password}`],
+            user: editsApplicationFiles ? ROOT_USER : undefined
+        });
     }
 
-    async #delete(codespaceId: number): Promise<void>{
+    async #delete(codespaceId: number, containerId?: number | null, networkId?: number | null): Promise<void>{
         const codespace = await Codespace.findOneBy({ id: codespaceId });
-        if(!codespace) return;
-
-        // The container outlives the row unless it is taken down with it.
-        if(codespace.containerId !== null){
-            const container = await DockerContainer.findOneBy({ id: codespace.containerId });
-            if(container) await new ContainerOps(container).removeContainer().catch(() => undefined);
+        const wantedContainer = containerId ?? codespace?.containerId ?? null;
+        const container = wantedContainer === null ? null : await DockerContainer.findOneBy({ id: wantedContainer });
+        if(container){
+            await new ContainerOps(container).removeContainer().catch(() => undefined);
+            await PortBinding.delete({ containerId: container.id });
+            await container.remove();
         }
 
-        await codespace.remove();
+        const wantedNetwork = networkId ?? codespace?.networkId ?? null;
+        const network = wantedNetwork === null ? null : await DockerNetwork.findOneBy({ id: wantedNetwork });
+        if(network && network.name === `codespace-${codespaceId}`){
+            await teardownNetwork(network).catch(() => undefined);
+            await network.remove();
+        }
+
+        if(codespace) await codespace.remove();
         logger.info(`codespace ${codespaceId} removed`, { scope: 'orchestrator.handler.codespace' });
     }
 }

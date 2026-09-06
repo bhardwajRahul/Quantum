@@ -221,7 +221,7 @@ describe('codespace', () => {
         expect(await Codespace.findOneBy({ id: created.data().id })).toBeNull();
 
         await flushEvents();
-        expect(events).toEqual([{ codespaceId: created.data().id, action: 'delete', userId: user.id }]);
+        expect(events).toEqual([{ codespaceId: created.data().id, action: 'delete', userId: user.id, containerId: null, networkId: null }]);
     });
 
     it('forbids delete for a viewer', async () => {

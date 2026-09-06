@@ -7,12 +7,12 @@ import DockerNetwork from '@/modules/docker/models/DockerNetwork';
 import PortBinding from '@/modules/docker/models/PortBinding';
 import ActivityStepContext from '@/modules/activity/services/ActivityStepContext';
 import SecretCipher from '@/shared/services/SecretCipher';
-import { config } from '@/shared/config';
 import ContainerOps from '../ContainerOps';
 import { materializeNetwork, teardownNetwork } from '../NetworkOps';
 import { allocateHostPort } from '../PortAllocator';
 import { getContainerStoragePath, getSystemDockerName } from '../paths';
 import { failureMessage } from '../failureMessage';
+import { publicHost } from '../publicHost';
 import { DatabaseEngine, DatabaseStatus } from '@quantum/contracts/modules/database/domain';
 import { NetworkDriver, PortBindingProtocol } from '@quantum/contracts/modules/docker/domain';
 import { JobType } from '@quantum/contracts/modules/deployment/domain';
@@ -92,14 +92,6 @@ const RUNTIMES: Record<DatabaseEngine, EngineRuntime> = {
 };
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
-
-const publicHost = (): string => {
-    try{
-        return new URL(config.domain).hostname || 'localhost';
-    }catch{
-        return 'localhost';
-    }
-};
 
 export default class DatabaseHandler{
     #cipher = new SecretCipher();

@@ -6,6 +6,7 @@ import EmptyState from '@/shared/components/EmptyState';
 import ErrorState from '@/shared/components/ErrorState';
 import CenterState from '@/shared/components/CenterState';
 import StatusDot from '@/shared/components/StatusDot';
+import WorkspaceButton from '@/modules/codespace/components/WorkspaceButton';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { usePolledQuery } from '@/shared/hooks/api/use-polled-query';
 import { useMutation } from '@/shared/hooks/api/use-mutation';
@@ -101,6 +102,7 @@ const InstallHeader = ({ install, isOperating, onOperate }: InstallHeaderProps) 
             </div>
 
             <div className='flex shrink-0 flex-wrap gap-2'>
+                <WorkspaceButton target={{ kind: 'install', id: install.id }} />
                 <Button variant='secondary' isDisabled={running || busy} onPress={() => onOperate('start')}>
                     <Play aria-hidden='true' className='size-4' />
                     Start

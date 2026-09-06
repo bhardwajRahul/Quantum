@@ -132,6 +132,8 @@ Supported per service: `image`, `command`, `environment`, `ports`, `volumes` (na
 
 Private images work once the organization has credentials for their registry: **Settings → Organization → Container registries** takes the registry host, a username and a token, and every pull of an image from that host uses them. For GitHub Container Registry create a classic personal access token with the `read:packages` scope; without an explicit entry for `ghcr.io`, Quantum falls back to the connected GitHub account of the application's owner.
 
+Every application can be opened in VS Code from its page: **Open in VS Code** starts a [code-server](https://github.com/coder/code-server) container next to the app that mounts the same files the app sees (the repository checkout, or every named volume of a compose stack under its service name), joins its network, and hands you a URL plus a generated password. Edits to a repository land in `/app` immediately; exec apps pick them up on Restart, Dockerfile and prebuilt-image apps on the next deploy, and the next push from GitHub replaces tracked files, so commit from VS Code what you want to keep. Stop the workspace from the same dialog to free its memory.
+
 Every container Quantum runs, whatever its kind, also joins a network shared by the whole organization. The **Address** column in Applications shows the container's IP on that network and a stable hostname (the application's alias), so an app deployed from GitHub can reach a compose service or a managed database at `http://<hostname>:<port>` without publishing anything to the host. IPs can change when a container is recreated; prefer the hostname in configuration.
 
 ## Day-to-Day Operations

@@ -5,6 +5,7 @@ import EmptyState from '@/shared/components/EmptyState';
 import ErrorState from '@/shared/components/ErrorState';
 import CenterState from '@/shared/components/CenterState';
 import StatusDot from '@/shared/components/StatusDot';
+import WorkspaceButton from '@/modules/codespace/components/WorkspaceButton';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { repositoryApi } from '@/modules/repository/api/api';
 import {
@@ -38,34 +39,40 @@ interface RepositoryHeaderProps{
 }
 
 const RepositoryHeader = ({ repository }: RepositoryHeaderProps) => (
-    <header className='min-w-0'>
-        <p className='label-caps flex items-center gap-2 text-muted'>
-            <NavLink to='/applications' className='transition-colors hover:text-foreground motion-reduce:transition-none'>
-                Applications
-            </NavLink>
-            <span aria-hidden='true'>/</span>
-            <span className='truncate text-foreground/70'>{repository.alias}</span>
-        </p>
+    <header className='flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between'>
+        <div className='min-w-0'>
+            <p className='label-caps flex items-center gap-2 text-muted'>
+                <NavLink to='/applications' className='transition-colors hover:text-foreground motion-reduce:transition-none'>
+                    Applications
+                </NavLink>
+                <span aria-hidden='true'>/</span>
+                <span className='truncate text-foreground/70'>{repository.alias}</span>
+            </p>
 
-        <h1 className='title-display mt-4 truncate text-[2.125rem] leading-[1.1] text-foreground'>{repository.alias}</h1>
+            <h1 className='title-display mt-4 truncate text-[2.125rem] leading-[1.1] text-foreground'>{repository.alias}</h1>
 
-        <div className='mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted'>
-            <StatusDot
-                color={containerStatusColor(repository.containerStatus)}
-                label={containerStatusLabel(repository.containerStatus)}
-                isTransient={isContainerTransient(repository.containerStatus)}
-            />
-            {repository.framework !== null && <span>· {repository.framework}</span>}
-            <span>· {repository.branch}</span>
-            <a
-                href={repository.url}
-                target='_blank'
-                rel='noreferrer'
-                className='inline-flex items-center gap-1 font-mono text-[0.8125rem] transition-colors hover:text-foreground motion-reduce:transition-none'
-            >
-                · {sourceLabel(repository.url)}
-                <ArrowUpRight aria-hidden='true' className='size-3.5' />
-            </a>
+            <div className='mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted'>
+                <StatusDot
+                    color={containerStatusColor(repository.containerStatus)}
+                    label={containerStatusLabel(repository.containerStatus)}
+                    isTransient={isContainerTransient(repository.containerStatus)}
+                />
+                {repository.framework !== null && <span>· {repository.framework}</span>}
+                <span>· {repository.branch}</span>
+                <a
+                    href={repository.url}
+                    target='_blank'
+                    rel='noreferrer'
+                    className='inline-flex items-center gap-1 font-mono text-[0.8125rem] transition-colors hover:text-foreground motion-reduce:transition-none'
+                >
+                    · {sourceLabel(repository.url)}
+                    <ArrowUpRight aria-hidden='true' className='size-3.5' />
+                </a>
+            </div>
+        </div>
+
+        <div className='flex shrink-0 flex-wrap gap-2'>
+            <WorkspaceButton target={{ kind: 'repository', id: repository.id }} />
         </div>
     </header>
 );

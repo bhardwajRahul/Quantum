@@ -124,6 +124,19 @@ export default class OrchestratorService{
         return this.enqueue({ type: JobType.HealthCheck, nodeId, lockKey: `health:${nodeId}`, maxAttempts: 1 });
     }
 
+    codespaceJob(
+        type: JobType.CodespaceProvision | JobType.CodespaceDelete,
+        codespaceId: number,
+        options: { userId?: number; payload?: Record<string, unknown> } = {}
+    ): Promise<Job>{
+        return this.enqueue({
+            type,
+            userId: options.userId,
+            payload: { codespaceId, ...options.payload },
+            lockKey: `codespace:${codespaceId}`
+        });
+    }
+
     templateJob(
         type: JobType.TemplateInstall | JobType.TemplateUninstall,
         templateInstallId: number,

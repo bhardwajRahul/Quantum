@@ -20,6 +20,12 @@ export default class Codespace extends BaseModel implements CodespaceFields{
     userId!: number;
 
     @Column({ type: 'int', nullable: true })
+    repositoryId!: number | null;
+
+    @Column({ type: 'int', nullable: true })
+    templateInstallId!: number | null;
+
+    @Column({ type: 'int', nullable: true })
     imageId!: number | null;
 
     @Column({ type: 'int', nullable: true })

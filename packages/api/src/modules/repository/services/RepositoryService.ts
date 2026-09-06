@@ -80,7 +80,9 @@ export default class RepositoryService{
     }
 
     async remove(repository: Repository): Promise<void>{
+        const { id } = repository;
         await repository.remove();
+        eventBus.emit('repository.deleted', { repositoryId: id });
     }
 
     rollback(userId: number, repository: Repository, deploymentId: number): RollbackAccepted{

@@ -5,7 +5,8 @@ export const CodespaceErrors = {
     causes: {
         NotFound: 404,
         Forbidden: 403,
-        ProvisionFailed: 500
+        ProvisionFailed: 500,
+        TargetNotReady: 409
     }
 } as const satisfies ErrorTable;
 

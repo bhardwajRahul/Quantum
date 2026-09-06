@@ -5,6 +5,8 @@ export interface CodespaceFields{
     organizationId: number;
     projectId: number;
     userId: number;
+    repositoryId: number | null;
+    templateInstallId: number | null;
     imageId: number | null;
     networkId: number | null;
     containerId: number | null;

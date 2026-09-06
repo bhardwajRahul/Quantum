@@ -37,6 +37,34 @@ export default class CodespaceController extends BaseController{
         return this.#service.access(tenant, id);
     }
 
+    @Route(codespaceRoutes.forRepository)
+    forRepository(@CurrentUser() userId: number, @NumericParam('repositoryId') repositoryId: number, @Tenant() tenant: Tenant){
+        return this.#service.forRepository(userId, tenant, repositoryId);
+    }
+
+    @Route(codespaceRoutes.openForRepository)
+    @Middleware(TenantGuard('deploy'))
+    openForRepository(@CurrentUser() userId: number, @NumericParam('repositoryId') repositoryId: number, @Tenant() tenant: Tenant){
+        return this.#service.openForRepository(userId, tenant, repositoryId);
+    }
+
+    @Route(codespaceRoutes.forInstall)
+    forInstall(@NumericParam('installId') installId: number, @Tenant() tenant: Tenant){
+        return this.#service.forInstall(tenant, installId);
+    }
+
+    @Route(codespaceRoutes.openForInstall)
+    @Middleware(TenantGuard('deploy'))
+    openForInstall(@CurrentUser() userId: number, @NumericParam('installId') installId: number, @Tenant() tenant: Tenant){
+        return this.#service.openForInstall(userId, tenant, installId);
+    }
+
+    @Route(codespaceRoutes.stop)
+    @Middleware(TenantGuard('deploy'))
+    stop(@NumericParam('id') id: number, @Tenant() tenant: Tenant){
+        return this.#service.stop(tenant, id);
+    }
+
     @Route(codespaceRoutes.remove)
     @Middleware(TenantGuard('deploy'))
     async remove(@CurrentUser() userId: number, @NumericParam('id') id: number, @Tenant() tenant: Tenant){

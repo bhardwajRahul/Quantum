@@ -1,10 +1,10 @@
 import Dockerode from 'dockerode';
-import slugify from 'slugify';
 import { getDockerHost } from './DockerHost';
 import ContainerOptionsResolver from './ContainerOptionsResolver';
 import DockerContainer from '@/modules/docker/models/DockerContainer';
 import Repository from '@/modules/repository/models/Repository';
 import { internalHostname } from '@/modules/docker/services/containerAddress';
+import { namedVolume } from '@/modules/docker/services/containerVolume';
 import { containerEnvironment } from './containerEnvironment';
 import { joinOrganizationNetwork, organizationNetworkName } from './NetworkOps';
 import { pullImage } from './pullImage';
@@ -16,6 +16,7 @@ export interface ContainerOverrides{
     extraEnv?: string[];
     cmd?: string[];
     aliases?: string[];
+    user?: string;
 }
 
 export interface ExecResult{
@@ -246,8 +247,9 @@ export default class ContainerOps{
     }
 
     async #removeVolumes(): Promise<void>{
-        for(const { containerPath } of this.container.volumes){
-            const volumeName = `${this.container.dockerContainerName}-${slugify(containerPath)}`;
+        for(const { containerPath, source } of this.container.volumes){
+            if(source !== undefined) continue;
+            const volumeName = namedVolume(this.container.dockerContainerName, containerPath);
             try{
                 await this.#docker.getVolume(volumeName).remove();
             }catch(error){

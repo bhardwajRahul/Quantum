@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@heroui/react';
-import { Check, Copy } from 'lucide-react';
+import { ArrowUpRight, Check, Copy, Square } from 'lucide-react';
 import Modal from '@/shared/components/Modal';
 import EmptyState from '@/shared/components/EmptyState';
 import InlineError from '@/shared/components/InlineError';
@@ -48,9 +48,11 @@ const CopyField = ({ label, value }: CopyFieldProps) => {
 interface CodespaceAccessDialogProps{
     codespace: Codespace | null;
     onClose: () => void;
+    onStop?: () => void;
+    isStopping?: boolean;
 }
 
-const CodespaceAccessDialog = ({ codespace, onClose }: CodespaceAccessDialogProps) => {
+const CodespaceAccessDialog = ({ codespace, onClose, onStop, isStopping = false }: CodespaceAccessDialogProps) => {
     const access = useQuery((codespaceId: number) => codespaceApi.access({ path: { id: codespaceId } }), [codespace?.id], { enabled: codespace !== null });
 
     return (
@@ -76,8 +78,25 @@ const CodespaceAccessDialog = ({ codespace, onClose }: CodespaceAccessDialogProp
                     </>
                 )}
 
-                <div className='flex justify-end'>
+                <div className='flex flex-wrap justify-end gap-2'>
+                    {onStop !== undefined && (
+                        <Button variant='secondary' isPending={isStopping} onPress={onStop}>
+                            <Square aria-hidden='true' className='size-4' />
+                            Stop workspace
+                        </Button>
+                    )}
                     <Button variant='secondary' onPress={onClose}>Close</Button>
+                    {access.data !== null && (
+                        <a
+                            href={access.data.accessUrl}
+                            target='_blank'
+                            rel='noreferrer'
+                            className='inline-flex items-center gap-1.5 bg-foreground px-4 py-2 text-[0.8125rem] font-medium text-background transition-opacity hover:opacity-90 motion-reduce:transition-none'
+                        >
+                            Open VS Code
+                            <ArrowUpRight aria-hidden='true' className='size-4' />
+                        </a>
+                    )}
                 </div>
             </div>
         </Modal>

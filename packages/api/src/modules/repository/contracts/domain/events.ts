@@ -10,3 +10,7 @@ export interface DeploymentRollbackRequestedPayload{
     deploymentId: number;
     userId: number;
 }
+
+export interface RepositoryDeletedPayload{
+    repositoryId: number;
+}

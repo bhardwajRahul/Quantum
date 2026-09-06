@@ -26,15 +26,16 @@ With Quantum, you have full access to the file systems of all your Docker contai
 
 To deploy the application you only need Docker — see [Quick Start](#quick-start) below. One command clones, configures, generates secrets and brings the whole stack up.
 
-![Quantum Cloud Dashboard](/screenshots/Dashboard.png)
-![Quantum Cloud Console](/screenshots/Cloud-Console.png)
-![Repository CLI](/screenshots/RepositoryCLI.png)
-![Repository File Explorer](/screenshots/File-Explorer.png)
+![Applications: repositories, databases, templates and compose stacks in one table](/screenshots/applications.png)
+![Template catalogue](/screenshots/templates.png)
+![Logs of a running service](/screenshots/logs.png)
+![Shell inside a container](/screenshots/shell.png)
+![Compose file, editable in place](/screenshots/compose.png)
 
 While Quantum offers a panel for configuring commands such as installing dependencies (e.g., "npm install"), building source code (e.g., "npm run build"), or starting your software (e.g., "npm run start"), it also provides a separate panel specifically for managing environment variables. It's worth noting that this isn't a manual process where you input variables and their values one by one. When the repository is cloned, Quantum automatically maps the environment variables, allowing you to assign their respective values later on. You have the flexibility to create, delete, and modify environment variables associated with the deployment of your repository as needed.
 
-![Repository Environment Variables](/screenshots/RepositoryEnvironVariables.png)
-![User Profile](/screenshots/User-Profile.png)
+![Environment variables per service](/screenshots/environment.png)
+![Account settings](/screenshots/account.png)
 I've successfully **migrated all my frontend applications from Vercel and my various VPS services to Quantum**. The platform's ease of use and efficiency are evident in the 15 repositories I currently have deployed – a testament to my confidence in Quantum.
 
 ## Quick Start
@@ -131,6 +132,8 @@ Besides GitHub repositories and one-click templates, an application can be a Doc
 Supported per service: `image`, `command`, `environment`, `ports`, `volumes` (named volumes only), `depends_on`. Published host ports are assigned by Quantum, as for every other application. `build:` contexts and host bind mounts are rejected with a message naming the service.
 
 Private images work once the organization has credentials for their registry: **Settings → Organization → Container registries** takes the registry host, a username and a token, and every pull of an image from that host uses them. For GitHub Container Registry create a classic personal access token with the `read:packages` scope; without an explicit entry for `ghcr.io`, Quantum falls back to the connected GitHub account of the application's owner.
+
+![Organization settings with container registries](/screenshots/organization.png)
 
 Every application can be opened in VS Code from its page: **Open in VS Code** starts a [code-server](https://github.com/coder/code-server) container next to the app that mounts the same files the app sees (the repository checkout, or every named volume of a compose stack under its service name), joins its network, and hands you a URL plus a generated password. Edits to a repository land in `/app` immediately; exec apps pick them up on Restart, Dockerfile and prebuilt-image apps on the next deploy, and the next push from GitHub replaces tracked files, so commit from VS Code what you want to keep. Stop the workspace from the same dialog to free its memory. A repository keeps its checkout across deploys; anything it writes elsewhere is lost when its container is recreated unless the path is listed under **Persistent volumes** in the repository settings, which turns it into a Docker volume that survives deploys and restarts and goes away with the repository.
 

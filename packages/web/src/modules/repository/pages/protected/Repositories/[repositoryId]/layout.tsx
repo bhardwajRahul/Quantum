@@ -4,6 +4,9 @@ import { ArrowUpRight } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
 import ErrorState from '@/shared/components/ErrorState';
 import StatusDot from '@/shared/components/StatusDot';
+import InlineEdit from '@/shared/components/InlineEdit';
+import InlineError from '@/shared/components/InlineError';
+import { useMutation } from '@/shared/hooks/api/use-mutation';
 import WorkspaceButton from '@/modules/codespace/components/WorkspaceButton';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { repositoryApi } from '@/modules/repository/api/api';
@@ -33,11 +36,15 @@ const tabClass = (active: boolean): string =>
 
 const sourceLabel = (url: string): string => url.replace(/^https?:\/\//, '').replace(/\.git$/, '');
 
+const displayName = (repository: Repository): string => (repository.name !== '' ? repository.name : repository.alias);
+
 interface RepositoryHeaderProps{
     repository: Repository;
+    renameError: Error | undefined;
+    onRename: (name: string) => Promise<unknown>;
 }
 
-const RepositoryHeader = ({ repository }: RepositoryHeaderProps) => (
+const RepositoryHeader = ({ repository, renameError, onRename }: RepositoryHeaderProps) => (
     <header className='flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between'>
         <div className='min-w-0'>
             <p className='label-caps flex items-center gap-2 text-muted'>
@@ -45,10 +52,13 @@ const RepositoryHeader = ({ repository }: RepositoryHeaderProps) => (
                     Applications
                 </NavLink>
                 <span aria-hidden='true'>/</span>
-                <span className='truncate text-foreground/70'>{repository.alias}</span>
+                <span className='truncate text-foreground/70'>{displayName(repository)}</span>
             </p>
 
-            <h1 className='title-display mt-4 truncate text-[2.125rem] leading-[1.1] text-foreground'>{repository.alias}</h1>
+            <h1 className='mt-4'>
+                <InlineEdit value={displayName(repository)} ariaLabel='Repository name' onCommit={onRename} className='title-display text-[2.125rem] leading-[1.1] text-foreground' />
+            </h1>
+            {renameError !== undefined && <InlineError className='mt-2'>{copy(renameError)}</InlineError>}
 
             <div className='mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted'>
                 <StatusDot
@@ -81,6 +91,9 @@ const RepositoryLayout = () => {
     const id = repositoryId !== undefined ? Number(repositoryId) : undefined;
 
     const repository = useQuery((repositoryId: number) => repositoryApi.get({ path: { id: repositoryId } }), [id]);
+    const rename = useMutation((targetId: number, name: string) => repositoryApi.update({ path: { id: targetId }, body: { name } }), {
+        onSuccess: () => repository.reload()
+    });
 
     if(repository.loading && repository.data === null){
         return (
@@ -102,11 +115,11 @@ const RepositoryLayout = () => {
         );
     }
 
-    if(repository.data === null) return null;
+    if(repository.data === null || id === undefined) return null;
 
     return (
         <PageBody width='wide' height='full'>
-            <RepositoryHeader repository={repository.data} />
+            <RepositoryHeader repository={repository.data} renameError={rename.error} onRename={(name) => rename.run(id, name)} />
 
             <nav aria-label='Repository' className='mt-8 flex shrink-0 gap-8 overflow-x-auto border-b border-border'>
                 {TABS.map((tab) => (

@@ -8,7 +8,8 @@ import type {
     UpdateComposeInput,
     UpdateStackSourceInput,
     UpdateStackVariablesInput,
-    UpdateTemplateInstallEnvironmentInput
+    UpdateTemplateInstallEnvironmentInput,
+    UpdateTemplateInstallInput
 } from './http';
 import type { StackSourceInspection, Template, TemplateInstall, TemplateInstallEnvironment } from './domain';
 import type { WebhookOutcome } from '../repository/domain';
@@ -22,6 +23,7 @@ export const templateRoutes = {
 export const templateInstallRoutes = {
     listByProject: get<TemplateInstall[]>('/template/install/project/:projectId'),
     get: get<TemplateInstall>('/template/install/:id'),
+    update: patch<UpdateTemplateInstallInput, TemplateInstall>('/template/install/:id'),
     operate: post<TemplateInstallOperationInput, TemplateInstall>('/template/install/:id/operate'),
     remove: del('/template/install/:id'),
     createCompose: post<CreateComposeInstallInput, TemplateInstall>('/template/install/project/:projectId/compose'),

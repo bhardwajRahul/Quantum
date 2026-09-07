@@ -6,6 +6,7 @@ import PageBody from '@/shared/components/layout/PageBody';
 import ErrorState from '@/shared/components/ErrorState';
 import StatusDot from '@/shared/components/StatusDot';
 import InlineError from '@/shared/components/InlineError';
+import InlineEdit from '@/shared/components/InlineEdit';
 import WorkspaceButton from '@/modules/codespace/components/WorkspaceButton';
 import { useQuery } from '@/shared/hooks/api/use-query';
 import { usePolledQuery } from '@/shared/hooks/api/use-polled-query';
@@ -46,11 +47,13 @@ interface InstallHeaderProps{
     isOperating: boolean;
     isRedeploying: boolean;
     redeployError: Error | undefined;
+    renameError: Error | undefined;
     onOperate: (operation: TemplateInstallOperation) => void;
     onRedeploy: () => void;
+    onRename: (name: string) => Promise<unknown>;
 }
 
-const InstallHeader = ({ install, isOperating, isRedeploying, redeployError, onOperate, onRedeploy }: InstallHeaderProps) => {
+const InstallHeader = ({ install, isOperating, isRedeploying, redeployError, renameError, onOperate, onRedeploy, onRename }: InstallHeaderProps) => {
     const running = isInstallRunning(install.status);
     const busy = isOperating || isInstallTransient(install.status);
     const published = install.services.filter((service) => service.ports.length > 0).length;
@@ -66,7 +69,10 @@ const InstallHeader = ({ install, isOperating, isRedeploying, redeployError, onO
                     <span className='truncate text-foreground/70'>{install.name}</span>
                 </p>
 
-                <h1 className='title-display mt-4 truncate text-[2.125rem] leading-[1.1] text-foreground'>{install.name}</h1>
+                <h1 className='mt-4'>
+                    <InlineEdit value={install.name} ariaLabel='Stack name' onCommit={onRename} className='title-display text-[2.125rem] leading-[1.1] text-foreground' />
+                </h1>
+                {renameError !== undefined && <InlineError className='mt-2'>{copy(renameError)}</InlineError>}
 
                 <div className='mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted'>
                     <StatusDot
@@ -120,6 +126,9 @@ const InstallLayout = () => {
     const redeploy = useMutation((templateInstallId: number) => templateInstallApi.redeploy({ path: { id: templateInstallId } }), {
         onSuccess: () => install.reload()
     });
+    const rename = useMutation((templateInstallId: number, name: string) => templateInstallApi.update({ path: { id: templateInstallId }, body: { name } }), {
+        onSuccess: () => install.reload()
+    });
 
     if(install.loading){
         return (
@@ -146,8 +155,10 @@ const InstallLayout = () => {
                 isOperating={operate.loading}
                 isRedeploying={redeploy.loading}
                 redeployError={redeploy.error}
+                renameError={rename.error}
                 onOperate={(operation) => { void operate.run(id, operation).catch(() => undefined); }}
                 onRedeploy={() => { void redeploy.run(id).catch(() => undefined); }}
+                onRename={(name) => rename.run(id, name)}
             />
 
             <nav aria-label='Install' className='mt-8 flex shrink-0 gap-8 overflow-x-auto border-b border-border'>

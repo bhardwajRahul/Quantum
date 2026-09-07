@@ -61,3 +61,7 @@ export interface UpdateStackSourceInput{
 export interface UpdateStackVariablesInput{
     variables: Record<string, string>;
 }
+
+export interface UpdateTemplateInstallInput{
+    name: string;
+}

@@ -21,6 +21,7 @@ export const TemplateInstallErrors = {
         UnsupportedCompose: 400,
         NotCompose: 400,
         NotSourced: 400,
+        InvalidName: 400,
         UnknownService: 400,
         UnsetVariable: 400,
         ComposeFileNotFound: 400,

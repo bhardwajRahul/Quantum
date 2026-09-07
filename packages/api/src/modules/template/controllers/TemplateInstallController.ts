@@ -16,6 +16,7 @@ import type {
     UpdateComposeInput,
     UpdateStackSourceInput,
     UpdateStackVariablesInput,
+    UpdateTemplateInstallInput,
     UpdateTemplateInstallEnvironmentInput
 } from '@quantum/contracts/modules/template/http';
 
@@ -66,6 +67,12 @@ export default class TemplateInstallController extends BaseController{
     @Middleware(TenantGuard('deploy'))
     updateEnvironment(@Tenant() tenant: Tenant, @NumericParam('id') id: number, @Body() body: UpdateTemplateInstallEnvironmentInput){
         return this.#service.updateEnvironment(tenant, id, body);
+    }
+
+    @Route(templateInstallRoutes.update)
+    @Middleware(TenantGuard('deploy'))
+    rename(@Tenant() tenant: Tenant, @NumericParam('id') id: number, @Body() body: UpdateTemplateInstallInput){
+        return this.#service.rename(tenant, id, body);
     }
 
     @Route(templateInstallRoutes.inspectSource)

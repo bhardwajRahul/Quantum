@@ -31,6 +31,7 @@ import type {
     UpdateComposeInput,
     UpdateStackSourceInput,
     UpdateStackVariablesInput,
+    UpdateTemplateInstallInput,
     UpdateTemplateInstallEnvironmentInput
 } from '@quantum/contracts/modules/template/http';
 import type { WebhookOutcome } from '@quantum/contracts/modules/repository/domain';
@@ -308,6 +309,15 @@ export default class TemplateInstallService{
 
         await this.#registerWebhook(install, userId);
         this.#startProvisioning(install, userId);
+        return this.present(install);
+    }
+
+    async rename(tenant: Tenant, id: number, input: UpdateTemplateInstallInput): Promise<TemplateInstallPayload>{
+        const name = input.name.trim();
+        if(name === '') throw TemplateInstallError.InvalidName();
+        const install = await this.get(tenant, id);
+        install.name = name;
+        await install.save();
         return this.present(install);
     }
 

@@ -180,4 +180,20 @@ describe('compose installs', () => {
         await flushEvents();
         expect(installed).toHaveLength(1);
     });
+
+    it('renames a stack from its title, refusing empty names and viewers', async () => {
+        const { user, org, project } = await seed.orgContext();
+        const created = await createCompose(user.id, project.id);
+        expect(created.status).toBe(201);
+        const id = created.data().id;
+        const viewer = await seed.member(org, OrganizationRole.Viewer);
+
+        expectError(await request(ctx.app, templateInstallRoutes.update, { as: viewer.id, params: { id }, body: { name: 'store' } }), 403, 'Tenancy::InsufficientPermissions');
+        expectError(await request(ctx.app, templateInstallRoutes.update, { as: user.id, params: { id }, body: { name: '   ' } }), 400, 'TemplateInstall::InvalidName');
+
+        const renamed = await request(ctx.app, templateInstallRoutes.update, { as: user.id, params: { id }, body: { name: '  store  ' } });
+        expect(renamed.status).toBe(200);
+        expect(renamed.data().name).toBe('store');
+        expect((await TemplateInstall.findOneByOrFail({ id })).name).toBe('store');
+    });
 });

@@ -90,7 +90,7 @@ describe('deploy a stack', () => {
         vi.spyOn(templateInstallApi, 'inspectSource').mockResolvedValue({
             composeFiles: ['docker-compose.yml', 'compose.dokploy.yml'],
             composePath: 'docker-compose.yml',
-            variables: [{ name: 'DATABASE_URL', required: true }, { name: 'PG_VERSION', required: false }],
+            variables: [{ name: 'DATABASE_URL', required: true }, { name: 'JWT_SECRET', required: true }, { name: 'PG_VERSION', required: false }],
             problem: null
         });
         const create = vi.spyOn(templateInstallApi, 'createFromSource').mockResolvedValue({ id: 11 } as never);
@@ -111,6 +111,14 @@ describe('deploy a stack', () => {
         expect(button('Deploy').disabled).toBe(true);
 
         await type(inputLabelled('DATABASE_URL'), 'postgres://db/learn');
+        expect(button('Deploy').disabled).toBe(true);
+
+        const generate = container?.querySelector('button[aria-label="Generate JWT_SECRET"]') as HTMLButtonElement | null;
+        expect(generate).not.toBeNull();
+        expect(container?.querySelector('button[aria-label="Generate DATABASE_URL"]')).toBeNull();
+        await act(async () => { generate?.click(); });
+        await settle();
+        expect(inputLabelled('JWT_SECRET').value).toMatch(/^[0-9a-f]{64}$/);
         expect(button('Deploy').disabled).toBe(false);
 
         await act(async () => { button('Deploy').click(); });
@@ -120,7 +128,7 @@ describe('deploy a stack', () => {
             path: { projectId: 7 },
             body: {
                 name: 'learn', owner: 'pollium', repo: 'learn', branch: 'main', composePath: 'docker-compose.yml',
-                deployOn: 'push', variables: { DATABASE_URL: 'postgres://db/learn' }
+                deployOn: 'push', variables: { DATABASE_URL: 'postgres://db/learn', JWT_SECRET: expect.stringMatching(/^[0-9a-f]{64}$/) }
             }
         });
         expect(navigate).toHaveBeenCalledWith('/installs/11/services');

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { Button, Input, Label, TextField } from '@heroui/react';
+import { Button, Input, InputGroup, Label, TextField } from '@heroui/react';
 import { ArrowRight, FolderGit2 } from 'lucide-react';
 import PageBody from '@/shared/components/layout/PageBody';
 import PageHeader from '@/shared/components/layout/PageHeader';
@@ -12,6 +12,7 @@ import CenterState from '@/shared/components/CenterState';
 import MonacoEditor from '@/shared/components/MonacoEditor';
 import { FieldsSkeleton, TableSkeleton } from '@/shared/components/skeletons';
 import ConnectGithubButton from '@/modules/github/components/ConnectGithubButton';
+import GenerateSecretButton from '@/shared/components/forms/GenerateSecretButton';
 import RepositoryPicker from '@/modules/github/components/RepositoryPicker';
 import { useResource } from '@/shared/hooks/api/use-resource';
 import { useQuery } from '@/shared/hooks/api/use-query';
@@ -22,6 +23,7 @@ import { projectRoutes } from '@quantum/contracts/modules/project/routes';
 import { useCurrentOrganizationId } from '@/modules/organization/hooks/use-current-organization-id';
 import { composeErrorMessage } from '@/modules/template/utils/compose-error';
 import { COMPOSE_STARTER } from '@/modules/template/utils/compose-starter';
+import { isSecretVariable } from '@/shared/utils/secret-variable';
 import type { GithubRepository } from '@quantum/contracts/modules/github/domain';
 import type { Project } from '@quantum/contracts/modules/project/domain';
 import type { StackDeployTrigger } from '@quantum/contracts/modules/template/domain';
@@ -225,7 +227,20 @@ const SourceForm = ({ repository, onBack, projects, projectsLoading, projectId, 
                             fullWidth
                         >
                             <Label className='font-mono'>{variable.name}{variable.required ? '' : ' (optional)'}</Label>
-                            <Input className='font-mono' autoComplete='off' placeholder={variable.required ? '' : 'Has a default in the file'} />
+                            {isSecretVariable(variable.name) ? (
+                                <InputGroup fullWidth>
+                                    <InputGroup.Input className='font-mono' autoComplete='off' placeholder={variable.required ? '' : 'Has a default in the file'} />
+                                    <InputGroup.Suffix>
+                                        <GenerateSecretButton
+                                            name={variable.name}
+                                            isDisabled={deploy.loading}
+                                            onGenerate={(value) => setValues((current) => ({ ...current, [variable.name]: value }))}
+                                        />
+                                    </InputGroup.Suffix>
+                                </InputGroup>
+                            ) : (
+                                <Input className='font-mono' autoComplete='off' placeholder={variable.required ? '' : 'Has a default in the file'} />
+                            )}
                         </TextField>
                     ))}
                 </SettingsSection>

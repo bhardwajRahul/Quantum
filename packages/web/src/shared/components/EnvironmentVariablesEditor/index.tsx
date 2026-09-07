@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Button, Input, TextField } from '@heroui/react';
+import { Button, Input, InputGroup, TextField } from '@heroui/react';
 import { KeyRound, Plus, Trash2 } from 'lucide-react';
 import EmptyState from '@/shared/components/EmptyState';
 import CenterState from '@/shared/components/CenterState';
 import InlineError from '@/shared/components/InlineError';
 import SaveStatus from '@/shared/components/forms/SaveStatus';
+import GenerateSecretButton from '@/shared/components/forms/GenerateSecretButton';
+import { isSecretVariable } from '@/shared/utils/secret-variable';
 import { useMutation } from '@/shared/hooks/api/use-mutation';
 import { useAutosave } from '@/shared/hooks/forms/use-autosave';
 import {
@@ -43,7 +45,16 @@ const EnvironmentVariableRow = ({ row, onChange, onRemove }: EnvironmentVariable
             validationBehavior='aria'
             fullWidth
         >
-            <Input className='font-mono' placeholder='Value' autoComplete='off' />
+            {isSecretVariable(row.key) ? (
+                <InputGroup fullWidth>
+                    <InputGroup.Input className='font-mono' placeholder='Value' autoComplete='off' />
+                    <InputGroup.Suffix>
+                        <GenerateSecretButton name={row.key} onGenerate={(value) => onChange(row.key, value)} />
+                    </InputGroup.Suffix>
+                </InputGroup>
+            ) : (
+                <Input className='font-mono' placeholder='Value' autoComplete='off' />
+            )}
         </TextField>
 
         <Button

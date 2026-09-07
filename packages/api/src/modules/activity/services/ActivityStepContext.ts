@@ -7,6 +7,7 @@ export interface ActivityStepContextParams{
     scope: string;
     source: string;
     correlationId: string;
+    meta?: Record<string, unknown>;
 }
 
 export default class ActivityStepContext{
@@ -55,7 +56,7 @@ export default class ActivityStepContext{
             message,
             source: this.#params.source,
             correlationId: this.#params.correlationId,
-            meta
+            meta: { ...this.#params.meta, ...meta }
         });
     }
 }

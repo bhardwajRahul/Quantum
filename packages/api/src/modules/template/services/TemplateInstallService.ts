@@ -10,6 +10,7 @@ import { TemplateInstallStatus } from '@quantum/contracts/modules/template/domai
 import Template from '../models/Template';
 import SecretCipher from '@/shared/services/SecretCipher';
 import ActivityService from '@/modules/activity/services/ActivityService';
+import ActivityEvent from '@/modules/activity/models/ActivityEvent';
 import { ActivityLevel } from '@quantum/contracts/modules/activity/domain';
 import { config } from '@/shared/config';
 import { eventBus } from '@/shared/events/EventBus';
@@ -316,6 +317,16 @@ export default class TemplateInstallService{
         install.source = { ...install.source, branch: input.branch, composePath: input.composePath, deployOn: input.deployOn };
         await install.save();
         return this.present(install);
+    }
+
+    async activity(tenant: Tenant, id: number): Promise<ActivityEvent[]>{
+        await this.get(tenant, id);
+        return ActivityEvent.createQueryBuilder('event')
+            .where("event.meta ->> 'templateInstallId' = :id", { id: String(id) })
+            .orderBy('event.ts', 'DESC')
+            .addOrderBy('event.id', 'DESC')
+            .take(60)
+            .getMany();
     }
 
     async variables(tenant: Tenant, id: number): Promise<Record<string, string>>{

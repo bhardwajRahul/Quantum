@@ -4,7 +4,10 @@ import { ArrowUpRight, Layers } from 'lucide-react';
 import EmptyState from '@/shared/components/EmptyState';
 import CenterState from '@/shared/components/CenterState';
 import InternalAddress from '@/shared/components/InternalAddress';
+import DeploymentProgress from '@/modules/template/components/DeploymentProgress';
+import { isInstallTransient } from '@/modules/template/utils/install-status';
 import { portUrl, usePublicHost } from '@/shared/hooks/use-public-host';
+import { TemplateInstallStatus } from '@quantum/contracts/modules/template/domain';
 import type { TemplateInstall, TemplateInstallService } from '@quantum/contracts/modules/template/domain';
 
 interface PublishedPortsProps{
@@ -40,20 +43,30 @@ const InstallServices = () => {
     const install = useOutletContext<TemplateInstall>();
     const host = usePublicHost();
 
+    const deploying = isInstallTransient(install.status);
+    const showProgress = deploying || install.status === TemplateInstallStatus.Error;
+
     if(install.services.length === 0){
         return (
-            <CenterState className='h-full'>
-                <EmptyState
-                    icon={Layers}
-                    title='No services yet'
-                    description='The services of this stack appear here once it has been provisioned.'
-                    compact
-                />
-            </CenterState>
+            <div className='flex flex-col gap-10'>
+                {showProgress && <DeploymentProgress installId={install.id} active={deploying} />}
+                {!deploying && (
+                    <CenterState className='h-full'>
+                        <EmptyState
+                            icon={Layers}
+                            title='No services yet'
+                            description='The services of this stack appear here once it has been provisioned.'
+                            compact
+                        />
+                    </CenterState>
+                )}
+            </div>
         );
     }
 
     return (
+        <div className='flex flex-col gap-10'>
+        {showProgress && <DeploymentProgress installId={install.id} active={deploying} />}
         <Table>
             <Table.ScrollContainer>
                 <Table.Content aria-label='Services'>
@@ -85,6 +98,7 @@ const InstallServices = () => {
                 </Table.Content>
             </Table.ScrollContainer>
         </Table>
+        </div>
     );
 };
 

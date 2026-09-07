@@ -12,6 +12,7 @@ import type {
 } from './http';
 import type { StackSourceInspection, Template, TemplateInstall, TemplateInstallEnvironment } from './domain';
 import type { WebhookOutcome } from '../repository/domain';
+import type { ActivityEvent } from '../activity/domain';
 
 export const templateRoutes = {
     list: get<Template[]>('/template'),
@@ -33,5 +34,6 @@ export const templateInstallRoutes = {
     updateEnvironment: patch<UpdateTemplateInstallEnvironmentInput, TemplateInstall>('/template/install/:id/environment'),
     variables: get<Record<string, string>>('/template/install/:id/variables'),
     updateVariables: patch<UpdateStackVariablesInput, TemplateInstall>('/template/install/:id/variables'),
-    githubHook: post<never, WebhookOutcome>('/template/install/:id/github')
+    githubHook: post<never, WebhookOutcome>('/template/install/:id/github'),
+    activity: get<ActivityEvent[]>('/template/install/:id/activity')
 };

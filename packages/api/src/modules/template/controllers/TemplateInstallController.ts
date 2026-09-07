@@ -91,6 +91,11 @@ export default class TemplateInstallController extends BaseController{
         return this.#service.updateSource(tenant, id, body);
     }
 
+    @Route(templateInstallRoutes.activity)
+    activity(@Tenant() tenant: Tenant, @NumericParam('id') id: number){
+        return this.#service.activity(tenant, id);
+    }
+
     @Route(templateInstallRoutes.variables)
     variables(@Tenant() tenant: Tenant, @NumericParam('id') id: number){
         return this.#service.variables(tenant, id);

@@ -11,6 +11,7 @@ import { templateInstallRoutes } from '@quantum/contracts/modules/template/route
 import GithubAccount from '@/modules/github/models/GithubAccount';
 import GithubAccountService from '@/modules/github/services/GithubAccountService';
 import ActivityEvent from '@/modules/activity/models/ActivityEvent';
+import ActivityStepContext from '@/modules/activity/services/ActivityStepContext';
 import TemplateInstall from '../models/TemplateInstall';
 import type { TemplateInstalledPayload } from '../contracts/domain/events';
 
@@ -172,6 +173,29 @@ describe('stacks from a repository', () => {
 
         const published = JSON.stringify({ action: 'published', release: { tag_name: 'v2', name: 'Two' } });
         expect((await hook(created.id, 'release', published, sign(secret, published))).statusCode).toBe(202);
+    });
+
+    it('lists the deployment steps of a stack, newest first, and keeps them inside the organization', async () => {
+        const { user, org, project } = await seed.orgContext();
+        await connectGithub(user.id);
+        const created = await createStack(user.id, project.id);
+        const steps = new ActivityStepContext({
+            organizationId: org.id, userId: user.id, scope: 'template', source: 'orchestrator.template', correlationId: '9', meta: { templateInstallId: created.id }
+        });
+        await steps.step('Fetching pollium/learn@main', async () => undefined);
+        await steps.step('Building api', async () => { throw new Error('docker build failed'); }).catch(() => undefined);
+
+        const res = await request(ctx.app, templateInstallRoutes.activity, { as: user.id, params: { id: created.id } });
+        expect(res.status).toBe(200);
+        const titles = res.data().map((event) => `${event.level}:${event.title}`);
+        expect(titles.slice(0, 4)).toEqual([
+            'error:Building api', 'progress:Building api', 'success:Fetching pollium/learn@main', 'progress:Fetching pollium/learn@main'
+        ]);
+        expect(res.data()[0].message).toBe('docker build failed');
+        expect(res.data().every((event) => event.meta.templateInstallId === created.id)).toBe(true);
+
+        const outsider = await seed.orgContext();
+        expectError(await request(ctx.app, templateInstallRoutes.activity, { as: outsider.user.id, params: { id: created.id } }), 404, 'TemplateInstall::NotFound');
     });
 
     it('lets deployers change the source and variables, keeps viewers out, and drops the webhook with the stack', async () => {

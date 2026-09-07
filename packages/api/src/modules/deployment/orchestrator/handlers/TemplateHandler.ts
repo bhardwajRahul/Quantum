@@ -93,7 +93,8 @@ export default class TemplateHandler{
             userId: job.userId ?? install.userId,
             scope: 'template',
             source: 'orchestrator.template',
-            correlationId: String(job.id)
+            correlationId: String(job.id),
+            meta: { templateInstallId: install.id }
         });
 
         install.status = TemplateInstallStatus.Provisioning;
